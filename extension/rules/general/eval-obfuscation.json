@@ -1,0 +1,25 @@
+{
+  "id": "eval-obfuscation",
+  "name": "Eval-based Code Obfuscation",
+  "version": "1.0.0",
+  "severity": "medium",
+  "confidence": "medium",
+  "description": "Detects eval() combined with encoding/decoding functions, indicating obfuscated payload execution",
+  "category": "defense-evasion",
+  "appliesTo": {
+    "languages": ["javascript", "typescript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts"]
+  },
+  "matchers": [
+    { "id": "eval-call", "type": "regex", "pattern": "\\beval\\s*\\(" },
+    { "id": "atob-call", "type": "regex", "pattern": "\\batob\\s*\\(" },
+    { "id": "buffer-decode", "type": "regex", "pattern": "Buffer\\.from\\s*\\(" },
+    { "id": "function-constructor", "type": "regex", "pattern": "new\\s+Function\\s*\\(" },
+    { "id": "string-charcode", "type": "regex", "pattern": "String\\.fromCharCode|charCodeAt" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["eval-call", "atob-call", "buffer-decode", "function-constructor", "string-charcode"] },
+  "remediation": {
+    "message": "This file uses eval() with encoding patterns — common obfuscation technique in malware.",
+    "actions": ["neutralize"]
+  }
+}

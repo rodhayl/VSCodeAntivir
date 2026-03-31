@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output (committed via VSIX, not raw JS)
+extension/out/
+
+# VS Code test runner
+extension/.vscode-test/
+
+# VSIX packages
+*.vsix
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor
+.vscode/settings.json
+.vscode/launch.json
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Session / copilot state
+.copilot/

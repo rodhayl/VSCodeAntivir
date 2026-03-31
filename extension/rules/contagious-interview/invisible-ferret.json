@@ -1,0 +1,32 @@
+{
+  "id": "invisible-ferret",
+  "name": "InvisibleFerret Python Backdoor",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects InvisibleFerret-style Python backdoor with remote command execution and data exfiltration capabilities",
+  "category": "backdoor",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059.006",
+    "name": "Python"
+  },
+  "appliesTo": {
+    "languages": ["python"],
+    "filePatterns": ["**/*.py"]
+  },
+  "matchers": [
+    { "id": "socket-connect", "type": "regex", "pattern": "socket\\.connect\\s*\\(|socket\\.socket\\s*\\(" },
+    { "id": "subprocess", "type": "regex", "pattern": "subprocess\\.Popen|subprocess\\.run|os\\.system" },
+    { "id": "platform-recon", "type": "regex", "pattern": "platform\\.uname|platform\\.system|getpass\\.getuser" },
+    { "id": "exfil-paths", "type": "string-any", "patterns": [".n2/pay", ".npl", ".n2/bow", "mlip"] },
+    { "id": "ftp-upload", "type": "regex", "pattern": "ftplib|FTP\\(|storbinary" },
+    { "id": "http-exfil", "type": "regex", "pattern": "requests\\.post|urllib\\.request\\.urlopen" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["socket-connect", "subprocess", "platform-recon", "exfil-paths", "ftp-upload", "http-exfil"] },
+  "remediation": {
+    "message": "This Python file matches InvisibleFerret backdoor patterns. Isolate immediately.",
+    "actions": ["quarantine"]
+  }
+}

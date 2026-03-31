@@ -1,0 +1,31 @@
+{
+  "id": "beaconing-agent",
+  "name": "JavaScript Beaconing Agent",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects a lightweight JavaScript C2 beacon collecting host fingerprints and executing remote commands",
+  "category": "backdoor",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Command and Control",
+    "technique": "T1071.001",
+    "name": "Application Layer Protocol: Web Protocols"
+  },
+  "appliesTo": {
+    "languages": ["javascript"],
+    "filePatterns": ["**/*.js", "**/*.mjs"]
+  },
+  "matchers": [
+    { "id": "agent-id", "type": "string-any", "patterns": ["AgentId", "agentId", "AGENT_ID"] },
+    { "id": "server-ip", "type": "string-any", "patterns": ["SERVER_IP", "serverIp", "server_ip", "C2_HOST"] },
+    { "id": "handle-code", "type": "regex", "pattern": "handleCode|executePayload|runPayload" },
+    { "id": "fingerprint", "type": "regex", "pattern": "os\\.hostname|os\\.platform|os\\.release|networkInterfaces" },
+    { "id": "set-interval-beacon", "type": "regex", "pattern": "setInterval\\s*\\([^)]*(?:fetch|http|request|beacon)" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["agent-id", "server-ip", "handle-code", "fingerprint", "set-interval-beacon"] },
+  "remediation": {
+    "message": "This file appears to be a C2 beaconing agent. Do NOT run this code.",
+    "actions": ["quarantine"]
+  }
+}

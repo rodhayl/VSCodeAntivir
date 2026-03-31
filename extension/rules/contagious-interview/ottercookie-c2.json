@@ -1,0 +1,31 @@
+{
+  "id": "ottercookie-c2",
+  "name": "OtterCookie Socket.io C2 Channel",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects OtterCookie-style JavaScript backdoor using socket.io for command-and-control communication",
+  "category": "backdoor",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Command and Control",
+    "technique": "T1071.001",
+    "name": "Application Layer Protocol: Web Protocols"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts"]
+  },
+  "matchers": [
+    { "id": "socket-import", "type": "string", "pattern": "socket.io-client" },
+    { "id": "handle-code", "type": "regex", "pattern": "(handleCode|execCode|runCommand)\\s*[=(]", "flags": "i" },
+    { "id": "vm-detection", "type": "string-any", "patterns": ["qemu", "virtualbox", "vmware", "parallels"], "caseSensitive": false },
+    { "id": "clipboard-access", "type": "string-any", "patterns": ["clipboardy", "readText", "clipboard"] },
+    { "id": "shell-exec", "type": "regex", "pattern": "child_process|execSync|spawn\\s*\\(" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["socket-import", "handle-code", "vm-detection", "clipboard-access", "shell-exec"] },
+  "remediation": {
+    "message": "This file contains OtterCookie C2 backdoor patterns. Do NOT execute this code.",
+    "actions": ["neutralize", "quarantine"]
+  }
+}

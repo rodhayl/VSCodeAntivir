@@ -1,0 +1,30 @@
+{
+  "id": "vscode-task-abuse",
+  "name": "VS Code Task Configuration Abuse",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects malicious VS Code task configurations that auto-execute code when a workspace is opened",
+  "category": "initial-access",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1204.002",
+    "name": "User Execution: Malicious File"
+  },
+  "appliesTo": {
+    "languages": ["json"],
+    "filePatterns": ["**/tasks.json"]
+  },
+  "matchers": [
+    { "id": "folder-open", "type": "string", "pattern": "folderOpen" },
+    { "id": "curl-cmd", "type": "regex", "pattern": "curl\\s+|wget\\s+" },
+    { "id": "shortener", "type": "string-any", "patterns": ["bit.ly", "short.gy", "tinyurl.com", "is.gd", "t.co"] },
+    { "id": "piped-exec", "type": "regex", "pattern": "\\|\\s*(sh|bash|cmd|powershell)" }
+  ],
+  "condition": { "type": "any", "of": ["folder-open", "piped-exec"] },
+  "remediation": {
+    "message": "This tasks.json is configured to auto-execute potentially malicious commands when the workspace is opened.",
+    "actions": ["neutralize"]
+  }
+}

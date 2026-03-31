@@ -1,0 +1,31 @@
+{
+  "id": "beavertail-loader",
+  "name": "BeaverTail Malware Loader",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "high",
+  "description": "Detects BeaverTail-style malware loaders using hex-encoding (HexEval) or XOR-based (XORIndex) payload decoding",
+  "category": "loader",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059.007",
+    "name": "JavaScript"
+  },
+  "appliesTo": {
+    "languages": ["javascript"],
+    "filePatterns": ["**/*.js", "**/*.mjs"]
+  },
+  "matchers": [
+    { "id": "buffer-from-hex", "type": "regex", "pattern": "Buffer\\.from\\s*\\([^)]*['\"]hex['\"]\\s*\\)" },
+    { "id": "eval-usage", "type": "regex", "pattern": "\\beval\\s*\\(" },
+    { "id": "xor-decode", "type": "regex", "pattern": "\\^\\s*0x[0-9a-fA-F]|charCodeAt.*\\^" },
+    { "id": "hex-string", "type": "regex", "pattern": "['\"][0-9a-fA-F]{80,}['\"]" },
+    { "id": "dynamic-require", "type": "regex", "pattern": "require\\s*\\(\\s*[^'\"]" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["buffer-from-hex", "eval-usage", "xor-decode", "hex-string", "dynamic-require"] },
+  "remediation": {
+    "message": "This file contains encoded/obfuscated loader patterns consistent with BeaverTail malware.",
+    "actions": ["neutralize", "quarantine"]
+  }
+}

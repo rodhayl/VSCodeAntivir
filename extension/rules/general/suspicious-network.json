@@ -1,0 +1,25 @@
+{
+  "id": "suspicious-network",
+  "name": "Suspicious Network Download-and-Execute",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "medium",
+  "description": "Detects patterns where content is downloaded from the network and piped to a shell or eval for execution",
+  "category": "execution",
+  "appliesTo": {
+    "languages": ["javascript", "shellscript", "powershell", "python"],
+    "filePatterns": ["**/*.js", "**/*.sh", "**/*.ps1", "**/*.py"]
+  },
+  "matchers": [
+    { "id": "curl-pipe", "type": "regex", "pattern": "curl\\s+[^|]*\\|\\s*(sh|bash)" },
+    { "id": "wget-pipe", "type": "regex", "pattern": "wget\\s+[^|]*\\|\\s*(sh|bash)" },
+    { "id": "powershell-iex", "type": "regex", "pattern": "Invoke-Expression|iex\\s*\\(|IEX\\s*\\(" },
+    { "id": "fetch-eval", "type": "regex", "pattern": "fetch\\s*\\([^)]*\\).*\\.then.*eval" },
+    { "id": "exec-remote", "type": "regex", "pattern": "exec\\s*\\(.*https?://" }
+  ],
+  "condition": { "type": "any", "of": ["curl-pipe", "wget-pipe", "powershell-iex", "fetch-eval", "exec-remote"] },
+  "remediation": {
+    "message": "This file contains a download-and-execute pattern. This is extremely dangerous.",
+    "actions": ["neutralize", "quarantine"]
+  }
+}

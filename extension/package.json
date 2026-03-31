@@ -1,0 +1,232 @@
+{
+  "name": "fake-interview-guard",
+  "displayName": "FakeInterviewGuard",
+  "description": "Detect Contagious Interview malware patterns in your workspace — npm supply-chain attacks, VS Code task abuse, backdoor signatures, and more.",
+  "version": "0.1.0",
+  "publisher": "fakeinterviewguard",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "security",
+    "malware",
+    "npm",
+    "supply-chain",
+    "contagious-interview"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/package.json",
+    "workspaceContains:**/.vscode/tasks.json",
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "fig.scanWorkspace",
+        "title": "FIG: Scan Entire Workspace",
+        "icon": "$(search)"
+      },
+      {
+        "command": "fig.scanFile",
+        "title": "FIG: Scan Current File",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "fig.showDashboard",
+        "title": "FIG: Show Security Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "fig.reloadRules",
+        "title": "FIG: Reload Detection Rules",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "fig.llmAnalyze",
+        "title": "FIG: Deep Analyze with LLM",
+        "icon": "$(hubot)"
+      },
+      {
+        "command": "fig.llmExplain",
+        "title": "FIG: Explain This Threat (LLM)"
+      },
+      {
+        "command": "fig.llmSuggestRule",
+        "title": "FIG: Suggest Detection Rule (LLM)"
+      },
+      {
+        "command": "fig.llmStatus",
+        "title": "FIG: Check LLM Connection"
+      }
+    ],
+    "views": {
+      "fig-security": [
+        {
+          "id": "fig.threatExplorer",
+          "name": "Threat Explorer"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fig-security",
+          "title": "FakeInterviewGuard",
+          "icon": "$(shield)"
+        }
+      ]
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "fig.scanFile",
+          "group": "fig@1",
+          "when": "resourceScheme == file"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "fig.scanFile",
+          "group": "fig@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "FakeInterviewGuard",
+      "properties": {
+        "fig.scanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scan files automatically when saved"
+        },
+        "fig.scanOnOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scan files when opened in the editor"
+        },
+        "fig.realTimeWatching": {
+          "type": "boolean",
+          "default": true,
+          "description": "Monitor workspace for new/modified files"
+        },
+        "fig.minimumSeverity": {
+          "type": "string",
+          "default": "low",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
+          "description": "Minimum severity to report"
+        },
+        "fig.excludedPaths": {
+          "type": "array",
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**"
+          ],
+          "description": "Glob patterns to exclude from scanning"
+        },
+        "fig.customRulesPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to directory containing custom rule JSON files"
+        },
+        "fig.enabledRuleSets": {
+          "type": "array",
+          "default": [
+            "contagious-interview",
+            "general"
+          ],
+          "description": "Which built-in rule sets to enable"
+        },
+        "fig.maxFileSizeKB": {
+          "type": "number",
+          "default": 512,
+          "description": "Skip files larger than this (KB)"
+        },
+        "fig.llm.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable LLM-powered deep analysis (requires LM Studio, Ollama, or compatible provider)"
+        },
+        "fig.llm.provider": {
+          "type": "string",
+          "default": "lmstudio",
+          "enum": ["lmstudio", "ollama", "openai", "custom"],
+          "description": "LLM provider to use"
+        },
+        "fig.llm.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Custom API base URL (leave empty to use provider default)"
+        },
+        "fig.llm.model": {
+          "type": "string",
+          "default": "qwen3.5-4b",
+          "description": "Model name to use for analysis"
+        },
+        "fig.llm.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key (leave empty for local providers)"
+        },
+        "fig.llm.maxTokens": {
+          "type": "number",
+          "default": 1024,
+          "description": "Maximum tokens in LLM response"
+        },
+        "fig.llm.temperature": {
+          "type": "number",
+          "default": 0.1,
+          "description": "LLM temperature (0.0-1.0, lower = more deterministic)"
+        },
+        "fig.llm.autoAnalyze": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically run LLM analysis when fast scan finds high-severity threats"
+        },
+        "fig.llm.timeout": {
+          "type": "number",
+          "default": 60000,
+          "description": "LLM request timeout in milliseconds"
+        },
+        "fig.llm.promptProfile": {
+          "type": "string",
+          "default": "Security Analysis",
+          "description": "Prompt template name to use for analysis"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "@types/mocha": "^10.0.0",
+    "@vscode/test-electron": "^2.3.0",
+    "typescript": "^5.3.0",
+    "mocha": "^10.2.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "acorn": "^8.11.0",
+    "acorn-walk": "^8.3.0",
+    "minimatch": "^9.0.0",
+    "openai": "^4.73.0"
+  }
+}
