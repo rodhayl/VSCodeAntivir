@@ -1,0 +1,65 @@
+{
+  "id": "teampcp-cisco-breach",
+  "name": "TeamPCP Cisco Breach IOCs",
+  "description": "Detects indicators from TeamPCP supply chain attack that breached Cisco (March 31, 2026)",
+  "severity": "critical",
+  "confidence": "high",
+  "category": "teampcp",
+  "tags": ["apt", "supply-chain", "cisco", "github-actions", "teampcp"],
+  "references": [
+    "https://www.bleepingcomputer.com/news/security/cisco-source-code-stolen-in-trivy-linked-dev-environment-breach/"
+  ],
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1195.002",
+    "name": "Supply Chain Compromise"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "string-any",
+      "patterns": [
+        "TeamPCP",
+        "teampcp",
+        "team_pcp",
+        "Cloud Stealer"
+      ],
+      "description": "TeamPCP threat actor identifier"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "aquasecurtiy|aquasecur1ty|trivy-action.*malicious",
+      "description": "Typosquatted Aqua Security domains"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "\\bKICS\\b.*checkmarx|checkmarx.*\\bKICS\\b",
+      "description": "Compromised Checkmarx KICS references"
+    },
+    {
+      "id": "m4",
+      "type": "regex",
+      "pattern": "AWS_ACCESS_KEY|AWS_SECRET.*exfil|clone.*repository.*bulk",
+      "description": "AWS credential theft patterns"
+    },
+    {
+      "id": "m5",
+      "type": "string-any",
+      "patterns": [
+        "litellm",
+        "lite-llm",
+        "LiteLLM"
+      ],
+      "description": "Compromised LiteLLM package"
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["m1", "m2", "m3", "m4", "m5"]
+  },
+  "appliesTo": {
+    "filePatterns": ["**/*.js", "**/*.ts", "**/*.py", "**/*.yml", "**/*.yaml"]
+  }
+}

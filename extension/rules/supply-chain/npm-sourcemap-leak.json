@@ -1,0 +1,44 @@
+{
+  "id": "npm-sourcemap-leak",
+  "name": "NPM Source Map Leak Detection",
+  "description": "Detects accidental source map exposure that could leak internal source code (April 2026 Claude Code incident)",
+  "severity": "medium",
+  "confidence": "medium",
+  "category": "supply-chain",
+  "tags": ["npm", "source-leak", "disclosure"],
+  "references": [
+    "https://thehackernews.com/2026/04/claude-code-tleaked-via-npm-packaging.html"
+  ],
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1213",
+    "name": "Data from Information Repositories"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "regex",
+      "pattern": "//# sourceMappingURL=.*\\.map",
+      "description": "Source map reference in production code"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "\"sourceRoot\"\\s*:\\s*\"[^\"]+\"",
+      "description": "Source root in map file exposing paths"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "\"sourcesContent\"\\s*:\\s*\\[",
+      "description": "Embedded source content in map file"
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["m1", "m2", "m3"]
+  },
+  "appliesTo": {
+    "filePatterns": ["**/*.js", "**/*.js.map", "**/node_modules/**/*.js"]
+  }
+}

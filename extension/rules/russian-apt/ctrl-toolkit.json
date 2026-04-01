@@ -1,0 +1,60 @@
+{
+  "id": "russian-ctrl-toolkit",
+  "name": "Russian CTRL Toolkit Detection",
+  "description": "Detects CTRL toolkit used for RDP hijacking via FRP tunnels (March 2026)",
+  "severity": "critical",
+  "confidence": "high",
+  "category": "russian-apt",
+  "tags": ["apt", "russia", "rdp", "credential-theft", "frp"],
+  "references": [
+    "https://thehackernews.com/2026/03/russian-ctrl-toolkit-delivered-via.html"
+  ],
+  "mitre": {
+    "tactic": "Lateral Movement",
+    "technique": "T1021.001",
+    "name": "Remote Desktop Protocol"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "regex",
+      "pattern": "frpc?\\.exe|frpc?\\.ini|frps?\\.ini|frp-[0-9]+\\.[0-9]+",
+      "description": "Fast Reverse Proxy (FRP) executable/config"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "\\[rdp\\]|remote_port.*3389|local_port.*3389",
+      "description": "FRP config for RDP tunneling"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "Windows\\s*Hello.*phishing|credential.*harvest|keylog",
+      "description": "Windows Hello phishing UI patterns"
+    },
+    {
+      "id": "m4",
+      "type": "string-any",
+      "patterns": [
+        "Private Key #",
+        "private_key_",
+        "kfxm7p9q"
+      ],
+      "description": "CTRL toolkit LNK file naming pattern"
+    },
+    {
+      "id": "m5",
+      "type": "regex",
+      "pattern": "146\\.19\\.213\\.[0-9]+",
+      "description": "Known CTRL C2 IP range"
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["m1", "m2", "m3", "m4", "m5"]
+  },
+  "appliesTo": {
+    "filePatterns": ["**/*.js", "**/*.ts", "**/*.ps1", "**/*.bat", "**/*.exe", "**/*.ini", "**/*.lnk"]
+  }
+}

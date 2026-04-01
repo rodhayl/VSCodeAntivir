@@ -1,0 +1,62 @@
+{
+  "id": "silverfox-typosquat-domains",
+  "name": "Silver Fox Typosquatted Software Domains",
+  "description": "Detects typosquatted domains impersonating VPNs, messengers, and conferencing tools (March 2026)",
+  "severity": "high",
+  "confidence": "high",
+  "category": "silver-fox",
+  "tags": ["apt", "typosquatting", "phishing", "supply-chain"],
+  "references": [
+    "https://thehackernews.com/2026/03/silver-fox-expands-asia-cyber-campaign.html"
+  ],
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1566.002",
+    "name": "Spearphishing Link"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "regex",
+      "pattern": "surfsharkk|surfsharkvpn[^.]+\\.|surfshark-vpn\\.",
+      "description": "Fake Surfshark VPN domains"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "signa1\\.org|signal-app\\.|signal-desktop\\.|signalapp[^.]*\\.",
+      "description": "Fake Signal messenger domains"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "te1egram|telegram-app\\.|telegramdesktop\\.",
+      "description": "Fake Telegram domains"
+    },
+    {
+      "id": "m4",
+      "type": "regex",
+      "pattern": "z00m\\.us|zoom-meeting\\.|zoom-app\\.|zoommeeting[^.]*\\.",
+      "description": "Fake Zoom domains"
+    },
+    {
+      "id": "m5",
+      "type": "regex",
+      "pattern": "teams-download|microsoft-teams-dl|teamsmeeting\\.",
+      "description": "Fake Microsoft Teams domains"
+    },
+    {
+      "id": "m6",
+      "type": "regex",
+      "pattern": "cointracker[^.]*\\.(com|io)|crypto-tracker\\.",
+      "description": "Fake cryptocurrency tracker domains"
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["m1", "m2", "m3", "m4", "m5", "m6"]
+  },
+  "appliesTo": {
+    "filePatterns": ["**/*.js", "**/*.ts", "**/*.html", "**/*.json", "**/*.py"]
+  }
+}

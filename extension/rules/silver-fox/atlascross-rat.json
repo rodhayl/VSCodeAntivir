@@ -1,0 +1,59 @@
+{
+  "id": "silverfox-atlascross-rat",
+  "name": "Silver Fox AtlasCross RAT",
+  "description": "Detects AtlasCross RAT patterns used by Chinese Silver Fox APT (March 2026)",
+  "severity": "critical",
+  "confidence": "high",
+  "category": "silver-fox",
+  "tags": ["apt", "china", "rat", "typosquatting", "silver-fox"],
+  "references": [
+    "https://thehackernews.com/2026/03/silver-fox-expands-asia-cyber-campaign.html"
+  ],
+  "mitre": {
+    "tactic": "Command and Control",
+    "technique": "T1071.001",
+    "name": "Web Protocols"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "string-any",
+      "patterns": [
+        "atlascross",
+        "AtlasCross",
+        "atlas-cross"
+      ],
+      "description": "AtlasCross RAT identifier"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "(surfsharkk|signa1|te1egram|z00m|microsoft-teams-dl|teamsmeeting)\\.(com|net|org|io)",
+      "description": "Typosquatted domains impersonating trusted brands"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "ValleyRAT|Gh0stCringe|Winos\\s*4\\.0|HoldingHands",
+      "description": "Related Silver Fox RAT variants"
+    },
+    {
+      "id": "m4",
+      "type": "string-any",
+      "patterns": [
+        "SwimSnake",
+        "UTG-Q-1000",
+        "Void Arachne",
+        "Valley Thief"
+      ],
+      "description": "Silver Fox threat actor aliases"
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["m1", "m2", "m3", "m4"]
+  },
+  "appliesTo": {
+    "filePatterns": ["**/*.js", "**/*.ts", "**/*.py", "**/*.exe", "**/*.dll"]
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "roadk1ll-websocket-implant",
+  "name": "RoadK1ll WebSocket Implant",
+  "description": "Detects RoadK1ll WebSocket-based lateral movement implant (March 2026)",
+  "severity": "critical",
+  "confidence": "high",
+  "category": "russian-apt",
+  "tags": ["apt", "lateral-movement", "websocket", "implant"],
+  "references": [
+    "https://www.bleepingcomputer.com/news/security/new-roadk1ll-websocket-implant-used-to-pivot-on-breached-networks/"
+  ],
+  "mitre": {
+    "tactic": "Lateral Movement",
+    "technique": "T1570",
+    "name": "Lateral Tool Transfer"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "string-any",
+      "patterns": [
+        "roadk1ll",
+        "RoadK1ll",
+        "road_k1ll",
+        "roadkill"
+      ],
+      "description": "RoadK1ll implant identifier"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "WebSocket.*pivot|ws://.*:8[0-9]{3}/pivot",
+      "description": "WebSocket pivoting patterns"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "lateral.*move|pivot.*network|hop.*host",
+      "description": "Lateral movement function names"
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["m1", "m2", "m3"]
+  },
+  "appliesTo": {
+    "filePatterns": ["**/*.js", "**/*.ts", "**/*.py", "**/*.go", "**/*.rs"]
+  }
+}

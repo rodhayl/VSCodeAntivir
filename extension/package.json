@@ -170,7 +170,9 @@
             "persistence",
             "bluenoroff",
             "teampcp",
-            "github-actions"
+            "github-actions",
+            "silver-fox",
+            "russian-apt"
           ],
           "description": "Which built-in rule sets to enable"
         },

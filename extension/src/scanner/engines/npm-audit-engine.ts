@@ -119,6 +119,43 @@ const KNOWN_BAD_PACKAGES: KnownBadPackage[] = [
     campaign: 'Supply Chain Compromise',
     description: 'Compromised versions alongside coa attack.'
   },
+  // April 2026 - TeamPCP/Cisco breach
+  {
+    name: 'trivy-action',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'TeamPCP/Cisco Breach',
+    description: 'GitHub Action compromised in March 2026 to steal CI/CD credentials.'
+  },
+  {
+    name: 'checkmarx-kics',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'TeamPCP/Cisco Breach',
+    description: 'KICS action compromised to deploy credential stealers.'
+  },
+  // Silver Fox campaign - March 2026
+  {
+    name: 'surfshark-vpn',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'Silver Fox/AtlasCross',
+    description: 'Typosquatted Surfshark VPN package delivering AtlasCross RAT.'
+  },
+  {
+    name: 'signal-desktop-app',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'Silver Fox/AtlasCross',
+    description: 'Typosquatted Signal package delivering AtlasCross RAT.'
+  },
+  {
+    name: 'telegram-desktop-app',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'Silver Fox/AtlasCross',
+    description: 'Typosquatted Telegram package delivering AtlasCross RAT.'
+  },
 ];
 
 function matchesVersion(installedVersion: string, badVersions: string[]): boolean {
