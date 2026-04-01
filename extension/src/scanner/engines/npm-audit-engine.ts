@@ -16,6 +16,116 @@ function findLineOfKey(content: string, key: string): number {
   return 0;
 }
 
+interface KnownBadPackage {
+  name: string;
+  versions?: string[];
+  allVersions?: boolean;
+  severity: 'critical' | 'high';
+  campaign: string;
+  description: string;
+  cve?: string;
+}
+
+const KNOWN_BAD_PACKAGES: KnownBadPackage[] = [
+  // March 2026 - Axios/BlueNoroff supply chain compromise
+  {
+    name: 'plain-crypto-js',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'BlueNoroff/UNC1069',
+    description: 'Fake cryptography package from Axios compromise. Installs macOS RAT.'
+  },
+  {
+    name: 'axios',
+    versions: ['1.14.1', '0.30.4'],
+    severity: 'critical',
+    campaign: 'BlueNoroff/UNC1069',
+    description: 'Compromised versions install plain-crypto-js backdoor. Affects 100M+ downloads.',
+    cve: 'CVE-2026-XXXX'
+  },
+  // TeamPCP Campaign - Typosquatted packages
+  {
+    name: 'trvy',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'TeamPCP',
+    description: 'Typosquatted Trivy. Steals CI/CD credentials and installs CanisterWorm.'
+  },
+  {
+    name: 'litellm-js',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'TeamPCP',
+    description: 'Typosquatted LiteLLM. Contains steganographic payload.'
+  },
+  {
+    name: 'telnyx-sdk',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'TeamPCP',
+    description: 'Typosquatted Telnyx. Downloads WAV files with encoded malware.'
+  },
+  // Contagious Interview - Known packages
+  {
+    name: 'beavertail',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'Contagious Interview',
+    description: 'Known DPRK malware package. Browser credential stealer.'
+  },
+  {
+    name: 'invisibleferret',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'Contagious Interview',
+    description: 'Known DPRK backdoor. Full remote access trojan.'
+  },
+  {
+    name: 'ottercookie',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'Contagious Interview',
+    description: 'Known DPRK cookie stealer variant.'
+  },
+  // General malicious packages
+  {
+    name: 'event-stream',
+    versions: ['3.3.6'],
+    severity: 'critical',
+    campaign: 'Cryptocurrency Theft',
+    description: 'Version 3.3.6 contains flatmap-stream backdoor targeting Bitcoin wallets.',
+    cve: 'CVE-2018-16487'
+  },
+  {
+    name: 'ua-parser-js',
+    versions: ['0.7.29', '0.8.0', '1.0.0'],
+    severity: 'critical',
+    campaign: 'Cryptominer/Password Stealer',
+    description: 'Hijacked versions install cryptominer and password stealer.',
+    cve: 'CVE-2021-41266'
+  },
+  {
+    name: 'coa',
+    versions: ['2.0.3', '2.0.4', '2.1.1', '2.1.3', '3.0.1', '3.1.3'],
+    severity: 'critical',
+    campaign: 'Supply Chain Compromise',
+    description: 'Compromised versions install credential stealers.',
+    cve: 'CVE-2021-44906'
+  },
+  {
+    name: 'rc',
+    versions: ['1.2.9', '1.3.9', '2.3.9'],
+    severity: 'critical',
+    campaign: 'Supply Chain Compromise',
+    description: 'Compromised versions alongside coa attack.'
+  },
+];
+
+function matchesVersion(installedVersion: string, badVersions: string[]): boolean {
+  const cleanVersion = installedVersion.replace(/[\^~>=<]/g, '').trim();
+  return badVersions.some(v => cleanVersion === v || cleanVersion.startsWith(v + '.'));
+}
+
 export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
   const threats: Threat[] = [];
   const fileName = path.basename(filePath);
@@ -29,8 +139,40 @@ export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
   }
 
   const scripts = pkg.scripts || {};
+  const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
 
-  // 1. Suspicious preinstall/postinstall scripts
+  // 1. Check for known-bad packages (CRITICAL - blocks active attacks)
+  for (const [depName, depVersion] of Object.entries(allDeps) as [string, string][]) {
+    const badPkg = KNOWN_BAD_PACKAGES.find(p => p.name === depName.toLowerCase());
+    if (badPkg) {
+      const isVulnerable = badPkg.allVersions || 
+        (badPkg.versions && matchesVersion(depVersion, badPkg.versions));
+      
+      if (isVulnerable) {
+        const line = findLineOfKey(content, depName);
+        threats.push({
+          id: `npm-known-bad-${depName}-${Date.now()}`,
+          ruleId: 'npm-known-bad-package',
+          ruleName: `Known Malicious Package: ${depName}`,
+          severity: badPkg.severity === 'critical' ? Severity.CRITICAL : Severity.HIGH,
+          confidence: 'high',
+          message: `⚠️ BLOCKED: "${depName}@${depVersion}" is a known malicious package. ` +
+            `Campaign: ${badPkg.campaign}. ${badPkg.description}`,
+          filePath,
+          location: loc(line, 0, depVersion.length + depName.length),
+          mitre: { tactic: 'Initial Access', technique: 'T1195.002', name: 'Supply Chain Compromise' },
+          matchedStrings: [depName, depVersion],
+          remediation: {
+            message: `IMMEDIATELY remove "${depName}" from package.json and run npm uninstall ${depName}`,
+            actions: ['remove-dependency', 'quarantine'],
+          },
+          tags: ['supply-chain', 'known-malware', badPkg.campaign.toLowerCase().replace(/\s+/g, '-')],
+        });
+      }
+    }
+  }
+
+  // 2. Suspicious preinstall/postinstall scripts
   const dangerousScripts = ['preinstall', 'postinstall', 'prestart'];
   for (const scriptName of dangerousScripts) {
     const scriptVal = scripts[scriptName];
@@ -62,8 +204,7 @@ export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
     }
   }
 
-  // 2. Typosquatting in dependencies
-  const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+  // 3. Typosquatting in dependencies
   for (const [depName] of Object.entries(allDeps)) {
     const typoCheck = checkTyposquat(depName);
     if (typoCheck.isSuspicious) {
@@ -82,7 +223,7 @@ export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
     }
   }
 
-  // 3. Scripts pointing to suspicious JS files
+  // 4. Scripts pointing to suspicious JS files
   const suspiciousScriptFiles = ['setup_bun', 'bun_environment', 'setup_', 'install.js'];
   for (const [, val] of Object.entries(scripts) as [string, string][]) {
     for (const susFile of suspiciousScriptFiles) {

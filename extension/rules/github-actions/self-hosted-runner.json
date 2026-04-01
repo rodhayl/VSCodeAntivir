@@ -1,0 +1,40 @@
+{
+  "id": "gha-self-hosted-runner-risk",
+  "name": "Self-Hosted Runner Security Risk",
+  "description": "Flags self-hosted runners which may be vulnerable to persistent compromise",
+  "severity": "medium",
+  "confidence": "high",
+  "category": "github-actions",
+  "tags": ["ci-cd", "github-actions", "infrastructure"],
+  "references": [
+    "https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners#self-hosted-runner-security"
+  ],
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1136"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "string",
+      "pattern": "runs-on: self-hosted"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "runs-on:\\s*\\[.*self-hosted.*\\]"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "runs-on:\\s*\\$\\{\\{.*self-hosted"
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["m1", "m2", "m3"]
+  },
+  "appliesTo": {
+    "filePatterns": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"]
+  }
+}

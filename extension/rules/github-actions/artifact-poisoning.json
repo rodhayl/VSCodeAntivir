@@ -1,0 +1,53 @@
+{
+  "id": "gha-artifact-poisoning",
+  "name": "GitHub Actions Artifact Poisoning",
+  "description": "Detects potential artifact poisoning via unverified artifact downloads",
+  "severity": "high",
+  "confidence": "medium",
+  "category": "github-actions",
+  "tags": ["ci-cd", "github-actions", "supply-chain", "artifacts"],
+  "references": [
+    "https://www.legitsecurity.com/blog/artifact-poisoning-vulnerability-discovered-in-github-actions"
+  ],
+  "mitre": {
+    "tactic": "Supply Chain Compromise",
+    "technique": "T1195.002"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "regex",
+      "pattern": "actions/download-artifact@",
+      "description": "Downloads artifacts"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "(\\./|bash|sh|python|node|npm|npx|pip|cargo)\\s+.*artifact",
+      "description": "Executes content from artifacts directory"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "chmod\\s+\\+x.*artifact",
+      "description": "Makes artifact executable"
+    },
+    {
+      "id": "m4",
+      "type": "regex",
+      "pattern": "source\\s+.*artifact",
+      "description": "Sources script from artifact"
+    }
+  ],
+  "condition": {
+    "type": "all",
+    "of": ["m1"],
+    "and": {
+      "type": "any",
+      "of": ["m2", "m3", "m4"]
+    }
+  },
+  "appliesTo": {
+    "filePatterns": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"]
+  }
+}

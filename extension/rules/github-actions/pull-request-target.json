@@ -1,0 +1,46 @@
+{
+  "id": "gha-pull-request-target-risk",
+  "name": "Risky pull_request_target Usage",
+  "description": "Detects potentially dangerous pull_request_target workflows that checkout PR code",
+  "severity": "high",
+  "confidence": "medium",
+  "category": "github-actions",
+  "tags": ["ci-cd", "github-actions", "privilege-escalation"],
+  "references": [
+    "https://securitylab.github.com/research/github-actions-preventing-pwn-requests/"
+  ],
+  "mitre": {
+    "tactic": "Privilege Escalation",
+    "technique": "T1078.004"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "string",
+      "pattern": "pull_request_target"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "actions/checkout@.*\\n.*ref:\\s*\\$\\{\\{\\s*github\\.event\\.pull_request\\.head\\.(sha|ref)",
+      "description": "Checking out PR head in pull_request_target"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "uses:\\s*actions/checkout.*\\n[^-]*with:[^-]*\\n[^-]*ref:\\s*\\$\\{\\{\\s*github\\.head_ref",
+      "description": "Using github.head_ref in checkout"
+    }
+  ],
+  "condition": {
+    "type": "all",
+    "of": ["m1"],
+    "and": {
+      "type": "any",
+      "of": ["m2", "m3"]
+    }
+  },
+  "appliesTo": {
+    "filePatterns": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"]
+  }
+}

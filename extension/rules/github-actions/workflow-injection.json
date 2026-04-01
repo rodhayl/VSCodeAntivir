@@ -1,0 +1,51 @@
+{
+  "id": "gha-workflow-injection",
+  "name": "GitHub Actions Workflow Injection",
+  "description": "Detects workflow injection vulnerabilities via untrusted input in run commands",
+  "severity": "critical",
+  "confidence": "high",
+  "category": "github-actions",
+  "tags": ["ci-cd", "injection", "github-actions", "supply-chain"],
+  "references": [
+    "https://securitylab.github.com/research/github-actions-untrusted-input/",
+    "https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions"
+  ],
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059.004",
+    "subtechnique": "T1059.004"
+  },
+  "matchers": [
+    {
+      "id": "m1",
+      "type": "regex",
+      "pattern": "\\$\\{\\{\\s*github\\.(event\\.issue\\.title|event\\.issue\\.body|event\\.pull_request\\.title|event\\.pull_request\\.body|event\\.comment\\.body|event\\.review\\.body|event\\.head_commit\\.message|event\\.commits\\[\\*\\]\\.message)",
+      "description": "Untrusted input directly in workflow"
+    },
+    {
+      "id": "m2",
+      "type": "regex",
+      "pattern": "run:\\s*[|>]?\\s*[^\\n]*\\$\\{\\{\\s*github\\.event\\.",
+      "description": "User-controlled input in run command"
+    },
+    {
+      "id": "m3",
+      "type": "regex",
+      "pattern": "curl\\s+.*\\|.*sh",
+      "description": "Piping curl to shell in workflow"
+    },
+    {
+      "id": "m4",
+      "type": "regex",
+      "pattern": "wget\\s+.*\\|.*sh",
+      "description": "Piping wget to shell in workflow"
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["m1", "m2", "m3", "m4"]
+  },
+  "appliesTo": {
+    "filePatterns": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"]
+  }
+}

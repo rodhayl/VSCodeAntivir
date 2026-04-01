@@ -114,4 +114,21 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
     assert.ok(diagnostics.length > 0, `Expected credential access threats, got ${diagnostics.length}`);
     console.log(`  Found ${diagnostics.length} credential access diagnostics`);
   });
+
+  test('Should detect known malicious packages', async function () {
+    this.timeout(15000);
+    const samplePath = path.join(__dirname, '..', '..', '..', 'samples',
+      'malicious-deps', 'package.json');
+    if (!fs.existsSync(samplePath)) { this.skip(); return; }
+    const doc = await vscode.workspace.openTextDocument(samplePath);
+    await vscode.window.showTextDocument(doc);
+    await vscode.commands.executeCommand('fig.scanFile');
+    await new Promise(r => setTimeout(r, 3000));
+    const diagnostics = vscode.languages.getDiagnostics(doc.uri);
+    // Should detect axios@1.14.1 and plain-crypto-js as known-bad
+    assert.ok(diagnostics.length >= 2, `Expected at least 2 known-bad package threats, got ${diagnostics.length}`);
+    const hasCritical = diagnostics.some(d => d.severity === vscode.DiagnosticSeverity.Error);
+    assert.ok(hasCritical, 'Expected critical severity for known malicious packages');
+    console.log(`  Found ${diagnostics.length} malicious dependency diagnostics`);
+  });
 });

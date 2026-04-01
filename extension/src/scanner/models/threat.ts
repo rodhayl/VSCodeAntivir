@@ -28,4 +28,5 @@ export interface Threat {
     message: string;
     actions: string[];
   };
+  tags?: string[];
 }

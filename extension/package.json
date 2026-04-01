@@ -169,7 +169,8 @@
             "credential-harvesting",
             "persistence",
             "bluenoroff",
-            "teampcp"
+            "teampcp",
+            "github-actions"
           ],
           "description": "Which built-in rule sets to enable"
         },
