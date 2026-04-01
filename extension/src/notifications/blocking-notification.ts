@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { TaskScanResult, TaskThreat } from '../interceptors/task-interceptor';
 import { NpmScanResult, NpmScriptThreat } from '../interceptors/npm-script-interceptor';
+import { GitScanResult, GitConfigThreat } from '../interceptors/git-config-interceptor';
 import { QuarantineManager } from '../quarantine/quarantine-manager';
 import { Threat } from '../scanner/models/threat';
 import { Severity } from '../scanner/models/severity';
@@ -195,6 +196,92 @@ export class BlockingNotificationService {
       filePath,
       location: { startLine: t.line, startCol: 0, endLine: t.line, endCol: 100 },
       matchedStrings: [t.scriptCommand],
+    }));
+  }
+
+  async notifyGitConfigBlocked(result: GitScanResult): Promise<void> {
+    if (result.threats.length === 0) {
+      return;
+    }
+
+    const threatTypes = [...new Set(result.threats.map(t => t.type))];
+    const firstThreat = result.threats[0];
+    const configPath = firstThreat.filePath;
+    
+    let threatDescription = '';
+    if (threatTypes.includes('fsmonitor')) {
+      threatDescription = 'core.fsmonitor exploit (arbitrary code execution)';
+    } else if (threatTypes.includes('hookspath')) {
+      threatDescription = 'custom hooks path (redirected git hooks)';
+    } else if (threatTypes.includes('malicious-hook')) {
+      threatDescription = 'malicious git hook scripts detected';
+    } else {
+      threatDescription = threatTypes.join(', ');
+    }
+
+    const message = `⚠️ FakeInterviewGuard BLOCKED dangerous git configuration!\n\n` +
+      `Config: ${configPath}\n` +
+      `Threat: ${threatDescription}\n\n` +
+      `This exploit technique was used in the March 2026 Emacs/Vim RCE attacks.\n` +
+      `The dangerous configuration has been commented out to prevent execution.`;
+
+    const selection = await vscode.window.showWarningMessage(
+      `🛡️ BLOCKED: Dangerous git config neutralized`,
+      { modal: true, detail: message },
+      'View Details',
+      'Quarantine .git/config',
+      'Restore Original'
+    );
+
+    if (selection === 'View Details') {
+      this.showGitThreatDetails(result);
+    } else if (selection === 'Quarantine .git/config' && this.quarantineManager) {
+      const threats = this.gitThreatsToThreats(result.threats, configPath);
+      await this.quarantineManager.quarantine(configPath, threats);
+      vscode.window.showInformationMessage('Git config moved to quarantine');
+    } else if (selection === 'Restore Original') {
+      vscode.window.showWarningMessage(
+        '⚠️ Restoring the original config will re-enable code execution. Are you sure?',
+        'Yes, restore',
+        'Cancel'
+      ).then(answer => {
+        if (answer === 'Yes, restore') {
+          this.outputChannel.appendLine(`[NOTIFICATION] User chose to restore: ${configPath}`);
+        }
+      });
+    }
+  }
+
+  private showGitThreatDetails(result: GitScanResult): void {
+    this.outputChannel.appendLine('\n=== Dangerous Git Configuration Details ===');
+    this.outputChannel.appendLine(`Blocked: ${result.blocked ? 'Yes' : 'No'}`);
+    this.outputChannel.appendLine('\nThreats:');
+    
+    for (const threat of result.threats) {
+      this.outputChannel.appendLine(`  [${threat.severity.toUpperCase()}] ${threat.type}`);
+      this.outputChannel.appendLine(`    File: ${threat.filePath}`);
+      this.outputChannel.appendLine(`    Line: ${threat.line}`);
+      this.outputChannel.appendLine(`    Config: ${threat.configKey} = ${threat.value.substring(0, 100)}`);
+    }
+    
+    this.outputChannel.appendLine('\nThis attack vector was used in March 2026 by:');
+    this.outputChannel.appendLine('  - Emacs/Vim RCE attacks via core.fsmonitor');
+    this.outputChannel.appendLine('  - Lazarus/BlueNoroff supply chain attacks');
+    this.outputChannel.appendLine('==========================================\n');
+    this.outputChannel.show();
+  }
+
+  private gitThreatsToThreats(gitThreats: GitConfigThreat[], filePath: string): Threat[] {
+    return gitThreats.map((t, idx) => ({
+      id: `git-${t.type}-${idx}`,
+      ruleId: `interceptor-git-${t.type}`,
+      ruleName: `Git ${t.type} exploit`,
+      severity: t.severity === 'critical' ? Severity.CRITICAL : Severity.HIGH,
+      confidence: 'high',
+      message: `${t.configKey}: ${t.value.substring(0, 80)}`,
+      filePath,
+      location: { startLine: t.line, startCol: 0, endLine: t.line, endCol: 100 },
+      matchedStrings: [t.value],
     }));
   }
 }

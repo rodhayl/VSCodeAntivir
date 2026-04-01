@@ -1,0 +1,32 @@
+{
+  "id": "bn-axios-compromise",
+  "name": "Axios Supply Chain Attack (March 2026)",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects indicators from the March 2026 Axios npm supply chain attack attributed to BlueNoroff/UNC1069",
+  "category": "supply-chain",
+  "campaign": "bluenoroff-axios-2026",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1195.002",
+    "name": "Compromise Software Supply Chain"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "json"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.json", "**/package.json", "**/package-lock.json"]
+  },
+  "matchers": [
+    { "id": "plain-crypto-js", "type": "string", "pattern": "plain-crypto-js" },
+    { "id": "axios-malicious-ver1", "type": "regex", "pattern": "\"axios\"\\s*:\\s*\"1\\.14\\.1\"" },
+    { "id": "axios-malicious-ver2", "type": "regex", "pattern": "\"axios\"\\s*:\\s*\"0\\.30\\.4\"" },
+    { "id": "c2-domain", "type": "string", "pattern": "sfrclak.com" },
+    { "id": "setup-js-dropper", "type": "regex", "pattern": "setup\\.js.*postinstall" },
+    { "id": "wt-exe-copy", "type": "regex", "pattern": "%PROGRAMDATA%.*wt\\.exe|PROGRAMDATA.*wt\\.exe" }
+  ],
+  "condition": { "type": "any", "of": ["plain-crypto-js", "axios-malicious-ver1", "axios-malicious-ver2", "c2-domain"] },
+  "remediation": {
+    "message": "This code references known IOCs from the Axios supply chain attack (March 2026). Immediately: 1) Remove affected packages, 2) Rotate all credentials, 3) Check for persistence mechanisms.",
+    "actions": ["quarantine", "review"]
+  }
+}

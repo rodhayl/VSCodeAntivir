@@ -1,0 +1,32 @@
+{
+  "id": "bn-macwebt-rat",
+  "name": "macWebT RAT Detection",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects macWebT macOS RAT used by BlueNoroff in RustBucket and Axios campaigns",
+  "category": "malware",
+  "campaign": "bluenoroff",
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059.004",
+    "name": "Unix Shell"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python", "shellscript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py", "**/*.sh"]
+  },
+  "matchers": [
+    { "id": "mac-cache-path", "type": "string", "pattern": "/Library/Caches/com.apple.act" },
+    { "id": "applescript-download", "type": "regex", "pattern": "osascript.*curl|osascript.*download" },
+    { "id": "nohup-background", "type": "regex", "pattern": "nohup.*&\\s*$|nohup.*python" },
+    { "id": "ld-py-payload", "type": "string", "pattern": "/tmp/ld.py" },
+    { "id": "hidden-exec", "type": "regex", "pattern": "chmod.*\\+x.*\\.[a-z]+mond" },
+    { "id": "base64-binary", "type": "regex", "pattern": "base64.*decode.*write.*hidden" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["mac-cache-path", "applescript-download", "nohup-background", "ld-py-payload", "hidden-exec"] },
+  "remediation": {
+    "message": "This code contains patterns associated with macWebT RAT used by North Korean BlueNoroff actors.",
+    "actions": ["quarantine"]
+  }
+}

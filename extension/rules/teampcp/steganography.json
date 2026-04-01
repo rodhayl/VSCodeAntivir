@@ -1,0 +1,32 @@
+{
+  "id": "pcp-steganography",
+  "name": "Steganography Payload Detection",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects patterns associated with TeamPCP's steganography-based payload delivery via WAV/audio files",
+  "category": "malware",
+  "campaign": "teampcp",
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1027.003",
+    "name": "Steganography"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py"]
+  },
+  "matchers": [
+    { "id": "wav-download", "type": "regex", "pattern": "\\.(wav|WAV).*download|download.*\\.(wav|WAV)" },
+    { "id": "ringtone-wav", "type": "string", "pattern": "ringtone.wav" },
+    { "id": "hangup-wav", "type": "string", "pattern": "hangup.wav" },
+    { "id": "xor-decrypt", "type": "regex", "pattern": "xor.*decrypt|\\^.*0x[0-9a-fA-F]+|byte.*\\^" },
+    { "id": "data-frames", "type": "regex", "pattern": "readframes|getframes|wave\\.open" },
+    { "id": "exec-memory", "type": "regex", "pattern": "exec.*memory|eval.*decode|exec\\(.*decode" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["wav-download", "ringtone-wav", "hangup-wav", "xor-decrypt", "data-frames", "exec-memory"] },
+  "remediation": {
+    "message": "This code downloads and processes WAV files in a manner consistent with TeamPCP steganography attacks.",
+    "actions": ["quarantine"]
+  }
+}

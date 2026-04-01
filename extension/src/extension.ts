@@ -14,6 +14,7 @@ import { LlmAnalysisEngine } from './scanner/engines/llm-analysis-engine';
 import { readLlmConfig } from './llm/models';
 import { TaskInterceptor } from './interceptors/task-interceptor';
 import { NpmScriptInterceptor } from './interceptors/npm-script-interceptor';
+import { GitConfigInterceptor } from './interceptors/git-config-interceptor';
 import { QuarantineManager, QuarantineTreeProvider, QuarantinePanel } from './quarantine';
 import { BlockingNotificationService } from './notifications';
 
@@ -26,6 +27,7 @@ let outputChannel: vscode.OutputChannel;
 // Security interceptors
 let taskInterceptor: TaskInterceptor;
 let npmInterceptor: NpmScriptInterceptor;
+let gitInterceptor: GitConfigInterceptor;
 let quarantineManager: QuarantineManager;
 let quarantineTreeProvider: QuarantineTreeProvider;
 let notificationService: BlockingNotificationService;
@@ -49,6 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Initialize security interceptors (CRITICAL - must run early)
   taskInterceptor = new TaskInterceptor(outputChannel);
   npmInterceptor = new NpmScriptInterceptor(outputChannel);
+  gitInterceptor = new GitConfigInterceptor(outputChannel);
   quarantineManager = new QuarantineManager(outputChannel);
   quarantineTreeProvider = new QuarantineTreeProvider(quarantineManager);
   notificationService = new BlockingNotificationService(outputChannel);
@@ -64,6 +67,12 @@ export function activate(context: vscode.ExtensionContext) {
   npmInterceptor.setThreatHandler(result => {
     if (result.blocked) {
       notificationService.notifyNpmScriptBlocked(result);
+    }
+  });
+
+  gitInterceptor.setThreatHandler(result => {
+    if (result.blocked) {
+      notificationService.notifyGitConfigBlocked(result);
     }
   });
 
@@ -205,6 +214,12 @@ async function interceptWorkspaceOnOpen(): Promise<void> {
     const npmResult = await npmInterceptor.interceptWorkspace(folder);
     if (npmResult?.blocked) {
       outputChannel.appendLine(`[STARTUP] Blocked malicious npm scripts in ${folder.name}`);
+    }
+
+    // Intercept dangerous git config (core.fsmonitor exploit - March 2026)
+    const gitResult = await gitInterceptor.interceptWorkspace(folder);
+    if (gitResult?.blocked) {
+      outputChannel.appendLine(`[STARTUP] Blocked dangerous git config in ${folder.name}`);
     }
   }
 }

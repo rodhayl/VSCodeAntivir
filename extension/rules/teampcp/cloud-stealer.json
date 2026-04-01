@@ -1,0 +1,33 @@
+{
+  "id": "pcp-cloud-stealer",
+  "name": "TeamPCP Cloud Stealer",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects TeamPCP Cloud Stealer patterns that harvest credentials from cloud, CI/CD, and container environments",
+  "category": "credential-access",
+  "campaign": "teampcp",
+  "mitre": {
+    "tactic": "Credential Access",
+    "technique": "T1552.001",
+    "name": "Credentials In Files"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python", "shellscript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py", "**/*.sh"]
+  },
+  "matchers": [
+    { "id": "teampcp-comment", "type": "string", "pattern": "TeamPCP" },
+    { "id": "k8s-secrets", "type": "regex", "pattern": "kubectl.*get.*secret|kubernetes.*secret" },
+    { "id": "github-runner", "type": "regex", "pattern": "Runner\\.Worker|GITHUB_TOKEN|ACTIONS_ID_TOKEN" },
+    { "id": "tpcp-archive", "type": "string", "pattern": "tpcp.tar.gz" },
+    { "id": "typosquat-c2", "type": "regex", "pattern": "aquasecurtiy|githuub|npmjs\\.og" },
+    { "id": "sysmon-persist", "type": "string", "pattern": "sysmon.py" },
+    { "id": "systemd-user", "type": "regex", "pattern": "\\.config/systemd/user.*\\.py|\\.config/systemd/user.*\\.service" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["teampcp-comment", "k8s-secrets", "github-runner", "tpcp-archive", "typosquat-c2", "sysmon-persist", "systemd-user"] },
+  "remediation": {
+    "message": "This code contains TeamPCP Cloud Stealer indicators. Check for stolen credentials and persistent backdoors.",
+    "actions": ["quarantine"]
+  }
+}

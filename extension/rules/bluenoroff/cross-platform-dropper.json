@@ -1,0 +1,32 @@
+{
+  "id": "bn-cross-platform-rat",
+  "name": "BlueNoroff Cross-Platform RAT Dropper",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects cross-platform RAT dropper patterns from BlueNoroff campaigns targeting Windows, macOS, and Linux",
+  "category": "malware",
+  "campaign": "bluenoroff",
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059",
+    "name": "Command and Scripting Interpreter"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts"]
+  },
+  "matchers": [
+    { "id": "os-detect", "type": "regex", "pattern": "process\\.platform\\s*===?\\s*['\"](?:win32|darwin|linux)['\"]" },
+    { "id": "vbs-powershell", "type": "regex", "pattern": "wscript|cscript|VBScript.*PowerShell" },
+    { "id": "hidden-cmd", "type": "regex", "pattern": "Hidden.*cmd\\.exe|cmd.*\\/c.*hidden" },
+    { "id": "shell-download", "type": "regex", "pattern": "/bin/sh.*curl|/bin/sh.*wget" },
+    { "id": "self-delete", "type": "regex", "pattern": "unlinkSync.*__filename|fs\\.unlink.*setup|rm.*\\$0" },
+    { "id": "temp-payload", "type": "regex", "pattern": "/tmp/[a-z]{2,4}\\.(py|sh)|%TEMP%.*\\.(exe|bat|ps1)" }
+  ],
+  "condition": { "type": "threshold", "minimum": 3, "of": ["os-detect", "vbs-powershell", "hidden-cmd", "shell-download", "self-delete", "temp-payload"] },
+  "remediation": {
+    "message": "This code exhibits cross-platform RAT dropper behavior typical of BlueNoroff supply chain attacks.",
+    "actions": ["quarantine"]
+  }
+}

@@ -167,7 +167,9 @@
             "general",
             "supply-chain",
             "credential-harvesting",
-            "persistence"
+            "persistence",
+            "bluenoroff",
+            "teampcp"
           ],
           "description": "Which built-in rule sets to enable"
         },

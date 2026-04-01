@@ -1,0 +1,30 @@
+{
+  "id": "git-hooks-malicious",
+  "name": "Malicious Git Hooks Detection",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "high",
+  "description": "Detects suspicious patterns in Git hooks that may execute malicious code on git operations",
+  "category": "code-execution",
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059.004",
+    "name": "Unix Shell"
+  },
+  "appliesTo": {
+    "languages": ["shellscript"],
+    "filePatterns": ["**/.git/hooks/*", "**/hooks/pre-commit", "**/hooks/post-commit", "**/hooks/pre-push", "**/hooks/post-checkout"]
+  },
+  "matchers": [
+    { "id": "network-fetch", "type": "regex", "pattern": "curl\\s+-|wget\\s+-|Invoke-WebRequest" },
+    { "id": "pipe-exec", "type": "regex", "pattern": "\\|\\s*(sh|bash|python|node|php)" },
+    { "id": "base64-exec", "type": "regex", "pattern": "base64.*-d.*\\|.*sh|base64.*--decode.*exec" },
+    { "id": "hidden-file", "type": "regex", "pattern": ">/\\.[a-z]+|>.*\\.hidden" },
+    { "id": "env-exfil", "type": "regex", "pattern": "env\\s*>|printenv.*>|set\\s*>" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["network-fetch", "pipe-exec", "base64-exec", "hidden-file", "env-exfil"] },
+  "remediation": {
+    "message": "This Git hook contains suspicious patterns that may indicate malicious code execution.",
+    "actions": ["quarantine", "review"]
+  }
+}

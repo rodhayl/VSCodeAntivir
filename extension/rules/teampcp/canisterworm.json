@@ -1,0 +1,32 @@
+{
+  "id": "pcp-canisterworm",
+  "name": "CanisterWorm Self-Propagation Detection",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects CanisterWorm self-propagating npm worm that spreads via stolen npm tokens",
+  "category": "malware",
+  "campaign": "teampcp",
+  "mitre": {
+    "tactic": "Lateral Movement",
+    "technique": "T1570",
+    "name": "Lateral Tool Transfer"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts"]
+  },
+  "matchers": [
+    { "id": "npm-token", "type": "regex", "pattern": "NPM_TOKEN|npm_token|npmrc.*_auth" },
+    { "id": "npm-publish", "type": "regex", "pattern": "npm\\s+publish|execSync.*npm.*publish" },
+    { "id": "version-bump", "type": "regex", "pattern": "version.*patch|semver.*inc|bump.*version" },
+    { "id": "package-enum", "type": "regex", "pattern": "npm.*access.*list|publishable.*packages" },
+    { "id": "icp-canister", "type": "regex", "pattern": "internetcomputer\\.org|ic0\\.app|canister" },
+    { "id": "deploy-js", "type": "string", "pattern": "deploy.js" }
+  ],
+  "condition": { "type": "threshold", "minimum": 3, "of": ["npm-token", "npm-publish", "version-bump", "package-enum", "icp-canister", "deploy-js"] },
+  "remediation": {
+    "message": "This code exhibits CanisterWorm behavior - self-propagating npm worm that steals tokens and spreads malware.",
+    "actions": ["quarantine"]
+  }
+}

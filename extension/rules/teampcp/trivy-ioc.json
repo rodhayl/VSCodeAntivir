@@ -1,0 +1,32 @@
+{
+  "id": "pcp-trivy-ioc",
+  "name": "Trivy Supply Chain Attack IOCs",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects indicators from the TeamPCP Trivy vulnerability scanner compromise (March 2026)",
+  "category": "supply-chain",
+  "campaign": "teampcp-trivy",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1195.002",
+    "name": "Compromise Software Supply Chain"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "shellscript", "yaml"],
+    "filePatterns": ["**/*.js", "**/*.ts", "**/*.sh", "**/*.yml", "**/*.yaml", "**/entrypoint.sh"]
+  },
+  "matchers": [
+    { "id": "trivy-version", "type": "regex", "pattern": "trivy.*0\\.69\\.4|aquasecurity/trivy.*0\\.69\\.4" },
+    { "id": "entrypoint-mod", "type": "regex", "pattern": "entrypoint\\.sh.*curl|entrypoint\\.sh.*wget" },
+    { "id": "secret-scan", "type": "regex", "pattern": "isSecret.*true|value.*secret" },
+    { "id": "tpcp-docs-repo", "type": "string", "pattern": "tpcp-docs" },
+    { "id": "scan-aqua-typo", "type": "string", "pattern": "scan.aquasecurtiy" },
+    { "id": "force-push-tags", "type": "regex", "pattern": "git.*push.*--force.*tags|force-push.*tag" }
+  ],
+  "condition": { "type": "any", "of": ["trivy-version", "scan-aqua-typo", "tpcp-docs-repo"] },
+  "remediation": {
+    "message": "Code references IOCs from the Trivy supply chain attack. Check for compromised CI/CD pipelines.",
+    "actions": ["quarantine", "review"]
+  }
+}
