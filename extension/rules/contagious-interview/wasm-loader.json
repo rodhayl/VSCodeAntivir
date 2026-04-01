@@ -1,0 +1,31 @@
+{
+  "id": "ci-wasm-loader",
+  "name": "WebAssembly Payload Loader",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "medium",
+  "description": "Detects patterns of loading WebAssembly modules that may contain malicious payloads",
+  "category": "execution",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059.007",
+    "name": "JavaScript"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts"]
+  },
+  "matchers": [
+    { "id": "wasm-instantiate", "type": "regex", "pattern": "WebAssembly\\.(instantiate|compile|instantiateStreaming)" },
+    { "id": "fetch-wasm", "type": "regex", "pattern": "fetch\\s*\\([^)]*\\.wasm" },
+    { "id": "base64-wasm", "type": "regex", "pattern": "atob\\s*\\([^)]+\\).*WebAssembly|Buffer\\.from.*base64.*wasm" },
+    { "id": "dynamic-import-wasm", "type": "regex", "pattern": "import\\s*\\([^)]*\\.wasm" },
+    { "id": "wasm-memory", "type": "regex", "pattern": "WebAssembly\\.Memory|new\\s+Memory\\s*\\(" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["wasm-instantiate", "fetch-wasm", "base64-wasm", "dynamic-import-wasm", "wasm-memory"] },
+  "remediation": {
+    "message": "This file loads WebAssembly modules in a pattern that could indicate hidden malicious code.",
+    "actions": ["review", "llm-analyze"]
+  }
+}

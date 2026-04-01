@@ -20,9 +20,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "workspaceContains:**/package.json",
-    "workspaceContains:**/.vscode/tasks.json",
-    "onStartupFinished"
+    "*"
   ],
   "contributes": {
     "commands": [
@@ -40,6 +38,16 @@
         "command": "fig.showDashboard",
         "title": "FIG: Show Security Dashboard",
         "icon": "$(dashboard)"
+      },
+      {
+        "command": "fig.showQuarantine",
+        "title": "FIG: Show Quarantine Manager",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "fig.quarantineFile",
+        "title": "FIG: Quarantine Current File",
+        "icon": "$(archive)"
       },
       {
         "command": "fig.reloadRules",
@@ -69,6 +77,10 @@
         {
           "id": "fig.threatExplorer",
           "name": "Threat Explorer"
+        },
+        {
+          "id": "fig.quarantine",
+          "name": "Quarantine"
         }
       ]
     },
@@ -87,12 +99,21 @@
           "command": "fig.scanFile",
           "group": "fig@1",
           "when": "resourceScheme == file"
+        },
+        {
+          "command": "fig.quarantineFile",
+          "group": "fig@2",
+          "when": "resourceScheme == file"
         }
       ],
       "editor/context": [
         {
           "command": "fig.scanFile",
           "group": "fig@1"
+        },
+        {
+          "command": "fig.quarantineFile",
+          "group": "fig@2"
         }
       ]
     },
@@ -143,7 +164,10 @@
           "type": "array",
           "default": [
             "contagious-interview",
-            "general"
+            "general",
+            "supply-chain",
+            "credential-harvesting",
+            "persistence"
           ],
           "description": "Which built-in rule sets to enable"
         },
@@ -211,7 +235,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
+    "test": "node ./test/runTest.js",
     "package": "vsce package"
   },
   "devDependencies": {

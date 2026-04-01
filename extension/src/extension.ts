@@ -11,14 +11,24 @@ import { LlmClient } from './llm/llm-client';
 import { LlmCache } from './llm/llm-cache';
 import { PromptBuilder } from './llm/prompt-builder';
 import { LlmAnalysisEngine } from './scanner/engines/llm-analysis-engine';
-import { readLlmConfig, LlmConfig } from './llm/models';
-import { Threat } from './scanner/models/threat';
+import { readLlmConfig } from './llm/models';
+import { TaskInterceptor } from './interceptors/task-interceptor';
+import { NpmScriptInterceptor } from './interceptors/npm-script-interceptor';
+import { QuarantineManager, QuarantineTreeProvider, QuarantinePanel } from './quarantine';
+import { BlockingNotificationService } from './notifications';
 
 let scanner: Scanner;
 let diagnosticsProvider: DiagnosticsProvider;
 let treeProvider: ThreatTreeProvider;
 let statusBar: StatusBarProvider;
 let outputChannel: vscode.OutputChannel;
+
+// Security interceptors
+let taskInterceptor: TaskInterceptor;
+let npmInterceptor: NpmScriptInterceptor;
+let quarantineManager: QuarantineManager;
+let quarantineTreeProvider: QuarantineTreeProvider;
+let notificationService: BlockingNotificationService;
 
 // LLM components (initialized lazily when enabled)
 let llmClient: LlmClient | null = null;
@@ -35,6 +45,30 @@ export function activate(context: vscode.ExtensionContext) {
   diagnosticsProvider = new DiagnosticsProvider();
   treeProvider = new ThreatTreeProvider();
   statusBar = new StatusBarProvider();
+
+  // Initialize security interceptors (CRITICAL - must run early)
+  taskInterceptor = new TaskInterceptor(outputChannel);
+  npmInterceptor = new NpmScriptInterceptor(outputChannel);
+  quarantineManager = new QuarantineManager(outputChannel);
+  quarantineTreeProvider = new QuarantineTreeProvider(quarantineManager);
+  notificationService = new BlockingNotificationService(outputChannel);
+  notificationService.setQuarantineManager(quarantineManager);
+
+  // Set up threat handlers for interceptors
+  taskInterceptor.setThreatHandler(result => {
+    if (result.blocked) {
+      notificationService.notifyTaskBlocked(result);
+    }
+  });
+
+  npmInterceptor.setThreatHandler(result => {
+    if (result.blocked) {
+      notificationService.notifyNpmScriptBlocked(result);
+    }
+  });
+
+  // Intercept workspace on activation (BEFORE VS Code processes tasks)
+  interceptWorkspaceOnOpen();
 
   // Load rules
   const rulesDir = path.join(context.extensionPath, 'rules');
@@ -54,9 +88,15 @@ export function activate(context: vscode.ExtensionContext) {
     showCollapseAll: true,
   });
 
+  // Register Quarantine TreeView
+  const quarantineTreeView = vscode.window.createTreeView('fig.quarantine', {
+    treeDataProvider: quarantineTreeProvider,
+    showCollapseAll: true,
+  });
+
   // Register CodeActionProvider for all relevant languages
   const codeActionProvider = new CodeActionProvider();
-  const languages = ['javascript', 'typescript', 'json', 'python', 'shellscript', 'powershell', 'html'];
+  const languages = ['javascript', 'typescript', 'json', 'python', 'shellscript', 'powershell', 'html', 'yaml'];
   for (const lang of languages) {
     context.subscriptions.push(
       vscode.languages.registerCodeActionsProvider(lang, codeActionProvider, {
@@ -70,6 +110,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('fig.scanWorkspace', () => scanWorkspace(context)),
     vscode.commands.registerCommand('fig.scanFile', (uri?: vscode.Uri) => scanSingleFile(uri)),
     vscode.commands.registerCommand('fig.showDashboard', () => showDashboard(context)),
+    vscode.commands.registerCommand('fig.showQuarantine', () => showQuarantine(context)),
+    vscode.commands.registerCommand('fig.quarantineFile', (uri?: vscode.Uri) => quarantineFile(uri)),
     vscode.commands.registerCommand('fig.reloadRules', () => {
       loadRules(rulesDir);
       promptBuilder.loadTemplatesFromDirectory(promptsDir);
@@ -135,15 +177,36 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register disposables
-  context.subscriptions.push(diagnosticsProvider, statusBar, treeView, outputChannel);
+  context.subscriptions.push(diagnosticsProvider, statusBar, treeView, quarantineTreeView, outputChannel);
 
   // Initial scan of open documents
   for (const doc of vscode.workspace.textDocuments) {
     scanDocument(doc);
   }
 
-  outputChannel.appendLine(`FakeInterviewGuard activated. ${scanner.getRules().length} rules loaded.`);
-  vscode.window.showInformationMessage(`FakeInterviewGuard activated — ${scanner.getRules().length} detection rules loaded`);
+  const ruleCount = scanner.getRules().length;
+  const quarantineCount = quarantineManager.getCount();
+  outputChannel.appendLine(`FakeInterviewGuard activated. ${ruleCount} rules loaded, ${quarantineCount} files in quarantine.`);
+  vscode.window.showInformationMessage(`FakeInterviewGuard activated — ${ruleCount} detection rules loaded`);
+}
+
+async function interceptWorkspaceOnOpen(): Promise<void> {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders) return;
+
+  for (const folder of folders) {
+    // Intercept tasks.json BEFORE VS Code processes it
+    const taskResult = await taskInterceptor.interceptWorkspace(folder);
+    if (taskResult?.blocked) {
+      outputChannel.appendLine(`[STARTUP] Blocked malicious tasks.json in ${folder.name}`);
+    }
+
+    // Intercept npm install scripts
+    const npmResult = await npmInterceptor.interceptWorkspace(folder);
+    if (npmResult?.blocked) {
+      outputChannel.appendLine(`[STARTUP] Blocked malicious npm scripts in ${folder.name}`);
+    }
+  }
 }
 
 function initializeLlm(): void {
@@ -448,6 +511,30 @@ async function llmCheckStatus(): Promise<void> {
 function showDashboard(context: vscode.ExtensionContext): void {
   const panel = DashboardPanel.createOrShow(context.extensionUri);
   panel.update(diagnosticsProvider.getThreats());
+}
+
+function showQuarantine(context: vscode.ExtensionContext): void {
+  QuarantinePanel.createOrShow(context.extensionUri, quarantineManager);
+}
+
+async function quarantineFile(uri?: vscode.Uri): Promise<void> {
+  const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
+  if (!targetUri || targetUri.scheme !== 'file') {
+    vscode.window.showWarningMessage('No file selected to quarantine');
+    return;
+  }
+
+  const filePath = targetUri.fsPath;
+  const threats = diagnosticsProvider.getThreats().get(filePath) || [];
+
+  const result = await quarantineManager.quarantine(filePath, threats);
+  if (result) {
+    vscode.window.showInformationMessage(`File quarantined: ${result.fileName}`);
+    diagnosticsProvider.clearFile(filePath);
+    updateUI();
+  } else {
+    vscode.window.showErrorMessage('Failed to quarantine file');
+  }
 }
 
 function updateUI(): void {

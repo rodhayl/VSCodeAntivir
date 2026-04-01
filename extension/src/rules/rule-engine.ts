@@ -1,7 +1,7 @@
 import { DetectionRule, Matcher, RuleCondition } from '../scanner/models/rule';
 import { Threat, ThreatLocation } from '../scanner/models/threat';
-import { Severity, stringToSeverity } from '../scanner/models/severity';
-import { shannonEntropy, findHighEntropyStrings } from '../scanner/analyzers/entropy-analyzer';
+import { stringToSeverity } from '../scanner/models/severity';
+import { findHighEntropyStrings } from '../scanner/analyzers/entropy-analyzer';
 import { minimatch } from 'minimatch';
 
 export interface MatchResult {

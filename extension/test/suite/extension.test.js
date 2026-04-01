@@ -26,8 +26,12 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
 
   test('All commands should be registered', async () => {
     const commands = await vscode.commands.getCommands(true);
-    const expected = ['fig.scanFile', 'fig.scanWorkspace', 'fig.showDashboard',
-      'fig.reloadRules', 'fig.llmAnalyze', 'fig.llmExplain', 'fig.llmSuggestRule', 'fig.llmStatus'];
+    const expected = [
+      'fig.scanFile', 'fig.scanWorkspace', 'fig.showDashboard',
+      'fig.reloadRules', 'fig.llmAnalyze', 'fig.llmExplain', 
+      'fig.llmSuggestRule', 'fig.llmStatus',
+      'fig.showQuarantine', 'fig.quarantineFile'
+    ];
     for (const cmd of expected) {
       assert.ok(commands.includes(cmd), `Command ${cmd} not found`);
     }
@@ -86,5 +90,28 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
     assert.strictEqual(llmProvider, 'lmstudio', 'Default provider should be lmstudio');
     const llmModel = config.get('llm.model');
     assert.strictEqual(llmModel, 'qwen3.5-4b', 'Default model should be qwen3.5-4b');
+  });
+
+  test('Quarantine view should be registered', async function () {
+    this.timeout(10000);
+    await vscode.commands.executeCommand('fig.showQuarantine');
+    await new Promise(r => setTimeout(r, 1000));
+  });
+
+  test('Should detect new rule categories', async function () {
+    this.timeout(15000);
+    const credentialCode = `
+      const fs = require('fs');
+      const home = process.env.HOME;
+      const sshKey = fs.readFileSync(home + '/.ssh/id_rsa');
+      const awsCreds = fs.readFileSync(home + '/.aws/credentials');
+    `;
+    const doc = await vscode.workspace.openTextDocument({ language: 'javascript', content: credentialCode });
+    await vscode.window.showTextDocument(doc);
+    await vscode.commands.executeCommand('fig.scanFile');
+    await new Promise(r => setTimeout(r, 3000));
+    const diagnostics = vscode.languages.getDiagnostics(doc.uri);
+    assert.ok(diagnostics.length > 0, `Expected credential access threats, got ${diagnostics.length}`);
+    console.log(`  Found ${diagnostics.length} credential access diagnostics`);
   });
 });

@@ -1,0 +1,31 @@
+{
+  "id": "persist-launchd",
+  "name": "macOS LaunchAgent Persistence",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "high",
+  "description": "Detects code that creates LaunchAgents or LaunchDaemons for persistence on macOS",
+  "category": "persistence",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1543.001",
+    "name": "Launch Agent"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python", "shellscript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py", "**/*.sh", "**/*.plist"]
+  },
+  "matchers": [
+    { "id": "launch-agents", "type": "string-any", "patterns": ["LaunchAgents", "LaunchDaemons"] },
+    { "id": "plist-write", "type": "regex", "pattern": "writeFile.*\\.plist|plistlib\\.dump" },
+    { "id": "launchctl", "type": "regex", "pattern": "launchctl\\s+(load|bootstrap|enable)" },
+    { "id": "run-at-load", "type": "string", "pattern": "RunAtLoad" },
+    { "id": "keep-alive", "type": "string", "pattern": "KeepAlive" },
+    { "id": "program-args", "type": "string", "pattern": "ProgramArguments" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["launch-agents", "plist-write", "launchctl", "run-at-load", "program-args"] },
+  "remediation": {
+    "message": "This code creates macOS LaunchAgents for persistence.",
+    "actions": ["quarantine"]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "persist-schtask",
+  "name": "Windows Scheduled Task Persistence",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "high",
+  "description": "Detects code that creates Windows Scheduled Tasks for persistence",
+  "category": "persistence",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1053.005",
+    "name": "Scheduled Task"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "powershell", "python"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.ps1", "**/*.py"]
+  },
+  "matchers": [
+    { "id": "schtasks-create", "type": "regex", "pattern": "schtasks\\s+/create" },
+    { "id": "register-task", "type": "regex", "pattern": "Register-ScheduledTask|New-ScheduledTask" },
+    { "id": "task-scheduler-com", "type": "regex", "pattern": "Schedule\\.Service|ITaskService" },
+    { "id": "task-xml", "type": "regex", "pattern": "<Task\\s+.*xmlns.*Task" },
+    { "id": "task-folder", "type": "string-any", "patterns": ["\\Windows\\System32\\Tasks", "Microsoft\\Windows\\Task"] }
+  ],
+  "condition": { "type": "any", "of": ["schtasks-create", "register-task", "task-scheduler-com"] },
+  "remediation": {
+    "message": "This code creates Windows Scheduled Tasks for persistence.",
+    "actions": ["quarantine"]
+  }
+}

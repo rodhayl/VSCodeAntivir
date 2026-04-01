@@ -1,0 +1,34 @@
+{
+  "id": "ch-crypto-wallet",
+  "name": "Cryptocurrency Wallet Access",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects code that accesses cryptocurrency wallet files, seed phrases, or private keys",
+  "category": "credential-access",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1005",
+    "name": "Data from Local System"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py"]
+  },
+  "matchers": [
+    { "id": "wallet-dat", "type": "string", "pattern": "wallet.dat" },
+    { "id": "metamask", "type": "string-any", "patterns": ["MetaMask", "nkbihfbeogaeaoehlefnkodbefgpgknn"] },
+    { "id": "exodus", "type": "string-any", "patterns": ["Exodus", "exodus.wallet"] },
+    { "id": "ledger", "type": "string-any", "patterns": ["Ledger Live", "ledger-live"] },
+    { "id": "seed-phrase", "type": "regex", "pattern": "(seed|mnemonic|recovery)\\s*(phrase|words|key)" },
+    { "id": "bip39", "type": "string-any", "patterns": ["bip39", "bip32", "hdkey"] },
+    { "id": "keystore", "type": "regex", "pattern": "keystore|keystor" },
+    { "id": "solana-wallet", "type": "string-any", "patterns": [".config/solana", "solana-wallet"] }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["wallet-dat", "metamask", "exodus", "ledger", "seed-phrase", "keystore", "solana-wallet"] },
+  "remediation": {
+    "message": "This code accesses cryptocurrency wallet data which is a primary target in Contagious Interview attacks.",
+    "actions": ["quarantine"]
+  }
+}

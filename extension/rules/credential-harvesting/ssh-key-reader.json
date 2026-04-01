@@ -1,0 +1,31 @@
+{
+  "id": "ch-ssh-key-reader",
+  "name": "SSH Key Access Pattern",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects code that accesses SSH private keys or known_hosts files",
+  "category": "credential-access",
+  "mitre": {
+    "tactic": "Credential Access",
+    "technique": "T1552.004",
+    "name": "Private Keys"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py"]
+  },
+  "matchers": [
+    { "id": "ssh-dir", "type": "regex", "pattern": "[\\/\\\\]\\.ssh[\\/\\\\]" },
+    { "id": "id-rsa", "type": "string-any", "patterns": ["id_rsa", "id_ed25519", "id_ecdsa", "id_dsa"] },
+    { "id": "known-hosts", "type": "string", "pattern": "known_hosts" },
+    { "id": "authorized-keys", "type": "string", "pattern": "authorized_keys" },
+    { "id": "ssh-config", "type": "string", "pattern": "ssh/config" },
+    { "id": "private-key-header", "type": "string", "pattern": "-----BEGIN" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["ssh-dir", "id-rsa", "known-hosts", "authorized-keys", "private-key-header"] },
+  "remediation": {
+    "message": "This code accesses SSH keys which is a common credential theft technique.",
+    "actions": ["quarantine", "review"]
+  }
+}

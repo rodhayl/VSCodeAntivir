@@ -1,0 +1,31 @@
+{
+  "id": "persist-registry",
+  "name": "Windows Registry Run Key Persistence",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects code that modifies Windows Registry Run keys for startup persistence",
+  "category": "persistence",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1547.001",
+    "name": "Registry Run Keys / Startup Folder"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "powershell", "python"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.ps1", "**/*.py"]
+  },
+  "matchers": [
+    { "id": "run-key", "type": "string-any", "patterns": ["CurrentVersion\\Run", "CurrentVersion\\\\Run", "CurrentVersion/Run"] },
+    { "id": "runonce-key", "type": "string-any", "patterns": ["CurrentVersion\\RunOnce", "CurrentVersion\\\\RunOnce"] },
+    { "id": "reg-add", "type": "regex", "pattern": "reg\\s+add.*Run|REG\\s+ADD.*Run" },
+    { "id": "set-itemproperty", "type": "regex", "pattern": "Set-ItemProperty.*HKCU|Set-ItemProperty.*HKLM" },
+    { "id": "new-itemproperty", "type": "regex", "pattern": "New-ItemProperty.*Run" },
+    { "id": "winreg", "type": "regex", "pattern": "winreg\\.OpenKey|winreg\\.SetValueEx" }
+  ],
+  "condition": { "type": "threshold", "minimum": 1, "of": ["run-key", "runonce-key", "reg-add", "set-itemproperty", "winreg"] },
+  "remediation": {
+    "message": "This code modifies Windows Registry Run keys for startup persistence.",
+    "actions": ["quarantine"]
+  }
+}

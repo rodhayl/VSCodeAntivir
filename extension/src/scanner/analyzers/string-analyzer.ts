@@ -1,3 +1,4 @@
+/** Extract string literals from JavaScript/TypeScript content. For AST analysis future use. */
 export function extractStringLiterals(content: string): Array<{ value: string; index: number }> {
   const results: Array<{ value: string; index: number }> = [];
   const pattern = /(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)')/g;

@@ -21,6 +21,7 @@ export interface UrlFinding {
   reason: string;
 }
 
+/** Extract all URLs from content. Used by findSuspiciousUrls. */
 export function extractUrls(content: string): Array<{ url: string; index: number }> {
   const urlPattern = /https?:\/\/[^\s"'`<>)\]},]+/g;
   const results: Array<{ url: string; index: number }> = [];
@@ -31,6 +32,7 @@ export function extractUrls(content: string): Array<{ url: string; index: number
   return results;
 }
 
+/** Find URLs pointing to suspicious domains or raw IPs. For heuristic engine future use. */
 export function findSuspiciousUrls(content: string): UrlFinding[] {
   const urls = extractUrls(content);
   const findings: UrlFinding[] = [];
@@ -40,7 +42,6 @@ export function findSuspiciousUrls(content: string): UrlFinding[] {
         findings.push({ url, index, reason: `URL contains suspicious domain: ${domain}` });
       }
     }
-    // Check for non-localhost IPs
     const ipMatch = url.match(/https?:\/\/(\d+\.\d+\.\d+\.\d+)/);
     if (ipMatch && ipMatch[1] !== '127.0.0.1' && ipMatch[1] !== '0.0.0.0') {
       findings.push({ url, index, reason: `URL contains IP address: ${ipMatch[1]}` });
@@ -49,6 +50,7 @@ export function findSuspiciousUrls(content: string): UrlFinding[] {
   return findings;
 }
 
+/** Find piped execution patterns (curl | sh). For heuristic engine future use. */
 export function findPipedExecution(content: string): Array<{ pattern: string; index: number }> {
   const results: Array<{ pattern: string; index: number }> = [];
   for (const pattern of SUSPICIOUS_PATTERNS) {

@@ -1,0 +1,31 @@
+{
+  "id": "ch-cloud-creds",
+  "name": "Cloud Credential File Access",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects code that accesses cloud provider credential files (AWS, GCP, Azure)",
+  "category": "credential-access",
+  "mitre": {
+    "tactic": "Credential Access",
+    "technique": "T1552.001",
+    "name": "Credentials In Files"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python", "shellscript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py", "**/*.sh"]
+  },
+  "matchers": [
+    { "id": "aws-creds", "type": "string-any", "patterns": [".aws/credentials", ".aws/config", "AWS_ACCESS_KEY", "AWS_SECRET_ACCESS"] },
+    { "id": "gcp-creds", "type": "string-any", "patterns": ["application_default_credentials.json", "gcloud/credentials", "GOOGLE_APPLICATION_CREDENTIALS"] },
+    { "id": "azure-creds", "type": "string-any", "patterns": [".azure/credentials", "azure/accessTokens.json", "AZURE_CLIENT_SECRET"] },
+    { "id": "kube-config", "type": "string-any", "patterns": [".kube/config", "kubeconfig"] },
+    { "id": "docker-config", "type": "string", "pattern": ".docker/config.json" },
+    { "id": "terraform-state", "type": "string-any", "patterns": ["terraform.tfstate", ".terraform/"] }
+  ],
+  "condition": { "type": "any", "of": ["aws-creds", "gcp-creds", "azure-creds"] },
+  "remediation": {
+    "message": "This code accesses cloud provider credentials which could enable unauthorized cloud access.",
+    "actions": ["quarantine"]
+  }
+}

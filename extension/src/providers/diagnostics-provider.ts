@@ -102,6 +102,12 @@ export class DiagnosticsProvider {
     this.threatMap.clear();
   }
 
+  clearFile(filePath: string): void {
+    const uri = vscode.Uri.file(filePath);
+    this.collection.delete(uri);
+    this.threatMap.delete(filePath);
+  }
+
   dispose(): void {
     this.collection.dispose();
   }

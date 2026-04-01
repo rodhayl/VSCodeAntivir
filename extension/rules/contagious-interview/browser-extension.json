@@ -1,0 +1,33 @@
+{
+  "id": "ci-browser-extension",
+  "name": "Malicious Browser Extension Pattern",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "medium",
+  "description": "Detects patterns in browser extensions that indicate credential theft or data exfiltration",
+  "category": "collection",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1185",
+    "name": "Browser Session Hijacking"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "json"],
+    "filePatterns": ["**/manifest.json", "**/background.js", "**/content.js", "**/popup.js"]
+  },
+  "matchers": [
+    { "id": "all-urls", "type": "string", "pattern": "<all_urls>" },
+    { "id": "webRequest", "type": "string", "pattern": "webRequest" },
+    { "id": "cookies-permission", "type": "string", "pattern": "\"cookies\"" },
+    { "id": "history-permission", "type": "string", "pattern": "\"history\"" },
+    { "id": "tabs-permission", "type": "string", "pattern": "\"tabs\"" },
+    { "id": "intercept-auth", "type": "regex", "pattern": "onAuthRequired|onBeforeSendHeaders" },
+    { "id": "password-capture", "type": "regex", "pattern": "type=['\"]password['\"]|input\\[type=password\\]" }
+  ],
+  "condition": { "type": "threshold", "minimum": 3, "of": ["all-urls", "webRequest", "cookies-permission", "history-permission", "intercept-auth", "password-capture"] },
+  "remediation": {
+    "message": "This browser extension has permissions and patterns that could be used for credential theft.",
+    "actions": ["review"]
+  }
+}

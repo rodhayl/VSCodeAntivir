@@ -1,0 +1,32 @@
+{
+  "id": "ci-python-rat",
+  "name": "Python Remote Access Trojan Pattern",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects Python-based RAT patterns commonly used in Contagious Interview campaigns (InvisibleFerret, etc.)",
+  "category": "backdoor",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Command and Control",
+    "technique": "T1071.001",
+    "name": "Web Protocols"
+  },
+  "appliesTo": {
+    "languages": ["python"],
+    "filePatterns": ["**/*.py"]
+  },
+  "matchers": [
+    { "id": "socket-reverse", "type": "regex", "pattern": "socket\\.socket\\(.*AF_INET.*SOCK_STREAM" },
+    { "id": "subprocess-shell", "type": "regex", "pattern": "subprocess\\.(Popen|call|run).*shell\\s*=\\s*True" },
+    { "id": "base64-decode", "type": "regex", "pattern": "base64\\.b64decode\\s*\\(" },
+    { "id": "exec-compile", "type": "regex", "pattern": "(exec|eval)\\s*\\(\\s*(compile|base64)" },
+    { "id": "keylogger-pattern", "type": "regex", "pattern": "pynput\\.keyboard|GetAsyncKeyState|SetWindowsHookEx" },
+    { "id": "screenshot-pattern", "type": "regex", "pattern": "pyautogui\\.screenshot|ImageGrab\\.grab|mss\\.mss" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["socket-reverse", "subprocess-shell", "base64-decode", "exec-compile", "keylogger-pattern", "screenshot-pattern"] },
+  "remediation": {
+    "message": "This Python file contains patterns consistent with Remote Access Trojan malware.",
+    "actions": ["quarantine", "review"]
+  }
+}

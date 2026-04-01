@@ -1,5 +1,4 @@
 import { Threat } from './threat';
-import { Severity } from './severity';
 
 export interface ScanResult {
   filePath: string;

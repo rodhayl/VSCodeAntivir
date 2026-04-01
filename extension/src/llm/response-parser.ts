@@ -1,6 +1,6 @@
 import { LlmAnalysisResult, LlmFinding } from './models';
 import { Threat, ThreatLocation } from '../scanner/models/threat';
-import { Severity, stringToSeverity } from '../scanner/models/severity';
+import { stringToSeverity } from '../scanner/models/severity';
 
 export class ResponseParser {
 

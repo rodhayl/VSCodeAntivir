@@ -1,0 +1,30 @@
+{
+  "id": "sc-lockfile-inject",
+  "name": "Lockfile Injection Attack",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "medium",
+  "description": "Detects suspicious patterns in lockfiles that indicate tampering or injection",
+  "category": "supply-chain",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1195.001",
+    "name": "Supply Chain Compromise"
+  },
+  "appliesTo": {
+    "languages": ["json"],
+    "filePatterns": ["**/package-lock.json", "**/yarn.lock", "**/pnpm-lock.yaml"]
+  },
+  "matchers": [
+    { "id": "non-registry-url", "type": "regex", "pattern": "resolved\"\\s*:\\s*\"https?://(?!registry\\.npmjs\\.org|registry\\.yarnpkg\\.com)" },
+    { "id": "git-url", "type": "regex", "pattern": "resolved\"\\s*:\\s*\"git\\+" },
+    { "id": "file-url", "type": "regex", "pattern": "resolved\"\\s*:\\s*\"file:" },
+    { "id": "integrity-missing", "type": "regex", "pattern": "\"integrity\"\\s*:\\s*\"\"" },
+    { "id": "tarball-external", "type": "regex", "pattern": "resolved\"\\s*:\\s*\"https?://[^\"]*\\.tgz" }
+  ],
+  "condition": { "type": "any", "of": ["non-registry-url", "file-url"] },
+  "remediation": {
+    "message": "This lockfile contains non-standard package sources that could indicate tampering.",
+    "actions": ["review"]
+  }
+}

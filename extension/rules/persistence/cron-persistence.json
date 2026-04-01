@@ -1,0 +1,29 @@
+{
+  "id": "persist-cron",
+  "name": "Crontab Persistence",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "high",
+  "description": "Detects code that modifies crontab for persistence on Linux/macOS",
+  "category": "persistence",
+  "mitre": {
+    "tactic": "Persistence",
+    "technique": "T1053.003",
+    "name": "Scheduled Task/Job: Cron"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python", "shellscript"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py", "**/*.sh"]
+  },
+  "matchers": [
+    { "id": "crontab-cmd", "type": "regex", "pattern": "crontab\\s+-[el]|crontab\\s+\\S+\\.txt" },
+    { "id": "cron-dir", "type": "string-any", "patterns": ["/etc/cron.d", "/etc/cron.daily", "/etc/cron.hourly", "/var/spool/cron"] },
+    { "id": "cron-write", "type": "regex", "pattern": "writeFile.*cron|appendFile.*cron|>>.*crontab" },
+    { "id": "cron-syntax", "type": "regex", "pattern": "\\*\\s+\\*\\s+\\*\\s+\\*\\s+\\*" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["crontab-cmd", "cron-dir", "cron-write", "cron-syntax"] },
+  "remediation": {
+    "message": "This code modifies crontab which is a common persistence technique.",
+    "actions": ["quarantine", "review"]
+  }
+}

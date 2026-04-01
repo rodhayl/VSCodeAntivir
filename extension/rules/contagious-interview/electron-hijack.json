@@ -1,0 +1,32 @@
+{
+  "id": "ci-electron-hijack",
+  "name": "Malicious Electron App Configuration",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "high",
+  "description": "Detects patterns of hijacked Electron applications used to deliver malware",
+  "category": "initial-access",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1195.002",
+    "name": "Supply Chain Compromise: Software Supply Chain"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "json"],
+    "filePatterns": ["**/main.js", "**/electron.js", "**/package.json", "**/electron-builder.json"]
+  },
+  "matchers": [
+    { "id": "node-integration", "type": "regex", "pattern": "nodeIntegration\\s*:\\s*true" },
+    { "id": "context-isolation-off", "type": "regex", "pattern": "contextIsolation\\s*:\\s*false" },
+    { "id": "remote-module", "type": "regex", "pattern": "enableRemoteModule\\s*:\\s*true" },
+    { "id": "preload-external", "type": "regex", "pattern": "preload\\s*:\\s*['\"]https?://" },
+    { "id": "asar-unpack", "type": "string", "pattern": "asar-unpack" },
+    { "id": "rebuild-native", "type": "regex", "pattern": "electron-rebuild|node-gyp\\s+rebuild" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["node-integration", "context-isolation-off", "remote-module", "preload-external", "asar-unpack", "rebuild-native"] },
+  "remediation": {
+    "message": "This Electron configuration has security settings that could enable code execution attacks.",
+    "actions": ["review", "neutralize"]
+  }
+}

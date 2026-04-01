@@ -1,0 +1,32 @@
+{
+  "id": "ch-browser-profile",
+  "name": "Browser Credential Store Access",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects code that accesses browser profile directories containing credentials and cookies",
+  "category": "credential-access",
+  "mitre": {
+    "tactic": "Credential Access",
+    "technique": "T1555.003",
+    "name": "Credentials from Web Browsers"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python"],
+    "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts", "**/*.py"]
+  },
+  "matchers": [
+    { "id": "chrome-profile", "type": "string-any", "patterns": ["Google/Chrome", "Chrome/User Data", "Chromium"] },
+    { "id": "firefox-profile", "type": "string-any", "patterns": ["Mozilla/Firefox", "Firefox/Profiles", ".mozilla/firefox"] },
+    { "id": "edge-profile", "type": "string-any", "patterns": ["Microsoft/Edge", "Edge/User Data"] },
+    { "id": "brave-profile", "type": "string-any", "patterns": ["BraveSoftware/Brave", "Brave-Browser"] },
+    { "id": "login-data", "type": "string-any", "patterns": ["Login Data", "logins.json", "cookies.sqlite", "Cookies"] },
+    { "id": "local-state", "type": "string", "pattern": "Local State" },
+    { "id": "decrypt-key", "type": "regex", "pattern": "CryptUnprotectData|DPAPI|pbkdf2|aes.*decrypt" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["chrome-profile", "firefox-profile", "edge-profile", "brave-profile", "login-data", "decrypt-key"] },
+  "remediation": {
+    "message": "This code accesses browser credential stores which indicates credential theft.",
+    "actions": ["quarantine"]
+  }
+}

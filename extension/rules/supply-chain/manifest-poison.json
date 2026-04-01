@@ -1,0 +1,30 @@
+{
+  "id": "sc-manifest-poison",
+  "name": "Package Manifest Poisoning",
+  "version": "1.0.0",
+  "severity": "medium",
+  "confidence": "medium",
+  "description": "Detects inconsistencies in package.json that may indicate package hijacking or poisoning",
+  "category": "supply-chain",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1195.001",
+    "name": "Supply Chain Compromise"
+  },
+  "appliesTo": {
+    "languages": ["json"],
+    "filePatterns": ["**/package.json"]
+  },
+  "matchers": [
+    { "id": "bin-hidden", "type": "regex", "pattern": "\"bin\"\\s*:\\s*\\{[^}]*\"\\.\\." },
+    { "id": "main-external", "type": "regex", "pattern": "\"main\"\\s*:\\s*\"https?://" },
+    { "id": "exports-external", "type": "regex", "pattern": "\"exports\"[^}]*https?://" },
+    { "id": "typings-external", "type": "regex", "pattern": "\"(types|typings)\"\\s*:\\s*\"https?://" },
+    { "id": "funding-suspicious", "type": "regex", "pattern": "\"funding\"\\s*:\\s*\"https?://(?!github\\.com|opencollective\\.com)" }
+  ],
+  "condition": { "type": "any", "of": ["bin-hidden", "main-external", "exports-external"] },
+  "remediation": {
+    "message": "This package.json has suspicious field values that could indicate package hijacking.",
+    "actions": ["review"]
+  }
+}

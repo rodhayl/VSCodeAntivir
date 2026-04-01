@@ -1,0 +1,30 @@
+{
+  "id": "sc-dependency-confusion",
+  "name": "Dependency Confusion Attack",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "medium",
+  "description": "Detects patterns that indicate dependency confusion attacks using internal package names",
+  "category": "supply-chain",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1195.001",
+    "name": "Supply Chain Compromise: Compromise Software Dependencies"
+  },
+  "appliesTo": {
+    "languages": ["json"],
+    "filePatterns": ["**/package.json"]
+  },
+  "matchers": [
+    { "id": "scoped-internal", "type": "regex", "pattern": "\"@(internal|corp|company|private|local)-" },
+    { "id": "high-version", "type": "regex", "pattern": "\"version\"\\s*:\\s*\"[5-9]\\d{2,}\\." },
+    { "id": "no-repo", "type": "regex", "pattern": "\"repository\"\\s*:\\s*\"\"" },
+    { "id": "empty-author", "type": "regex", "pattern": "\"author\"\\s*:\\s*\"\"" },
+    { "id": "registry-override", "type": "regex", "pattern": "\"publishConfig\".*registry.*npm" }
+  ],
+  "condition": { "type": "threshold", "minimum": 2, "of": ["scoped-internal", "high-version", "no-repo", "empty-author", "registry-override"] },
+  "remediation": {
+    "message": "This package may be attempting a dependency confusion attack. Verify the package source.",
+    "actions": ["review", "quarantine"]
+  }
+}

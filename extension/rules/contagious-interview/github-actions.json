@@ -1,0 +1,32 @@
+{
+  "id": "ci-github-actions",
+  "name": "Malicious GitHub Actions Workflow",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects malicious patterns in GitHub Actions workflows that could compromise CI/CD pipelines",
+  "category": "initial-access",
+  "campaign": "contagious-interview",
+  "mitre": {
+    "tactic": "Initial Access",
+    "technique": "T1195.002",
+    "name": "Supply Chain Compromise"
+  },
+  "appliesTo": {
+    "languages": ["yaml"],
+    "filePatterns": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"]
+  },
+  "matchers": [
+    { "id": "curl-exec", "type": "regex", "pattern": "curl.*\\|\\s*(sh|bash)" },
+    { "id": "wget-exec", "type": "regex", "pattern": "wget.*\\|\\s*(sh|bash)" },
+    { "id": "encoded-run", "type": "regex", "pattern": "base64\\s+(-d|--decode)|echo.*\\|.*base64" },
+    { "id": "secrets-exfil", "type": "regex", "pattern": "\\$\\{\\{\\s*secrets\\.[^}]+\\}\\}.*curl|curl.*\\$\\{\\{\\s*secrets" },
+    { "id": "external-action", "type": "regex", "pattern": "uses:\\s*[^/]+/[^@]+@[a-f0-9]{40}" },
+    { "id": "workflow-dispatch-input", "type": "regex", "pattern": "workflow_dispatch.*\\$\\{\\{\\s*github\\.event\\.inputs" }
+  ],
+  "condition": { "type": "any", "of": ["curl-exec", "wget-exec", "secrets-exfil"] },
+  "remediation": {
+    "message": "This GitHub Actions workflow contains patterns that could compromise your CI/CD pipeline.",
+    "actions": ["review", "quarantine"]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "sc-postinstall-fetch",
+  "name": "Network Fetch in Install Script",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects install scripts that download and execute external code",
+  "category": "supply-chain",
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059.007",
+    "name": "JavaScript"
+  },
+  "appliesTo": {
+    "languages": ["json"],
+    "filePatterns": ["**/package.json"]
+  },
+  "matchers": [
+    { "id": "curl-install", "type": "regex", "pattern": "\"(preinstall|postinstall|prepare)\"\\s*:\\s*\"[^\"]*curl\\s+" },
+    { "id": "wget-install", "type": "regex", "pattern": "\"(preinstall|postinstall|prepare)\"\\s*:\\s*\"[^\"]*wget\\s+" },
+    { "id": "fetch-api", "type": "regex", "pattern": "\"(preinstall|postinstall|prepare)\"\\s*:\\s*\"[^\"]*fetch\\(" },
+    { "id": "http-request", "type": "regex", "pattern": "\"(preinstall|postinstall|prepare)\"\\s*:\\s*\"[^\"]*https?://" },
+    { "id": "node-fetch", "type": "regex", "pattern": "\"(preinstall|postinstall|prepare)\"\\s*:\\s*\"node[^\"]*http" }
+  ],
+  "condition": { "type": "any", "of": ["curl-install", "wget-install", "http-request"] },
+  "remediation": {
+    "message": "This package downloads external code during installation which is a common supply-chain attack vector.",
+    "actions": ["quarantine", "block-install"]
+  }
+}
