@@ -144,13 +144,17 @@ export class GitConfigInterceptor {
 
   private async scanGitHooks(hooksDir: string): Promise<GitConfigThreat[]> {
     const threats: GitConfigThreat[] = [];
-    const dangerousHooks = ['pre-commit', 'post-commit', 'pre-push', 'post-checkout', 'post-merge'];
-    
+    const dangerousHooks = [
+      'pre-commit', 'post-commit', 'pre-push', 'post-checkout', 'post-merge',
+      'prepare-commit-msg', 'commit-msg', 'pre-rebase', 'post-rewrite',
+      'post-applypatch', 'pre-auto-gc', 'post-index-change',
+    ];
+
     for (const hookName of dangerousHooks) {
       const hookPath = path.join(hooksDir, hookName);
-      
+
       if (!fs.existsSync(hookPath)) continue;
-      
+
       let content: string;
       try {
         content = fs.readFileSync(hookPath, 'utf-8');
@@ -230,5 +234,31 @@ export class GitConfigInterceptor {
 
   isBlocked(filePath: string): boolean {
     return this.blockedPaths.has(filePath);
+  }
+
+  async restoreHook(hookPath: string): Promise<boolean> {
+    const disabledPath = hookPath + '.fig-disabled';
+    if (!fs.existsSync(disabledPath)) return false;
+    try {
+      fs.renameSync(disabledPath, hookPath);
+      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Hook restored: ${disabledPath} → ${hookPath}`);
+      return true;
+    } catch (e: any) {
+      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Failed to restore hook: ${e.message}`);
+      return false;
+    }
+  }
+
+  async restoreAllHooks(hooksDir: string): Promise<number> {
+    let restored = 0;
+    if (!fs.existsSync(hooksDir)) return 0;
+    const entries = fs.readdirSync(hooksDir);
+    for (const entry of entries) {
+      if (entry.endsWith('.fig-disabled')) {
+        const original = path.join(hooksDir, entry.replace('.fig-disabled', ''));
+        if (await this.restoreHook(original)) restored++;
+      }
+    }
+    return restored;
   }
 }
