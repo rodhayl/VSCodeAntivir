@@ -2,10 +2,18 @@
   "name": "fake-interview-guard",
   "displayName": "FakeInterviewGuard",
   "description": "Detect Contagious Interview malware patterns in your workspace — npm supply-chain attacks, VS Code task abuse, backdoor signatures, and more.",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "fakeinterviewguard",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rulf-ra/VSCodeAntivir"
+  },
+  "bugs": {
+    "url": "https://github.com/rulf-ra/VSCodeAntivir/issues"
+  },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.125.0"
   },
   "categories": [
     "Linters",
@@ -20,7 +28,16 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "*"
+    "onCommand:fig.scanWorkspace",
+    "onCommand:fig.scanFile",
+    "onCommand:fig.showDashboard",
+    "onCommand:fig.showQuarantine",
+    "onCommand:fig.quarantineFile",
+    "onCommand:fig.reloadRules",
+    "onCommand:fig.llmAnalyze",
+    "onCommand:fig.llmExplain",
+    "onCommand:fig.llmSuggestRule",
+    "onCommand:fig.llmStatus"
   ],
   "contributes": {
     "commands": [
@@ -172,7 +189,10 @@
             "teampcp",
             "github-actions",
             "silver-fox",
-            "russian-apt"
+            "russian-apt",
+            "ide-extensions",
+            "ai-tooling",
+            "stealth"
           ],
           "description": "Which built-in rule sets to enable"
         },
@@ -189,7 +209,12 @@
         "fig.llm.provider": {
           "type": "string",
           "default": "lmstudio",
-          "enum": ["lmstudio", "ollama", "openai", "custom"],
+          "enum": [
+            "lmstudio",
+            "ollama",
+            "openai",
+            "custom"
+          ],
           "description": "LLM provider to use"
         },
         "fig.llm.baseUrl": {
@@ -236,26 +261,32 @@
     }
   },
   "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\"",
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "npm run clean && tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts",
-    "test": "node ./test/runTest.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test:unit": "npm run compile && node ./test/runUnit.js",
+    "test:integration": "npm run compile && node ./test/runTest.js",
+    "test": "npm run test:unit && npm run test:integration",
     "package": "vsce package"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "@types/node": "^20.0.0",
     "@types/mocha": "^10.0.0",
-    "@vscode/test-electron": "^2.3.0",
-    "typescript": "^5.3.0",
-    "mocha": "^10.2.0",
-    "@vscode/vsce": "^2.22.0"
+    "@types/node": "^26.1.1",
+    "@types/vscode": "^1.125.0",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
+    "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^3.9.2",
+    "eslint": "^10.7.0",
+    "mocha": "^11.7.6",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "acorn": "^8.11.0",
+    "acorn": "^8.17.0",
     "acorn-walk": "^8.3.0",
-    "minimatch": "^9.0.0",
-    "openai": "^4.73.0"
+    "minimatch": "^10.2.5",
+    "openai": "^6.46.0"
   }
 }

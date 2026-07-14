@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Threat } from '../scanner/models/threat';
-import { Severity, severityToString } from '../scanner/models/severity';
+import { severityToString } from '../scanner/models/severity';
 
 export class DashboardPanel {
   public static currentPanel: DashboardPanel | undefined;
@@ -12,7 +12,7 @@ export class DashboardPanel {
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
   }
 
-  static createOrShow(extensionUri: vscode.Uri): DashboardPanel {
+  static createOrShow(_extensionUri: vscode.Uri): DashboardPanel {
     if (DashboardPanel.currentPanel) {
       DashboardPanel.currentPanel.panel.reveal(vscode.ViewColumn.Two);
       return DashboardPanel.currentPanel;

@@ -1,6 +1,6 @@
 import { Threat, ThreatLocation } from '../models/threat';
 import { Severity } from '../models/severity';
-import { shannonEntropy, findHighEntropyStrings } from '../analyzers/entropy-analyzer';
+import { findHighEntropyStrings } from '../analyzers/entropy-analyzer';
 import {
   countEvalUsage, countExecUsage, countHexStrings,
   countBase64Strings, detectStringArrayObfuscation,

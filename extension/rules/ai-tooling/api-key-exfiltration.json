@@ -1,0 +1,62 @@
+{
+  "id": "ai-api-key-exfiltration",
+  "name": "AI API Key Exfiltration",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects AI helper plugins that capture provider API keys and post them to hardcoded remote endpoints.",
+  "category": "ai-tooling",
+  "campaign": "fake-ai-plugin",
+  "mitre": {
+    "tactic": "Credential Access",
+    "technique": "T1552",
+    "name": "Unsecured Credentials"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript"],
+    "filePatterns": ["**/*.js", "**/*.ts"]
+  },
+  "matchers": [
+    {
+      "id": "provider-keywords",
+      "type": "string-any",
+      "patterns": [
+        "openai",
+        "anthropic",
+        "deepseek",
+        "siliconflow",
+        "api key"
+      ],
+      "caseSensitive": false
+    },
+    {
+      "id": "secret-handling",
+      "type": "regex",
+      "pattern": "(api[_-]?key|authorization|bearer\\s+[a-z0-9._-]+)"
+    },
+    {
+      "id": "remote-post",
+      "type": "regex",
+      "pattern": "(fetch|axios\\.post)\\s*\\(\\s*['\\\"]https?://"
+    },
+    {
+      "id": "apply-hook",
+      "type": "string-any",
+      "patterns": [
+        "onDidChangeConfiguration",
+        "applySettings",
+        "saveSettings",
+        "globalState.update"
+      ]
+    }
+  ],
+  "condition": {
+    "type": "threshold",
+    "minimum": 3,
+    "of": ["provider-keywords", "secret-handling", "remote-post", "apply-hook"]
+  },
+  "remediation": {
+    "message": "Rotate any exposed model-provider keys and remove the plugin until the credential flow is validated.",
+    "actions": ["rotate-credentials", "quarantine", "review-publisher"]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "stealth-unicode-obfuscation",
+  "name": "Invisible Unicode Obfuscation",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "medium",
+  "description": "Detects hidden Unicode characters or escape sequences commonly used to conceal malicious logic from casual review.",
+  "category": "stealth",
+  "campaign": "glassworm",
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1027",
+    "name": "Obfuscated Files or Information"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "json", "yaml"],
+    "filePatterns": ["**/*.js", "**/*.ts", "**/*.json", "**/*.yml", "**/*.yaml"]
+  },
+  "matchers": [
+    {
+      "id": "unicode-escapes",
+      "type": "regex",
+      "pattern": "\\\\u(200b|200c|200d|2060|feff)"
+    },
+    {
+      "id": "zero-width-builders",
+      "type": "regex",
+      "pattern": "String\\.fromCharCode\\((8203|8204|8205|8288|65279)\\)"
+    },
+    {
+      "id": "hidden-char-names",
+      "type": "string-any",
+      "patterns": [
+        "zero-width",
+        "zero width",
+        "byte order mark",
+        "bom marker"
+      ],
+      "caseSensitive": false
+    }
+  ],
+  "condition": {
+    "type": "any",
+    "of": ["unicode-escapes", "zero-width-builders", "hidden-char-names"]
+  },
+  "remediation": {
+    "message": "Inspect the file with hidden-character rendering enabled and remove any concealed control characters or escape-based obfuscation.",
+    "actions": ["review-source", "normalize-text"]
+  }
+}

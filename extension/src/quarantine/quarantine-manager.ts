@@ -150,8 +150,9 @@ export class QuarantineManager {
 
       this.outputChannel.appendLine(`[QUARANTINE] Restored: ${entry.originalPath}`);
       return true;
-    } catch (e: any) {
-      this.outputChannel.appendLine(`[QUARANTINE] Failed to restore ${id}: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = typeof e === 'object' && e !== null && 'message' in e ? (e as { message: string }).message : String(e);
+      this.outputChannel.appendLine(`[QUARANTINE] Failed to restore ${id}: ${msg}`);
       return false;
     }
   }
@@ -177,8 +178,9 @@ export class QuarantineManager {
 
       this.outputChannel.appendLine(`[QUARANTINE] Permanently deleted: ${entry.originalPath}`);
       return true;
-    } catch (e: any) {
-      this.outputChannel.appendLine(`[QUARANTINE] Failed to delete ${id}: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = typeof e === 'object' && e !== null && 'message' in e ? (e as { message: string }).message : String(e);
+      this.outputChannel.appendLine(`[QUARANTINE] Failed to delete ${id}: ${msg}`);
       return false;
     }
   }

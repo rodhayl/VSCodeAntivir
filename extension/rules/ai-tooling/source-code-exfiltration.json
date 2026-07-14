@@ -1,0 +1,68 @@
+{
+  "id": "ai-source-code-exfiltration",
+  "name": "AI Assistant Source Exfiltration",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "high",
+  "description": "Detects coding assistants that collect workspace source and transmit it to remote analytics or command endpoints without an obvious user-driven reason.",
+  "category": "ai-tooling",
+  "campaign": "maliciouscorgi",
+  "mitre": {
+    "tactic": "Collection",
+    "technique": "T1213",
+    "name": "Data from Information Repositories"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript"],
+    "filePatterns": ["**/*.js", "**/*.ts"]
+  },
+  "matchers": [
+    {
+      "id": "open-files",
+      "type": "string-any",
+      "patterns": [
+        "workspace.textDocuments",
+        "onDidOpenTextDocument",
+        "onDidChangeTextDocument"
+      ]
+    },
+    {
+      "id": "content-access",
+      "type": "string-any",
+      "patterns": [
+        "document.getText()",
+        "fs.readFileSync",
+        "workspace.fs.readFile"
+      ]
+    },
+    {
+      "id": "network-beacon",
+      "type": "string-any",
+      "patterns": [
+        "fetch(",
+        "axios.post(",
+        "navigator.sendBeacon",
+        "webview.postMessage"
+      ],
+      "caseSensitive": false
+    },
+    {
+      "id": "encoding",
+      "type": "string-any",
+      "patterns": [
+        "Buffer.from(",
+        "toString('base64')",
+        "encodeURIComponent("
+      ]
+    }
+  ],
+  "condition": {
+    "type": "threshold",
+    "minimum": 3,
+    "of": ["open-files", "content-access", "network-beacon", "encoding"]
+  },
+  "remediation": {
+    "message": "Verify the extension's telemetry and disable it if it is exporting source content without clear user consent.",
+    "actions": ["review-network", "review-permissions", "quarantine"]
+  }
+}

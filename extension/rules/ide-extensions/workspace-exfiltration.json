@@ -1,0 +1,70 @@
+{
+  "id": "ide-workspace-exfiltration",
+  "name": "IDE Workspace Exfiltration",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects IDE extensions that enumerate workspace content and send source files or open documents to remote servers.",
+  "category": "ide-extensions",
+  "campaign": "maliciouscorgi",
+  "mitre": {
+    "tactic": "Exfiltration",
+    "technique": "T1041",
+    "name": "Exfiltration Over C2 Channel"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript"],
+    "filePatterns": ["**/*.js", "**/*.ts"]
+  },
+  "matchers": [
+    {
+      "id": "workspace-enum",
+      "type": "string-any",
+      "patterns": [
+        "vscode.workspace.textDocuments",
+        "vscode.workspace.findFiles",
+        "workspace.textDocuments",
+        "document.getText()"
+      ]
+    },
+    {
+      "id": "file-read",
+      "type": "string-any",
+      "patterns": [
+        "fs.readFileSync",
+        "workspace.fs.readFile",
+        "TextDecoder().decode"
+      ]
+    },
+    {
+      "id": "network-post",
+      "type": "string-any",
+      "patterns": [
+        "fetch(",
+        "axios.post(",
+        "XMLHttpRequest",
+        "navigator.sendBeacon"
+      ],
+      "caseSensitive": false
+    },
+    {
+      "id": "payload-prep",
+      "type": "string-any",
+      "patterns": [
+        "Buffer.from(",
+        "toString('base64')",
+        "btoa(",
+        "FormData()"
+      ]
+    }
+  ],
+  "condition": {
+    "type": "threshold",
+    "minimum": 3,
+    "of": ["workspace-enum", "file-read", "network-post", "payload-prep"]
+  },
+  "remediation": {
+    "message": "Treat the extension as untrusted until you verify why it reads source files and transmits them off-host.",
+    "actions": ["quarantine", "review-network", "review-publisher"]
+  }
+}

@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { Severity } from '../scanner/models/severity';
-import { Threat } from '../scanner/models/threat';
 
 export class StatusBarProvider {
   private item: vscode.StatusBarItem;

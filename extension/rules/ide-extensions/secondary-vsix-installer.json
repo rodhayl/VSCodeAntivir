@@ -1,0 +1,70 @@
+{
+  "id": "ide-secondary-vsix-installer",
+  "name": "Secondary IDE Extension Installer",
+  "version": "1.0.0",
+  "severity": "critical",
+  "confidence": "high",
+  "description": "Detects extension loaders that fetch and silently install a secondary VSIX or marketplace extension payload.",
+  "category": "ide-extensions",
+  "campaign": "glassworm-v2",
+  "references": [
+    "https://open-vsx.org/",
+    "https://code.visualstudio.com/api/working-with-extensions/publishing-extension"
+  ],
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1129",
+    "name": "Shared Modules"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "json"],
+    "filePatterns": ["**/*.js", "**/*.ts", "**/package.json"]
+  },
+  "matchers": [
+    {
+      "id": "install-flag",
+      "type": "string-any",
+      "patterns": [
+        "--install-extension",
+        "workbench.extensions.installExtension",
+        "extensions.installExtension"
+      ]
+    },
+    {
+      "id": "ide-binaries",
+      "type": "string-any",
+      "patterns": [
+        "code --install-extension",
+        "cursor --install-extension",
+        "windsurf --install-extension",
+        "codium --install-extension"
+      ]
+    },
+    {
+      "id": "remote-vsix",
+      "type": "regex",
+      "pattern": "https?://[^\\s\\\"']+\\.(vsix|zip)"
+    },
+    {
+      "id": "download-helper",
+      "type": "string-any",
+      "patterns": [
+        "githubusercontent.com",
+        "open-vsx.org",
+        "marketplace.visualstudio.com",
+        "fetch(",
+        "axios.get("
+      ],
+      "caseSensitive": false
+    }
+  ],
+  "condition": {
+    "type": "threshold",
+    "minimum": 2,
+    "of": ["install-flag", "ide-binaries", "remote-vsix", "download-helper"]
+  },
+  "remediation": {
+    "message": "Review the extension code for secondary payload delivery and remove any hidden extension-install flow.",
+    "actions": ["quarantine", "review-publisher", "block-install"]
+  }
+}

@@ -105,12 +105,25 @@ export class GitConfigInterceptor {
     }
 
     const lines = content.split('\n');
+    let currentSection = '';
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
+      // Track current section (e.g., [core], [remote "origin"])
+      const sectionMatch = line.match(/^\[([^\]]+)\]/);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1].toLowerCase();
+        continue;
+      }
+
       for (const pattern of DANGEROUS_CONFIG_PATTERNS) {
-        const keyPattern = new RegExp(`^\\s*${pattern.key.replace('.', '\\.')}\\s*=\\s*(.+)`, 'i');
+        const [section, key] = pattern.key.split('.');
+        
+        // Match the key within the correct section
+        if (currentSection !== section.toLowerCase()) continue;
+
+        const keyPattern = new RegExp(`^\\s*${key}\\s*=\\s*(.+)`, 'i');
         const match = line.match(keyPattern);
         
         if (match) {

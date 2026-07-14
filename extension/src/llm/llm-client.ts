@@ -42,14 +42,14 @@ export class LlmClient {
   async checkHealth(): Promise<{ ok: boolean; models: string[]; error?: string }> {
     try {
       const response = await this.client.models.list();
-      const models: string[] = [];
-      const data = (response as any).data;
-      if (Array.isArray(data)) {
-        for (const m of data) {
-          models.push(m.id);
+      const modelsArray: string[] = [];
+      const modelsList = response as unknown as { data: Array<{ id: string }> };
+      if (Array.isArray(modelsList.data)) {
+        for (const m of modelsList.data) {
+          modelsArray.push(m.id);
         }
       }
-      return { ok: true, models };
+      return { ok: true, models: modelsArray };
     } catch (e: any) {
       return { ok: false, models: [], error: e.message };
     }

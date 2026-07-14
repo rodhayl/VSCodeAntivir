@@ -59,6 +59,11 @@ export function runVscodeTaskEngine(content: string, filePath: string): Threat[]
       { pattern: 'wget ', reason: 'wget command in task' },
       { pattern: 'invoke-webrequest', reason: 'PowerShell web request in task' },
       { pattern: 'invoke-expression', reason: 'PowerShell expression evaluation in task' },
+      { pattern: '--install-extension', reason: 'IDE extension installation command in task' },
+      { pattern: '-encodedcommand', reason: 'PowerShell encoded command in task' },
+      { pattern: 'frombase64string', reason: 'base64-decoding launcher in task' },
+      { pattern: 'graph.microsoft.com', reason: 'Microsoft Graph used as remote task endpoint' },
+      { pattern: 'sharepoint.com', reason: 'SharePoint used as remote task endpoint' },
     ];
 
     for (const dp of dangerousPatterns) {

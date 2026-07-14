@@ -249,7 +249,8 @@ function initializeLlm(): void {
 function loadRules(rulesDir: string): void {
   const config = vscode.workspace.getConfiguration('fig');
   const customPath = config.get<string>('customRulesPath', '');
-  const result = scanner.loadRules(rulesDir, customPath || undefined);
+  const enabledRuleSets = config.get<string[]>('enabledRuleSets', []);
+  const result = scanner.loadRules(rulesDir, customPath || undefined, enabledRuleSets);
   outputChannel.appendLine(`Loaded ${result.count} rules`);
   if (result.errors.length > 0) {
     outputChannel.appendLine(`Rule loading errors:\n${result.errors.join('\n')}`);
@@ -264,7 +265,7 @@ function scanDocument(doc: vscode.TextDocument): void {
   if (doc.uri.scheme !== 'file') return;
   const filePath = doc.uri.fsPath;
   const ext = path.extname(filePath).toLowerCase();
-  const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html'];
+  const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'];
   if (!scanExts.includes(ext)) return;
 
   try {
@@ -321,7 +322,7 @@ function scanSingleFile(uri?: vscode.Uri): void {
   }
 }
 
-async function scanWorkspace(context: vscode.ExtensionContext): Promise<void> {
+async function scanWorkspace(_context: vscode.ExtensionContext): Promise<void> {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders) {
     vscode.window.showWarningMessage('No workspace folder open');
@@ -414,7 +415,7 @@ async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<
           }
         });
 
-      } catch (e: any) {
+       } catch (e: any) {
         if (e.message === 'Cancelled') {
           vscode.window.showInformationMessage('LLM analysis cancelled');
         } else {

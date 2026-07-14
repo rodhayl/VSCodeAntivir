@@ -1,7 +1,5 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { QuarantineManager, QuarantinedFile } from './quarantine-manager';
-import { severityToString } from '../scanner/models/severity';
 
 class QuarantineTreeItem extends vscode.TreeItem {
   constructor(

@@ -3,7 +3,7 @@ import * as path from 'path';
 import { DetectionRule } from './models/rule';
 import { Threat } from './models/threat';
 import { ScanResult, ScanSummary, createEmptySummary } from './models/scan-result';
-import { Severity, severityToString } from './models/severity';
+import { severityToString } from './models/severity';
 import { RuleLoader } from '../rules/rule-loader';
 import { runSignatureEngine } from './engines/signature-engine';
 import { runHeuristicEngine } from './engines/heuristic-engine';
@@ -21,9 +21,30 @@ export class Scanner {
     this.ruleLoader = new RuleLoader();
   }
 
-  loadRules(builtInRulesDir: string, customRulesDir?: string): { count: number; errors: string[] } {
+  loadRules(
+    builtInRulesDir: string,
+    customRulesDir?: string,
+    enabledRuleSets?: string[]
+  ): { count: number; errors: string[] } {
     this.ruleLoader.clear();
-    this.ruleLoader.loadFromDirectory(builtInRulesDir);
+
+    const selectedRuleSets = new Set(enabledRuleSets ?? []);
+    const builtInEntries = fs.existsSync(builtInRulesDir)
+      ? fs.readdirSync(builtInRulesDir, { withFileTypes: true })
+      : [];
+
+    for (const entry of builtInEntries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      if (selectedRuleSets.size > 0 && !selectedRuleSets.has(entry.name)) {
+        continue;
+      }
+
+      this.ruleLoader.loadFromDirectory(path.join(builtInRulesDir, entry.name));
+    }
+
     if (customRulesDir) {
       this.ruleLoader.loadFromDirectory(customRulesDir);
     }
@@ -109,7 +130,7 @@ export class Scanner {
 
   private walkDirectory(dir: string): string[] {
     const results: string[] = [];
-    const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html'];
+    const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'];
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {

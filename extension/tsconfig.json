@@ -14,6 +14,6 @@
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "out"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "out", "test/suite"]
 }

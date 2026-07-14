@@ -6,6 +6,11 @@
   "confidence": "medium",
   "description": "Detects eval() combined with encoding/decoding functions, indicating obfuscated payload execution",
   "category": "defense-evasion",
+  "mitre": {
+    "tactic": "Defense Evasion",
+    "technique": "T1027.006",
+    "name": "Obfuscated Files or Information: JavaScript"
+  },
   "appliesTo": {
     "languages": ["javascript", "typescript"],
     "filePatterns": ["**/*.js", "**/*.mjs", "**/*.ts"]

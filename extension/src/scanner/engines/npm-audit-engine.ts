@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import { Threat, ThreatLocation } from '../models/threat';
 import { Severity } from '../models/severity';
@@ -156,6 +155,35 @@ const KNOWN_BAD_PACKAGES: KnownBadPackage[] = [
     campaign: 'Silver Fox/AtlasCross',
     description: 'Typosquatted Telegram package delivering AtlasCross RAT.'
   },
+  // 2026 developer-targeted supply-chain campaigns
+  {
+    name: 'redeem-onchain-sdk',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'UNK_DeadDrop',
+    description: 'Malicious SDK observed in wallet- and developer-targeting supply-chain campaigns.'
+  },
+  {
+    name: 'period-newline',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'UNK_DeadDrop',
+    description: 'Malicious npm package linked to recent developer-targeted malware delivery.'
+  },
+  {
+    name: 'html-to-gutenberg',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'TaskJacker',
+    description: 'Trojanized package reported abusing VS Code task execution to stage payloads.'
+  },
+  {
+    name: 'fetch-page-assets',
+    allVersions: true,
+    severity: 'critical',
+    campaign: 'TaskJacker',
+    description: 'Trojanized package reported using malicious VS Code tasks and downloader logic.'
+  },
 ];
 
 function matchesVersion(installedVersion: string, badVersions: string[]): boolean {
@@ -217,7 +245,9 @@ export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
 
     const suspiciousIndicators = [
       'node ', 'curl ', 'wget ', 'sh ', 'bash ', 'cmd ', 'powershell',
-      'eval', 'exec', 'http://', 'https://',
+      'eval', 'exec', 'http://', 'https://', '--install-extension',
+      'code --install-extension', 'cursor --install-extension', 'windsurf --install-extension',
+      'codium --install-extension', 'openvsx', 'solana', 'base64 -d',
     ];
     const isSuspicious = suspiciousIndicators.some(ind => scriptVal.toLowerCase().includes(ind));
     if (isSuspicious) {

@@ -13,7 +13,7 @@ export class ResponseParser {
     return {
       malicious: !!json.malicious,
       confidence: typeof json.confidence === 'number' ? json.confidence : 50,
-      threats: Array.isArray(json.threats) ? json.threats.map((t: any) => ({
+      threats: Array.isArray(json.threats) ? (json.threats as any[]).map((t) => ({
         type: t.type || 'Unknown Threat',
         severity: t.severity || 'medium',
         evidence: t.evidence || '',

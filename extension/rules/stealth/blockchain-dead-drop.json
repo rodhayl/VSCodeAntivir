@@ -1,0 +1,63 @@
+{
+  "id": "stealth-blockchain-dead-drop",
+  "name": "Blockchain Dead-Drop Payload Retrieval",
+  "version": "1.0.0",
+  "severity": "high",
+  "confidence": "medium",
+  "description": "Detects payload retrieval logic that abuses blockchain transaction memos or explorer APIs as a command dead-drop channel.",
+  "category": "stealth",
+  "campaign": "glasswasm",
+  "mitre": {
+    "tactic": "Command and Control",
+    "technique": "T1102",
+    "name": "Web Service"
+  },
+  "appliesTo": {
+    "languages": ["javascript", "typescript", "python"],
+    "filePatterns": ["**/*.js", "**/*.ts", "**/*.py"]
+  },
+  "matchers": [
+    {
+      "id": "memo-api",
+      "type": "string-any",
+      "patterns": [
+        "getSignaturesForAddress",
+        "getTransaction",
+        "transaction memo",
+        "Memo Program",
+        "solana"
+      ],
+      "caseSensitive": false
+    },
+    {
+      "id": "explorer-api",
+      "type": "string-any",
+      "patterns": [
+        "etherscan.io/api",
+        "bscscan.com/api",
+        "solscan.io",
+        "alchemy.com/v2"
+      ],
+      "caseSensitive": false
+    },
+    {
+      "id": "stager",
+      "type": "string-any",
+      "patterns": [
+        "eval(",
+        "new Function(",
+        "exec(",
+        "Buffer.from("
+      ]
+    }
+  ],
+  "condition": {
+    "type": "threshold",
+    "minimum": 2,
+    "of": ["memo-api", "explorer-api", "stager"]
+  },
+  "remediation": {
+    "message": "Investigate the blockchain lookup and staged execution flow. Legitimate applications rarely combine both in developer tooling.",
+    "actions": ["review-network", "quarantine"]
+  }
+}

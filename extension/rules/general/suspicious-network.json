@@ -6,6 +6,11 @@
   "confidence": "medium",
   "description": "Detects patterns where content is downloaded from the network and piped to a shell or eval for execution",
   "category": "execution",
+  "mitre": {
+    "tactic": "Execution",
+    "technique": "T1059.007",
+    "name": "Command and Scripting Interpreter: JavaScript"
+  },
   "appliesTo": {
     "languages": ["javascript", "shellscript", "powershell", "python"],
     "filePatterns": ["**/*.js", "**/*.sh", "**/*.ps1", "**/*.py"]
