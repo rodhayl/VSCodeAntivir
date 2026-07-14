@@ -286,11 +286,16 @@ export class BlockingNotificationService {
       ).then(async answer => {
         if (answer === 'Yes, restore') {
           if (this.gitInterceptor) {
-            const restored = await this.gitInterceptor.restoreGitConfig(configPath);
-            if (restored) {
-              vscode.window.showInformationMessage('Git config restored from backup');
+            const configRestored = await this.gitInterceptor.restoreGitConfig(configPath);
+            const hooksDir = path.join(path.dirname(configPath), 'hooks');
+            const hooksRestored = await this.gitInterceptor.restoreAllHooks(hooksDir);
+            const parts = [];
+            if (configRestored) parts.push('config');
+            if (hooksRestored > 0) parts.push(`${hooksRestored} hook(s)`);
+            if (parts.length > 0) {
+              vscode.window.showInformationMessage(`Restored: ${parts.join(' and ')} from backup`);
             } else {
-              vscode.window.showErrorMessage('Failed to restore git config');
+              vscode.window.showErrorMessage('Nothing to restore (no backup found)');
             }
           }
         }
