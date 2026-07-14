@@ -2,7 +2,7 @@ import { Severity, severityToString } from '../scanner/models/severity';
 import { Threat } from '../scanner/models/threat';
 
 export function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export function getSecurityScore(threatMap: Map<string, Threat[]>): { score: number; bySeverity: Record<string, number> } {

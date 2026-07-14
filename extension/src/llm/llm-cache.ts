@@ -32,8 +32,16 @@ export class LlmCache {
   set(content: string, promptProfile: string, result: LlmAnalysisResult): void {
     const key = this.makeKey(content, promptProfile);
     if (this.cache.size >= this.maxEntries) {
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey) this.cache.delete(oldestKey);
+      const now = Date.now();
+      for (const [k, entry] of this.cache) {
+        if (now - entry.timestamp > this.ttlMs) {
+          this.cache.delete(k);
+        }
+      }
+      if (this.cache.size >= this.maxEntries) {
+        const oldestKey = this.cache.keys().next().value;
+        if (oldestKey) this.cache.delete(oldestKey);
+      }
     }
     this.cache.set(key, { result: { ...result }, timestamp: Date.now() });
   }

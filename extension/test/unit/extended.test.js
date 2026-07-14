@@ -1208,14 +1208,15 @@ suite('Area 7: Heuristic Engine Extended', () => {
   });
 
   test('exec with subprocess.Popen (Python pattern)', () => {
-    const code = 'subprocess.Popen(cmd); subprocess.Popen(args); os.system(cmd);';
+    const code = 'subprocess.Popen(cmd); subprocess.Popen(args); os.system(cmd); subprocess.Popen(x); os.system(y); subprocess.Popen(z);';
     const threats = runHeuristicEngine(code, 'script.py');
     assert(threats.some(t => t.ruleId === 'heuristic-exec-density'));
   });
 
   test('very long hex string detected', () => {
-    const hex = 'deadbeef'.repeat(20); // 160 chars
-    const threats = runHeuristicEngine(hex, 'payload.js');
+    const hex1 = 'deadbeef'.repeat(20); // 160 chars
+    const hex2 = 'cafebabe'.repeat(20); // 160 chars
+    const threats = runHeuristicEngine(hex1 + ' ' + hex2, 'payload.js');
     assert(threats.some(t => t.ruleId === 'heuristic-hex-payload'));
   });
 

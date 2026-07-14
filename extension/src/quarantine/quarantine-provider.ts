@@ -28,7 +28,7 @@ class QuarantineTreeItem extends vscode.TreeItem {
   }
 }
 
-export class QuarantineTreeProvider implements vscode.TreeDataProvider<QuarantineTreeItem> {
+export class QuarantineTreeProvider implements vscode.TreeDataProvider<QuarantineTreeItem>, vscode.Disposable {
   private _onDidChangeTreeData = new vscode.EventEmitter<QuarantineTreeItem | undefined | null>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -37,6 +37,10 @@ export class QuarantineTreeProvider implements vscode.TreeDataProvider<Quarantin
   constructor(manager: QuarantineManager) {
     this.manager = manager;
     manager.setChangeHandler(() => this.refresh());
+  }
+
+  dispose(): void {
+    this._onDidChangeTreeData.dispose();
   }
 
   refresh(): void {
@@ -71,6 +75,7 @@ export class QuarantinePanel {
   private readonly panel: vscode.WebviewPanel;
   private readonly manager: QuarantineManager;
   private disposables: vscode.Disposable[] = [];
+  private disposed = false;
 
   private constructor(panel: vscode.WebviewPanel, manager: QuarantineManager) {
     this.panel = panel;
@@ -202,10 +207,12 @@ export class QuarantinePanel {
   }
 
   private escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     QuarantinePanel.currentPanel = undefined;
     this.panel.dispose();
     for (const d of this.disposables) d.dispose();

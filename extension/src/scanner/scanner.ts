@@ -70,7 +70,12 @@ export class Scanner {
 
   scanFile(filePath: string, content?: string): ScanResult {
     const start = Date.now();
-    const fileContent = content ?? fs.readFileSync(filePath, 'utf-8');
+    let fileContent: string;
+    try {
+      fileContent = content ?? fs.readFileSync(filePath, 'utf-8');
+    } catch {
+      return { filePath, threats: [], scanDurationMs: Date.now() - start };
+    }
     const threats: Threat[] = [];
 
     // Run signature engine (rule-based)

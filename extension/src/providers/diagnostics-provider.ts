@@ -94,7 +94,7 @@ export class DiagnosticsProvider {
   }
 
   getThreats(): Map<string, Threat[]> {
-    return this.threatMap;
+    return new Map(this.threatMap);
   }
 
   clear(): void {

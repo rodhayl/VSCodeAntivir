@@ -79,7 +79,7 @@ export class TaskInterceptor {
     for (const task of taskList) {
       const taskLabel = task.label || 'unnamed';
       const command = task.command || '';
-      const args = (task.args || []).join(' ');
+      const args = (Array.isArray(task.args) ? task.args : [task.args || '']).join(' ');
       const fullCommand = `${command} ${args}`.trim();
 
       // Check for auto-execute on folder open (CRITICAL)
@@ -159,22 +159,22 @@ export class TaskInterceptor {
 
       // Neutralize piped shell execution (curl ... | sh → echo blocked)
       if (threats.some(t => t.type === 'piped-exec')) {
-        neutralized = neutralized.replace(/("command"\s*:\s*"[^"]*\|\s*(?:sh|bash|cmd|powershell)[^"]*")/g,
-          '"command": "echo BLOCKED by FakeInterviewGuard — piped execution removed" /* $1 */');
+        neutralized = neutralized.replace(/"command"\s*:\s*"[^"]*\|\s*(?:sh|bash|cmd|powershell)[^"]*"/g,
+          '"command": "echo BLOCKED by FakeInterviewGuard — piped execution removed"');
       }
 
       // Neutralize dangerous commands (curl/wget/Invoke-Expression)
       if (threats.some(t => t.type === 'dangerous-command')) {
-        neutralized = neutralized.replace(/("command"\s*:\s*"(curl|wget|Invoke-WebRequest|Invoke-Expression)[^"]*")/g,
-          '"command": "echo BLOCKED by FakeInterviewGuard — dangerous command removed" /* $1 */');
+        neutralized = neutralized.replace(/"command"\s*:\s*"(curl|wget|Invoke-WebRequest|Invoke-Expression)[^"]*"/g,
+          '"command": "echo BLOCKED by FakeInterviewGuard — dangerous command removed"');
       }
 
       // Neutralize URL shorteners
       if (threats.some(t => t.type === 'url-shortener')) {
         const shorteners = ['bit\\.ly', 'short\\.gy', 'tinyurl\\.com', 'is\\.gd', 't\\.co', 'rb\\.gy', 'goo\\.gl'];
         for (const s of shorteners) {
-          neutralized = neutralized.replace(new RegExp(`("${s}[^"]*")`, 'g'),
-            '"BLOCKED_URL" /* $1 */');
+          const re = new RegExp('\u0022' + s + '[^\u0022]*\u0022', 'g');
+          neutralized = neutralized.replace(re, '"BLOCKED_URL"');
         }
       }
 

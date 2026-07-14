@@ -25,8 +25,8 @@ const DANGEROUS_INDICATORS = [
   { pattern: /\bcurl\s+/i, reason: 'Network download in install script' },
   { pattern: /\bwget\s+/i, reason: 'Network download in install script' },
   { pattern: /\beval\b/i, reason: 'Dynamic code execution' },
-  { pattern: /\bexec\b/i, reason: 'Shell command execution' },
-  { pattern: /https?:\/\//i, reason: 'Network URL in install script' },
+  { pattern: /child_process|execSync|execFile/i, reason: 'Shell command execution' },
+
   { pattern: /\bsh\s+-c\b/i, reason: 'Shell command execution' },
   { pattern: /\bbash\s+-c\b/i, reason: 'Shell command execution' },
   { pattern: /\bpowershell\b/i, reason: 'PowerShell execution' },
@@ -93,7 +93,7 @@ export class NpmScriptInterceptor {
           result.threats.push({
             scriptName,
             scriptCommand: scriptCommand.substring(0, 200),
-            severity: scriptName === 'preinstall' ? 'critical' : 'high',
+            severity: (scriptName === 'preinstall' || scriptName === 'prepare') ? 'critical' : 'high',
             reason: indicator.reason,
             line: lineNum,
           });

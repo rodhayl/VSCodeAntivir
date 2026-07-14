@@ -45,11 +45,15 @@ class ThreatTreeItem extends vscode.TreeItem {
   }
 }
 
-export class ThreatTreeProvider implements vscode.TreeDataProvider<ThreatTreeItem> {
+export class ThreatTreeProvider implements vscode.TreeDataProvider<ThreatTreeItem>, vscode.Disposable {
   private _onDidChangeTreeData = new vscode.EventEmitter<ThreatTreeItem | undefined | null>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private groups: ThreatGroup[] = [];
+
+  dispose(): void {
+    this._onDidChangeTreeData.dispose();
+  }
 
   refresh(threatMap: Map<string, Threat[]>): void {
     const allThreats: Threat[] = [];

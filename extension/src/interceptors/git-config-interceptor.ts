@@ -201,10 +201,14 @@ export class GitConfigInterceptor {
         }
 
         // Comment out dangerous lines
+        const lines = content.split('\n');
         for (const threat of configThreats) {
-          const pattern = new RegExp(`(${threat.configKey.replace('.', '\\.')}\\s*=)`, 'gi');
-          content = content.replace(pattern, '# BLOCKED by FakeInterviewGuard: $1');
+          const idx = threat.line;
+          if (idx >= 0 && idx < lines.length) {
+            lines[idx] = '# BLOCKED by FakeInterviewGuard: ' + lines[idx].trimStart();
+          }
         }
+        content = lines.join('\n');
 
         fs.writeFileSync(configPath, content, 'utf-8');
         this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Config neutralized: ${configPath}`);
@@ -260,5 +264,22 @@ export class GitConfigInterceptor {
       }
     }
     return restored;
+  }
+
+  async restoreGitConfig(configPath: string): Promise<boolean> {
+    const backupPath = configPath + '.fig-backup';
+    if (!fs.existsSync(backupPath)) return false;
+
+    try {
+      const original = fs.readFileSync(backupPath, 'utf-8');
+      fs.writeFileSync(configPath, original, 'utf-8');
+      fs.unlinkSync(backupPath);
+      this.blockedPaths.delete(configPath);
+      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Config restored from backup: ${configPath}`);
+      return true;
+    } catch (e: any) {
+      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Failed to restore config: ${e.message}`);
+      return false;
+    }
   }
 }

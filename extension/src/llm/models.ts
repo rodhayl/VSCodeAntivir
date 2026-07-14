@@ -50,16 +50,19 @@ export const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; apiKey: string
 };
 
 export function readLlmConfig(getConfig: (key: string) => any): LlmConfig {
+  const maxTokens = getConfig('fig.llm.maxTokens') ?? 1024;
+  const temperature = getConfig('fig.llm.temperature') ?? 0.1;
+  const timeout = getConfig('fig.llm.timeout') ?? 60000;
   return {
     enabled: getConfig('fig.llm.enabled') ?? false,
     provider: getConfig('fig.llm.provider') ?? 'lmstudio',
     baseUrl: getConfig('fig.llm.baseUrl') ?? '',
     model: getConfig('fig.llm.model') ?? 'qwen3.5-4b',
     apiKey: getConfig('fig.llm.apiKey') ?? '',
-    maxTokens: getConfig('fig.llm.maxTokens') ?? 1024,
-    temperature: getConfig('fig.llm.temperature') ?? 0.1,
+    maxTokens: typeof maxTokens === 'number' && maxTokens > 0 ? maxTokens : 1024,
+    temperature: typeof temperature === 'number' && temperature >= 0 && temperature <= 2 ? temperature : 0.1,
     autoAnalyze: getConfig('fig.llm.autoAnalyze') ?? false,
-    timeout: getConfig('fig.llm.timeout') ?? 60000,
+    timeout: typeof timeout === 'number' && timeout > 0 ? timeout : 60000,
     promptProfile: getConfig('fig.llm.promptProfile') ?? 'default',
   };
 }

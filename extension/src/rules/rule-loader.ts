@@ -24,7 +24,12 @@ export class RuleLoader {
 
   private findJsonFiles(dirPath: string): string[] {
     const results: string[] = [];
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    } catch {
+      return results;
+    }
     for (const entry of entries) {
       const fullPath = path.join(dirPath, entry.name);
       if (entry.isDirectory()) {
@@ -89,6 +94,13 @@ export class RuleLoader {
     if (!rule.condition.of || !Array.isArray(rule.condition.of) || rule.condition.of.length === 0) {
       this.errors.push(`Rule ${rule.id} condition missing 'of' array`);
       return false;
+    }
+    const matcherIds = new Set(rule.matchers.map((m: any) => m.id));
+    for (const ref of rule.condition.of) {
+      if (!matcherIds.has(ref)) {
+        this.errors.push(`Rule ${rule.id} condition.of references unknown matcher: "${ref}"`);
+        return false;
+      }
     }
     if (rule.condition.type === 'threshold' && typeof rule.condition.minimum !== 'number') {
       this.errors.push(`Rule ${rule.id} threshold condition missing 'minimum'`);

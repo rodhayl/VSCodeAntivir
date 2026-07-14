@@ -6,6 +6,7 @@ export class DashboardPanel {
   public static currentPanel: DashboardPanel | undefined;
   private readonly panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];
+  private disposed = false;
 
   private constructor(panel: vscode.WebviewPanel) {
     this.panel = panel;
@@ -117,10 +118,12 @@ export class DashboardPanel {
   }
 
   private escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     DashboardPanel.currentPanel = undefined;
     this.panel.dispose();
     for (const d of this.disposables) d.dispose();

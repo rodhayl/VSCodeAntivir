@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { TaskScanResult, TaskThreat } from '../interceptors/task-interceptor';
-import { NpmScanResult, NpmScriptThreat } from '../interceptors/npm-script-interceptor';
-import { GitScanResult, GitConfigThreat } from '../interceptors/git-config-interceptor';
+import { TaskScanResult, TaskThreat, TaskInterceptor } from '../interceptors/task-interceptor';
+import { NpmScanResult, NpmScriptThreat, NpmScriptInterceptor } from '../interceptors/npm-script-interceptor';
+import { GitScanResult, GitConfigThreat, GitConfigInterceptor } from '../interceptors/git-config-interceptor';
 import { QuarantineManager } from '../quarantine/quarantine-manager';
 import { Threat } from '../scanner/models/threat';
-import { Severity } from '../scanner/models/severity';
+import { Severity, stringToSeverity } from '../scanner/models/severity';
 
 export interface BlockingNotificationOptions {
   showModal?: boolean;
@@ -15,6 +15,9 @@ export interface BlockingNotificationOptions {
 export class BlockingNotificationService {
   private outputChannel: vscode.OutputChannel;
   private quarantineManager: QuarantineManager | null = null;
+  private taskInterceptor: TaskInterceptor | null = null;
+  private npmInterceptor: NpmScriptInterceptor | null = null;
+  private gitInterceptor: GitConfigInterceptor | null = null;
 
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
@@ -22,6 +25,18 @@ export class BlockingNotificationService {
 
   setQuarantineManager(manager: QuarantineManager): void {
     this.quarantineManager = manager;
+  }
+
+  setTaskInterceptor(interceptor: TaskInterceptor): void {
+    this.taskInterceptor = interceptor;
+  }
+
+  setNpmInterceptor(interceptor: NpmScriptInterceptor): void {
+    this.npmInterceptor = interceptor;
+  }
+
+  setGitInterceptor(interceptor: GitConfigInterceptor): void {
+    this.gitInterceptor = interceptor;
   }
 
   async notifyTaskBlocked(result: TaskScanResult): Promise<void> {
@@ -56,9 +71,16 @@ export class BlockingNotificationService {
         '⚠️ Restoring the original file will re-enable auto-execute. Are you sure?',
         'Yes, restore',
         'Cancel'
-      ).then(answer => {
+      ).then(async answer => {
         if (answer === 'Yes, restore') {
-          this.outputChannel.appendLine(`[NOTIFICATION] User chose to restore: ${result.tasksJsonPath}`);
+          if (this.taskInterceptor) {
+            const restored = await this.taskInterceptor.restoreOriginal(result.tasksJsonPath);
+            if (restored) {
+              vscode.window.showInformationMessage('Original tasks.json restored');
+            } else {
+              vscode.window.showErrorMessage('Failed to restore tasks.json');
+            }
+          }
         }
       });
     }
@@ -92,18 +114,35 @@ export class BlockingNotificationService {
       const threats = this.npmThreatsToThreats(result.threats, result.packageJsonPath);
       await this.quarantineManager.quarantine(result.packageJsonPath, threats);
       vscode.window.showInformationMessage('File moved to quarantine');
+    } else if (selection === 'Remove Block') {
+      vscode.window.showWarningMessage(
+        '⚠️ Removing the block will re-enable npm script execution. Are you sure?',
+        'Yes, remove',
+        'Cancel'
+      ).then(async answer => {
+        if (answer === 'Yes, remove') {
+          if (this.npmInterceptor) {
+            const removed = await this.npmInterceptor.removeBlock(result.packageJsonPath);
+            if (removed) {
+              vscode.window.showInformationMessage('npm block removed');
+            } else {
+              vscode.window.showErrorMessage('Failed to remove npm block');
+            }
+          }
+        }
+      });
     }
   }
 
   async notifyThreatDetected(filePath: string, threats: Threat[], options: BlockingNotificationOptions = {}): Promise<void> {
     const fileName = path.basename(filePath);
-    const criticalCount = threats.filter(t => t.severity <= Severity.HIGH).length;
-    
-    if (criticalCount === 0) {
+    const severeCount = threats.filter(t => t.severity === Severity.CRITICAL).length;
+
+    if (severeCount === 0) {
       return;
     }
 
-    const message = `${criticalCount} high-severity threat${criticalCount !== 1 ? 's' : ''} detected in ${fileName}`;
+    const message = `${severeCount} critical threat${severeCount !== 1 ? 's' : ''} detected in ${fileName}`;
 
     if (options.showModal) {
       const selection = await vscode.window.showWarningMessage(
@@ -176,7 +215,7 @@ export class BlockingNotificationService {
       id: `task-${t.type}-${idx}`,
       ruleId: `interceptor-task-${t.type}`,
       ruleName: `Task ${t.type.replace('-', ' ')}`,
-      severity: t.severity === 'critical' ? Severity.CRITICAL : t.severity === 'high' ? Severity.HIGH : Severity.MEDIUM,
+      severity: stringToSeverity(t.severity),
       confidence: 'high',
       message: `Task "${t.taskLabel}": ${t.evidence}`,
       filePath,
@@ -190,7 +229,7 @@ export class BlockingNotificationService {
       id: `npm-${t.scriptName}-${idx}`,
       ruleId: `interceptor-npm-${t.scriptName}`,
       ruleName: `Malicious ${t.scriptName} script`,
-      severity: t.severity === 'critical' ? Severity.CRITICAL : t.severity === 'high' ? Severity.HIGH : Severity.MEDIUM,
+      severity: stringToSeverity(t.severity),
       confidence: 'high',
       message: `${t.reason}: ${t.scriptCommand.substring(0, 80)}`,
       filePath,
@@ -244,9 +283,16 @@ export class BlockingNotificationService {
         '⚠️ Restoring the original config will re-enable code execution. Are you sure?',
         'Yes, restore',
         'Cancel'
-      ).then(answer => {
+      ).then(async answer => {
         if (answer === 'Yes, restore') {
-          this.outputChannel.appendLine(`[NOTIFICATION] User chose to restore: ${configPath}`);
+          if (this.gitInterceptor) {
+            const restored = await this.gitInterceptor.restoreGitConfig(configPath);
+            if (restored) {
+              vscode.window.showInformationMessage('Git config restored from backup');
+            } else {
+              vscode.window.showErrorMessage('Failed to restore git config');
+            }
+          }
         }
       });
     }
@@ -276,7 +322,7 @@ export class BlockingNotificationService {
       id: `git-${t.type}-${idx}`,
       ruleId: `interceptor-git-${t.type}`,
       ruleName: `Git ${t.type} exploit`,
-      severity: t.severity === 'critical' ? Severity.CRITICAL : Severity.HIGH,
+      severity: stringToSeverity(t.severity),
       confidence: 'high',
       message: `${t.configKey}: ${t.value.substring(0, 80)}`,
       filePath,

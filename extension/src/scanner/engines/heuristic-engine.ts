@@ -42,7 +42,7 @@ export function runHeuristicEngine(content: string, filePath: string): Threat[] 
       matchedStrings: [`${evalCount} eval() calls found`],
     });
   }
-  if (execCount >= 3) {
+  if (execCount >= 5) {
     threats.push({
       id: `heuristic-exec-density-${Date.now()}`,
       ruleId: 'heuristic-exec-density',
@@ -59,7 +59,7 @@ export function runHeuristicEngine(content: string, filePath: string): Threat[] 
   // 2. Hex/Base64 encoded payloads
   const hexCount = countHexStrings(content);
   const b64Count = countBase64Strings(content);
-  if (hexCount >= 1) {
+  if (hexCount >= 2) {
     threats.push({
       id: `heuristic-hex-payload-${Date.now()}`,
       ruleId: 'heuristic-hex-payload',

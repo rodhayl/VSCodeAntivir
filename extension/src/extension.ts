@@ -38,6 +38,7 @@ let llmClient: LlmClient | null = null;
 let llmCache: LlmCache;
 let promptBuilder: PromptBuilder;
 let llmEngine: LlmAnalysisEngine | null = null;
+const filesInAnalysis = new Set<string>();
 
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('FakeInterviewGuard');
@@ -57,6 +58,9 @@ export function activate(context: vscode.ExtensionContext) {
   quarantineTreeProvider = new QuarantineTreeProvider(quarantineManager);
   notificationService = new BlockingNotificationService(outputChannel);
   notificationService.setQuarantineManager(quarantineManager);
+  notificationService.setTaskInterceptor(taskInterceptor);
+  notificationService.setNpmInterceptor(npmInterceptor);
+  notificationService.setGitInterceptor(gitInterceptor);
 
   // Set up threat handlers for interceptors
   taskInterceptor.setThreatHandler(result => {
@@ -243,6 +247,10 @@ function initializeLlm(): void {
     return vscode.workspace.getConfiguration().get(key);
   });
 
+  // Clear old references before creating new instances
+  llmClient = null;
+  llmEngine = null;
+
   if (config.enabled) {
     try {
       llmClient = new LlmClient(config);
@@ -254,8 +262,6 @@ function initializeLlm(): void {
       llmEngine = null;
     }
   } else {
-    llmClient = null;
-    llmEngine = null;
     outputChannel.appendLine('LLM disabled');
   }
 }
@@ -263,7 +269,8 @@ function initializeLlm(): void {
 function loadRules(rulesDir: string): void {
   const config = vscode.workspace.getConfiguration('fig');
   const customPath = config.get<string>('customRulesPath', '');
-  const enabledRuleSets = config.get<string[]>('enabledRuleSets', []);
+  const rawRuleSets = config.get<string | string[]>('enabledRuleSets', []);
+  const enabledRuleSets = Array.isArray(rawRuleSets) ? rawRuleSets : [rawRuleSets];
   const result = scanner.loadRules(rulesDir, customPath || undefined, enabledRuleSets);
   outputChannel.appendLine(`Loaded ${result.count} rules`);
   if (result.errors.length > 0) {
@@ -304,6 +311,8 @@ function scanDocument(doc: vscode.TextDocument): void {
 
 async function runLlmAnalysisBackground(filePath: string, content: string): Promise<void> {
   if (!llmEngine) return;
+  if (filesInAnalysis.has(filePath)) return;
+  filesInAnalysis.add(filePath);
   try {
     outputChannel.appendLine(`[LLM] Auto-analyzing: ${path.basename(filePath)}`);
     const { threats, result } = await llmEngine.analyzeFile(filePath, content);
@@ -314,6 +323,8 @@ async function runLlmAnalysisBackground(filePath: string, content: string): Prom
     }
   } catch (e: any) {
     outputChannel.appendLine(`[LLM] Auto-analysis error: ${e.message}`);
+  } finally {
+    filesInAnalysis.delete(filePath);
   }
 }
 
@@ -392,10 +403,14 @@ async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<
       cancellable: true,
     },
     async (_progress, token) => {
+      let cancelDisposable: vscode.Disposable | undefined;
       try {
         statusBar.setLlmAnalyzing();
 
         const analysisPromise = llmEngine!.analyzeFile(filePath, content);
+        cancelDisposable = token.onCancellationRequested(() => {
+          analysisPromise.then(() => {}, () => {}); // prevent unhandled rejection
+        });
         const cancelPromise = new Promise<never>((_, reject) => {
           token.onCancellationRequested(() => reject(new Error('Cancelled')));
         });
@@ -437,6 +452,7 @@ async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<
           vscode.window.showErrorMessage(`LLM analysis failed: ${e.message}`);
         }
       } finally {
+        cancelDisposable?.dispose();
         updateUI();
       }
     }
@@ -593,4 +609,8 @@ function updateUI(): void {
 
 export function deactivate() {
   outputChannel?.appendLine('FakeInterviewGuard deactivating...');
+  llmClient = null;
+  llmEngine = null;
+  filesInAnalysis.clear();
+  llmCache?.clear();
 }

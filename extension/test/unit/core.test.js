@@ -377,15 +377,16 @@ suite('Heuristic Engine', () => {
     assert.strictEqual(evalThreat.severity, Severity.Severity.MEDIUM);
   });
 
-  test('3+ exec triggers exec density', () => {
-    const threats = runHeuristicEngine('exec("a"); execSync("b"); spawn("c");', 'code.js');
+  test('5+ exec triggers exec density', () => {
+    const threats = runHeuristicEngine('exec("a"); execSync("b"); spawn("c"); spawnSync("d"); exec("e"); execSync("f");', 'code.js');
     const execThreat = threats.find(t => t.ruleId === 'heuristic-exec-density');
     assert(execThreat !== undefined, 'Should have exec density threat');
   });
 
   test('long hex strings trigger hex payload', () => {
-    hex = '4a6f686e446f654672616e6b6c696e4d78617374726f6e676f76616e64657175';
-    const threats = runHeuristicEngine(hex, 'code.js');
+    const hex1 = '4a6f686e446f654672616e6b6c696e4d78617374726f6e676f76616e64657175';
+    const hex2 = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+    const threats = runHeuristicEngine(hex1 + ' ' + hex2, 'code.js');
     const hexThreat = threats.find(t => t.ruleId === 'heuristic-hex-payload');
     assert(hexThreat !== undefined, 'Should detect hex payload');
   });

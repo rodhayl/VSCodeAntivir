@@ -238,7 +238,7 @@ export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
   }
 
   // 2. Suspicious preinstall/postinstall scripts
-  const dangerousScripts = ['preinstall', 'postinstall', 'prestart'];
+  const dangerousScripts = ['preinstall', 'postinstall', 'prestart', 'install', 'prepare'];
   for (const scriptName of dangerousScripts) {
     const scriptVal = scripts[scriptName];
     if (!scriptVal) continue;
