@@ -204,12 +204,33 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   });
 
   test('Rule count should include all categories', async function () {
-    // Verify that rules from all categories are loaded
+    this.timeout(15000);
     const ext = vscode.extensions.getExtension('fakeinterviewguard.fake-interview-guard');
-    assert.ok(ext?.isActive, 'Extension should be active');
-    // Simply verify extension is working with all 10 rule categories loaded
-    // Categories: contagious-interview, general, supply-chain, credential-harvesting, persistence, bluenoroff, teampcp, github-actions, silver-fox, russian-apt
-    console.log('  All 10 rule categories should be enabled');
+    assert.ok(ext?.isActive, 'Extension should be active before rule reload');
+    await vscode.commands.executeCommand('fig.reloadRules');
+    await new Promise(r => setTimeout(r, 1000));
+    assert.ok(ext.isActive, 'Extension should remain active after rule reload');
+
+    // Verify rules are loaded by scanning a file that triggers signature detection
+    const tmpDir = path.join(__dirname, '..', '..', '..', 'samples', '.tmp-test');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    const tmpFile = path.join(tmpDir, 'rule-count-test.js');
+    fs.writeFileSync(tmpFile, 'eval("a"); eval("b"); eval("c");\n', 'utf-8');
+    try {
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(tmpFile));
+      await vscode.window.showTextDocument(doc);
+      await vscode.commands.executeCommand('fig.scanFile');
+      await new Promise(r => setTimeout(r, 3000));
+      const diagnostics = vscode.languages
+        .getDiagnostics(doc.uri)
+        .filter(d => d.source === 'FakeInterviewGuard');
+      assert.ok(diagnostics.length > 0, `Extension loaded rules and detected threats: got ${diagnostics.length} diagnostics`);
+    } finally {
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(tmpFile));
+      await vscode.window.showTextDocument(doc);
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+      fs.unlinkSync(tmpFile);
+    }
   });
 
   test('Scan on save should detect threats', async function () {

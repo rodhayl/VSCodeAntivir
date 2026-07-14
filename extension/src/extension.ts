@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { Scanner } from './scanner/scanner';
 import { DiagnosticsProvider } from './providers/diagnostics-provider';
 import { CodeActionProvider } from './providers/code-action-provider';
@@ -164,7 +165,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // File watcher for real-time monitoring
   if (config.get<boolean>('realTimeWatching', true)) {
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{js,mjs,ts,py,json,ps1,sh,yml,yaml}');
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{js,mjs,ts,py,json,ps1,sh,yml,yaml,go,mod}');
     const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'];
 
     const scanUri = (uri: vscode.Uri) => {
@@ -172,10 +173,9 @@ export function activate(context: vscode.ExtensionContext) {
       const ext = path.extname(uri.fsPath).toLowerCase();
       if (!scanExts.includes(ext)) return;
       try {
-        const fs = require('fs');
         if (!fs.existsSync(uri.fsPath)) return;
         const stat = fs.statSync(uri.fsPath);
-        if (stat.size > (scanner as any).maxFileSizeKB * 1024) return;
+        if (stat.size > scanner.getMaxFileSizeKB() * 1024) return;
         const content = fs.readFileSync(uri.fsPath, 'utf-8');
         const result = scanner.scanFile(uri.fsPath, content);
         diagnosticsProvider.updateFileResults(result);

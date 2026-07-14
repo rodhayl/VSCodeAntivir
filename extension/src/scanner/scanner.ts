@@ -64,6 +64,10 @@ export class Scanner {
     this.maxFileSizeKB = kb;
   }
 
+  getMaxFileSizeKB(): number {
+    return this.maxFileSizeKB;
+  }
+
   scanFile(filePath: string, content?: string): ScanResult {
     const start = Date.now();
     const fileContent = content ?? fs.readFileSync(filePath, 'utf-8');

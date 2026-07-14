@@ -1648,30 +1648,47 @@ suite('Area 7: Concurrent Scan Safety', () => {
     const scanner = new Scanner();
     scanner.loadRules(path.resolve(__dirname, '..', '..', 'rules'));
 
-    const files = [
-      { path: 'clean1.js', content: 'const x = 1;' },
-      { path: 'clean2.js', content: 'console.log("hello");' },
-      { path: 'malicious1.js', content: 'eval("a"); eval("b"); eval("c");' },
-      { path: 'clean3.js', content: 'module.exports = {};' },
-      { path: 'malicious2.js', content: 'require("child_process").exec("whoami");' },
+    const fileDefs = [
+      { path: 'clean.js', content: 'const x = 1;\nconst y = x + 2;\nconsole.log(y);' },
+      { path: 'malicious_eval.js', content: 'eval(atob("ZmV0Y2goImh0dHA6Ly8xLjEuMS4xIik="));' },
+      { path: 'malicious_hex.js', content: 'require("child_process").exec("\\x65\\x78\\x65\\x63");' },
+      { path: 'malicious_base64.js', content: 'eval(Buffer.from("Y29uc29sZS5sb2coImhlbGxvIik=", "base64").toString());' },
+      { path: 'malicious_exec.js', content: 'require("child_process").exec("whoami");' },
     ];
 
-    const results = await Promise.all(
-      files.map(f => Promise.resolve(scanner.scanFile(f.path, f.content)))
-    );
+    // Use real async file reads to test actual parallelism
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-concurrent-'));
+    try {
+      for (const f of fileDefs) {
+        fs.writeFileSync(path.join(tmpDir, f.path), f.content, 'utf-8');
+      }
 
-    assert.strictEqual(results.length, 5, 'Should return 5 results');
-    for (const result of results) {
-      assert(result !== undefined, 'Each result should be defined');
-      assert(Array.isArray(result.threats), 'Each result should have threats array');
-      assert(typeof result.scanDurationMs === 'number', 'Each result should have scanDurationMs');
+      const results = await Promise.all(
+        fileDefs.map(f =>
+          fs.promises.readFile(path.join(tmpDir, f.path), 'utf-8').then(content =>
+            scanner.scanFile(path.join(tmpDir, f.path), content)
+          )
+        )
+      );
+
+      assert.strictEqual(results.length, 5, 'Should return 5 results');
+      for (const result of results) {
+        assert(result !== undefined, 'Each result should be defined');
+        assert(Array.isArray(result.threats), 'Each result should have threats array');
+        assert(typeof result.scanDurationMs === 'number', 'Each result should have scanDurationMs');
+      }
+
+      // Clean file should have 0 threats
+      assert.strictEqual(results[0].threats.length, 0, 'clean.js should have no threats');
+
+      // All malicious files should have threats
+      assert(results[1].threats.length > 0, 'malicious_eval.js should have threats');
+      assert(results[2].threats.length > 0, 'malicious_hex.js should have threats');
+      assert(results[3].threats.length > 0, 'malicious_base64.js should have threats');
+      assert(results[4].threats.length > 0, 'malicious_exec.js should have threats');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
-    // Clean files should have 0 threats
-    assert.strictEqual(results[0].threats.length, 0, 'clean1.js should be clean');
-    assert.strictEqual(results[1].threats.length, 0, 'clean2.js should be clean');
-    // Malicious files should have threats
-    assert(results[2].threats.length > 0, 'malicious1.js should have threats');
-    assert(results[4].threats.length > 0, 'malicious2.js should have threats');
   });
 
   test('concurrent scans do not corrupt shared scanner state', async () => {
@@ -1680,14 +1697,29 @@ suite('Area 7: Concurrent Scan Safety', () => {
     const initialRuleCount = scanner.getRules().length;
 
     const iterations = 10;
-    const results = await Promise.all(
-      Array.from({ length: iterations }, (_, i) =>
-        Promise.resolve(scanner.scanFile(`test${i}.js`, `const v${i} = ${i};`))
-      )
-    );
+    // Use real async file reads to test actual parallelism
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-concurrent-state-'));
+    try {
+      const files = Array.from({ length: iterations }, (_, i) => ({
+        path: path.join(tmpDir, `test${i}.js`),
+        content: `const v${i} = ${i};`,
+      }));
+      for (const f of files) {
+        fs.writeFileSync(f.path, f.content, 'utf-8');
+      }
 
-    assert.strictEqual(results.length, iterations, 'All scans should complete');
-    // Rules should not have changed
-    assert.strictEqual(scanner.getRules().length, initialRuleCount, 'Scanner rules should not be modified by scans');
+      const results = await Promise.all(
+        files.map(f =>
+          fs.promises.readFile(f.path, 'utf-8').then(content =>
+            scanner.scanFile(f.path, content)
+          )
+        )
+      );
+
+      assert.strictEqual(results.length, iterations, 'All scans should complete');
+      assert.strictEqual(scanner.getRules().length, initialRuleCount, 'Scanner rules should not be modified by scans');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
