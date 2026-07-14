@@ -164,15 +164,29 @@ export function activate(context: vscode.ExtensionContext) {
 
   // File watcher for real-time monitoring
   if (config.get<boolean>('realTimeWatching', true)) {
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{js,mjs,ts,py,json,ps1,sh}');
-    watcher.onDidCreate(uri => {
-      const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString());
-      if (doc) scanDocument(doc);
-    });
-    watcher.onDidChange(uri => {
-      const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString());
-      if (doc) scanDocument(doc);
-    });
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{js,mjs,ts,py,json,ps1,sh,yml,yaml}');
+    const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'];
+
+    const scanUri = (uri: vscode.Uri) => {
+      if (uri.scheme !== 'file') return;
+      const ext = path.extname(uri.fsPath).toLowerCase();
+      if (!scanExts.includes(ext)) return;
+      try {
+        const fs = require('fs');
+        if (!fs.existsSync(uri.fsPath)) return;
+        const stat = fs.statSync(uri.fsPath);
+        if (stat.size > (scanner as any).maxFileSizeKB * 1024) return;
+        const content = fs.readFileSync(uri.fsPath, 'utf-8');
+        const result = scanner.scanFile(uri.fsPath, content);
+        diagnosticsProvider.updateFileResults(result);
+        updateUI();
+      } catch (e: any) {
+        outputChannel.appendLine(`File watcher error scanning ${uri.fsPath}: ${e.message}`);
+      }
+    };
+
+    watcher.onDidCreate(scanUri);
+    watcher.onDidChange(scanUri);
     context.subscriptions.push(watcher);
   }
 

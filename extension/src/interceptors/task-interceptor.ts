@@ -149,28 +149,48 @@ export class TaskInterceptor {
   }
 
   private async blockTasks(filePath: string, content: string, threats: TaskThreat[]): Promise<boolean> {
-    const hasAutoExec = threats.some(t => t.type === 'auto-execute');
-    
-    if (!hasAutoExec) {
-      return false;
-    }
-
     try {
-      // Neutralize by replacing "folderOpen" with "default"
-      const neutralized = content.replace(/"folderOpen"/g, '"default" /* BLOCKED by FakeInterviewGuard */');
-      
+      let neutralized = content;
+
+      // Neutralize auto-execute (folderOpen → default)
+      if (threats.some(t => t.type === 'auto-execute')) {
+        neutralized = neutralized.replace(/"folderOpen"/g, '"default" /* BLOCKED by FakeInterviewGuard */');
+      }
+
+      // Neutralize piped shell execution (curl ... | sh → echo blocked)
+      if (threats.some(t => t.type === 'piped-exec')) {
+        neutralized = neutralized.replace(/("command"\s*:\s*"[^"]*\|\s*(?:sh|bash|cmd|powershell)[^"]*")/g,
+          '"command": "echo BLOCKED by FakeInterviewGuard — piped execution removed" /* $1 */');
+      }
+
+      // Neutralize dangerous commands (curl/wget/Invoke-Expression)
+      if (threats.some(t => t.type === 'dangerous-command')) {
+        neutralized = neutralized.replace(/("command"\s*:\s*"(curl|wget|Invoke-WebRequest|Invoke-Expression)[^"]*")/g,
+          '"command": "echo BLOCKED by FakeInterviewGuard — dangerous command removed" /* $1 */');
+      }
+
+      // Neutralize URL shorteners
+      if (threats.some(t => t.type === 'url-shortener')) {
+        const shorteners = ['bit\\.ly', 'short\\.gy', 'tinyurl\\.com', 'is\\.gd', 't\\.co', 'rb\\.gy', 'goo\\.gl'];
+        for (const s of shorteners) {
+          neutralized = neutralized.replace(new RegExp(`("${s}[^"]*")`, 'g'),
+            '"BLOCKED_URL" /* $1 */');
+        }
+      }
+
       // Create backup
       const backupPath = filePath + '.fig-backup';
       if (!fs.existsSync(backupPath)) {
         fs.writeFileSync(backupPath, content, 'utf-8');
       }
-      
+
       // Write neutralized version
       fs.writeFileSync(filePath, neutralized, 'utf-8');
-      
-      this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Auto-execute blocked in ${filePath}`);
+
+      const blockedTypes = [...new Set(threats.map(t => t.type))].join(', ');
+      this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Blocked threats (${blockedTypes}) in ${filePath}`);
       this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Original backed up to ${backupPath}`);
-      
+
       return true;
     } catch (e: any) {
       this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Failed to block: ${e.message}`);

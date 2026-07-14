@@ -136,13 +136,22 @@ export class NpmScriptInterceptor {
       if (fs.existsSync(npmrcPath)) {
         npmrcContent = fs.readFileSync(npmrcPath, 'utf-8');
         alreadyHasIgnore = npmrcContent.includes('ignore-scripts');
+
+        // Backup original .npmrc if we're going to modify it
+        if (!alreadyHasIgnore) {
+          const backupPath = npmrcPath + '.fig-backup';
+          if (!fs.existsSync(backupPath)) {
+            fs.writeFileSync(backupPath, npmrcContent, 'utf-8');
+            this.outputChannel.appendLine(`[NPM-INTERCEPTOR] Backed up original .npmrc to ${backupPath}`);
+          }
+        }
       }
 
       if (alreadyHasIgnore) {
         return true;
       }
 
-      const newContent = npmrcContent.trim() + 
+      const newContent = npmrcContent.trim() +
         '\n# Added by FakeInterviewGuard - malicious install scripts detected\n' +
         'ignore-scripts=true\n';
 
@@ -172,6 +181,21 @@ export class NpmScriptInterceptor {
   async removeBlock(packageJsonPath: string): Promise<boolean> {
     const dir = path.dirname(packageJsonPath);
     const npmrcPath = path.join(dir, '.npmrc');
+    const backupPath = npmrcPath + '.fig-backup';
+
+    // Restore from backup if available
+    if (fs.existsSync(backupPath)) {
+      try {
+        const original = fs.readFileSync(backupPath, 'utf-8');
+        fs.writeFileSync(npmrcPath, original, 'utf-8');
+        fs.unlinkSync(backupPath);
+        this.blockedPackages.delete(packageJsonPath);
+        this.outputChannel.appendLine(`[NPM-INTERCEPTOR] Restored original .npmrc from backup for: ${packageJsonPath}`);
+        return true;
+      } catch {
+        // Fall through to manual cleanup
+      }
+    }
 
     if (!fs.existsSync(npmrcPath)) {
       this.blockedPackages.delete(packageJsonPath);
@@ -180,7 +204,7 @@ export class NpmScriptInterceptor {
 
     try {
       let content = fs.readFileSync(npmrcPath, 'utf-8');
-      
+
       content = content
         .replace(/# Added by FakeInterviewGuard.*\n?/g, '')
         .replace(/ignore-scripts=true\n?/g, '')

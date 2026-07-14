@@ -53,12 +53,58 @@ export class RuleLoader {
       this.errors.push(`Rule ${rule.id} has no matchers`);
       return false;
     }
-    if (!rule.condition) {
-      this.errors.push(`Rule ${rule.id} missing condition`);
+    // Validate each matcher has required fields
+    const validMatcherTypes = ['string', 'string-any', 'regex', 'entropy', 'ast', 'file-structure'];
+    for (const matcher of rule.matchers) {
+      if (!matcher.id || typeof matcher.id !== 'string') {
+        this.errors.push(`Rule ${rule.id} matcher missing 'id'`);
+        return false;
+      }
+      if (!matcher.type || !validMatcherTypes.includes(matcher.type)) {
+        this.errors.push(`Rule ${rule.id} matcher ${matcher.id} has invalid type: ${matcher.type}`);
+        return false;
+      }
+      if (matcher.type === 'string' && !matcher.pattern) {
+        this.errors.push(`Rule ${rule.id} string matcher ${matcher.id} missing 'pattern'`);
+        return false;
+      }
+      if (matcher.type === 'string-any' && (!matcher.patterns || !Array.isArray(matcher.patterns))) {
+        this.errors.push(`Rule ${rule.id} string-any matcher ${matcher.id} missing 'patterns' array`);
+        return false;
+      }
+      if (matcher.type === 'regex' && !matcher.pattern) {
+        this.errors.push(`Rule ${rule.id} regex matcher ${matcher.id} missing 'pattern'`);
+        return false;
+      }
+      if (matcher.type === 'entropy' && (matcher.threshold === undefined || matcher.minLength === undefined)) {
+        this.errors.push(`Rule ${rule.id} entropy matcher ${matcher.id} missing 'threshold' or 'minLength'`);
+        return false;
+      }
+    }
+    // Validate condition
+    if (!rule.condition || !rule.condition.type || !['all', 'any', 'threshold'].includes(rule.condition.type)) {
+      this.errors.push(`Rule ${rule.id} missing or invalid condition`);
       return false;
     }
+    if (!rule.condition.of || !Array.isArray(rule.condition.of) || rule.condition.of.length === 0) {
+      this.errors.push(`Rule ${rule.id} condition missing 'of' array`);
+      return false;
+    }
+    if (rule.condition.type === 'threshold' && typeof rule.condition.minimum !== 'number') {
+      this.errors.push(`Rule ${rule.id} threshold condition missing 'minimum'`);
+      return false;
+    }
+    // Validate appliesTo
     if (!rule.appliesTo) {
       this.errors.push(`Rule ${rule.id} missing appliesTo`);
+      return false;
+    }
+    if (rule.appliesTo.filePatterns && !Array.isArray(rule.appliesTo.filePatterns)) {
+      this.errors.push(`Rule ${rule.id} appliesTo.filePatterns must be an array`);
+      return false;
+    }
+    if (rule.appliesTo.languages && !Array.isArray(rule.appliesTo.languages)) {
+      this.errors.push(`Rule ${rule.id} appliesTo.languages must be an array`);
       return false;
     }
     return true;

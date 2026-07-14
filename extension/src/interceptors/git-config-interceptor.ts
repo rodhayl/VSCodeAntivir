@@ -179,31 +179,48 @@ export class GitConfigInterceptor {
 
   private async neutralizeDangerousConfig(configPath: string, threats: GitConfigThreat[]): Promise<boolean> {
     const configThreats = threats.filter(t => t.type !== 'malicious-hook' && t.filePath === configPath);
-    
-    if (configThreats.length === 0) {
+    const hookThreats = threats.filter(t => t.type === 'malicious-hook');
+
+    if (configThreats.length === 0 && hookThreats.length === 0) {
       return false;
     }
 
     try {
-      let content = fs.readFileSync(configPath, 'utf-8');
-      
-      // Create backup
-      const backupPath = configPath + '.fig-backup';
-      if (!fs.existsSync(backupPath)) {
-        fs.writeFileSync(backupPath, content, 'utf-8');
+      // Neutralize dangerous config lines
+      if (configThreats.length > 0) {
+        let content = fs.readFileSync(configPath, 'utf-8');
+
+        // Create backup
+        const backupPath = configPath + '.fig-backup';
+        if (!fs.existsSync(backupPath)) {
+          fs.writeFileSync(backupPath, content, 'utf-8');
+        }
+
+        // Comment out dangerous lines
+        for (const threat of configThreats) {
+          const pattern = new RegExp(`(${threat.configKey.replace('.', '\\.')}\\s*=)`, 'gi');
+          content = content.replace(pattern, '# BLOCKED by FakeInterviewGuard: $1');
+        }
+
+        fs.writeFileSync(configPath, content, 'utf-8');
+        this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Config neutralized: ${configPath}`);
+        this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Backup saved to: ${backupPath}`);
       }
 
-      // Comment out dangerous lines
-      for (const threat of configThreats) {
-        const pattern = new RegExp(`(${threat.configKey.replace('.', '\\.')}\\s*=)`, 'gi');
-        content = content.replace(pattern, '# BLOCKED by FakeInterviewGuard: $1');
+      // Neutralize malicious hooks by renaming them
+      for (const hookThreat of hookThreats) {
+        const hookPath = hookThreat.filePath;
+        const disabledPath = hookPath + '.fig-disabled';
+        try {
+          if (fs.existsSync(hookPath) && !fs.existsSync(disabledPath)) {
+            fs.renameSync(hookPath, disabledPath);
+            this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Malicious hook disabled: ${hookPath} → ${disabledPath}`);
+          }
+        } catch (e: any) {
+          this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Failed to disable hook ${hookPath}: ${e.message}`);
+        }
       }
 
-      fs.writeFileSync(configPath, content, 'utf-8');
-      
-      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Config neutralized: ${configPath}`);
-      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Backup saved to: ${backupPath}`);
-      
       return true;
     } catch (e: any) {
       this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Failed to neutralize: ${e.message}`);
