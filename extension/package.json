@@ -281,7 +281,7 @@
     "@vscode/vsce": "^3.9.2",
     "eslint": "^10.7.0",
     "mocha": "^11.7.6",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "acorn": "^8.17.0",
