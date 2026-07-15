@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#007ACC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#005A9E;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4DAFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2D8BF0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="16" fill="#1E1E2E" />
+  <path d="M64 16 L16 36 L16 72 C16 98 36 114 64 120 C92 114 112 98 112 72 L112 36 Z" fill="url(#shield-grad)" stroke="url(#accent-grad)" stroke-width="3" />
+  <path d="M64 28 L26 44 L26 72 C26 94 42 108 64 112 C86 108 102 94 102 72 L102 44 Z" fill="none" stroke="#4DAFFF" stroke-width="1.5" opacity="0.5" />
+  <polygon points="64,42 52,58 44,58 54,66 50,76 64,68 78,76 74,66 84,58 76,58" fill="#4DAFFF" />
+</svg>
