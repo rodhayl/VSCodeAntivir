@@ -1,4 +1,4 @@
-# FakeInterviewGuard
+# FakeInterviewGuard: Developer Workspace Threat Scanning
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](extension/package.json)
@@ -7,25 +7,39 @@
 [![Detection Rules](https://img.shields.io/badge/rules-53-orange.svg)](extension/rules)
 [![LLM Powered](https://img.shields.io/badge/LLM%20Powered-qwen3.5--4b-9CF.svg)](https://lmstudio.ai)
 
-A VS Code extension that detects malware patterns from the **Contagious Interview** campaign (DPRK/Lazarus group), **BlueNoroff** supply-chain attacks, **TeamPCP** typosquatting campaigns, and other advanced persistent threats targeting developers.
+**Status:** v1.0.0 source-build VS Code extension with automated tests and 53 bundled detection rules. Review [CI](https://github.com/rodhayl/VSCodeAntivir/actions/workflows/ci.yml) and the repository's [Actions runs](https://github.com/rodhayl/VSCodeAntivir/actions) for current build and dependency-audit results.
 
-## Overview
+FakeInterviewGuard helps developers inspect unfamiliar code repositories for suspicious scripts, dependency names, obfuscation and VS Code task configuration. It combines rule-based and heuristic scanning with editor diagnostics, review tools and optional LLM analysis through local or compatible cloud providers. Findings support manual investigation and should be reviewed before taking action.
 
-FakeInterviewGuard scans your workspace for malicious code patterns commonly used in fake job interview attacks, where threat actors impersonate recruiters and deliver malware through code review tasks, npm packages, and VS Code workspace settings.
+## What this project demonstrates
+
+- A TypeScript extension connecting multiple analyzers to editor diagnostics, a dashboard and a threat tree.
+- Extensible JSON rules, test fixtures and configurable model analysis.
+- Workspace-configuration inspection, selected remediation actions and quarantine/restoration workflows.
+
+## Scope and limitations
+
+Rules can produce false positives and miss malicious behavior. A clean scan is not a safety guarantee. Interceptors inspect and can modify selected workspace configurations, including task definitions, with backup handling; they do not provide a universal barrier before every command executes. Review changes and keep unfamiliar repositories isolated from valuable credentials and data.
+
+LLM analysis is disabled by default. Enabling it sends the selected analysis input to the configured endpoint, which may be local or remote. Check the provider and prompt contents before analyzing confidential code.
+
+## Detection approach
 
 ### Detection Engines
 
-| Engine | Speed | Description |
-|--------|-------|-------------|
-| **Signature** | <10ms | JSON rule-based pattern matching (regex, string, entropy) |
-| **Heuristic** | <10ms | Pattern density, code entropy, obfuscation detection |
-| **npm Audit** | <50ms | Typosquatted packages, suspicious install scripts, and current known-bad packages |
-| **VS Code Tasks** | <10ms | Malicious `tasks.json` with shell commands, auto-execute blocks, and hidden extension installs |
-| **LLM Analysis** | ~5-30s | AI-powered deep analysis via local or cloud LLMs |
+| Engine | Approach |
+|--------|----------|
+| **Signature** | JSON rule-based matching: regex, strings and entropy |
+| **Heuristic** | Pattern density, code entropy and obfuscation indicators |
+| **npm Audit** | Project-specific checks for suspicious packages and install scripts; separate from the npm vulnerability-audit CLI |
+| **VS Code Tasks** | Inspection of task definitions, shell commands and auto-execution settings |
+| **LLM Analysis** | Optional model-based review through the configured provider |
 
-### Detection Coverage
+Performance depends on workspace size, enabled rules, hardware and the provider. No benchmark or detection-rate guarantee is implied by this list.
 
-| Category | Rules | Threats Detected |
+### Bundled rule inventory
+
+| Category | Rules | Patterns targeted |
 |----------|-------|------------------|
 | **Contagious Interview** | 13 | BeaverTail, OtterCookie, InvisibleFerret, WASM loaders, credential harvesters |
 | **Supply Chain** | 5 | Dependency confusion, lockfile injection, manifest poisoning, postinstall hacks |
@@ -42,7 +56,9 @@ FakeInterviewGuard scans your workspace for malicious code patterns commonly use
 | **Stealth** | 2 | Blockchain dead-drops, hidden Unicode obfuscation |
 | **Total** | **53** | **13 rule categories covering modern developer-targeting campaigns** |
 
-### Detected Malware Families
+The categories and family names below describe rule targets and author-supplied classifications. Rule counts do not measure detection effectiveness, and a match does not establish attribution to a threat actor.
+
+### Malware-family patterns represented in rules
 
 - **BeaverTail** — Credential stealer disguised as npm packages
 - **OtterCookie** — Multi-stage backdoor with reverse shell capabilities
@@ -57,12 +73,12 @@ FakeInterviewGuard scans your workspace for malicious code patterns commonly use
 - 🔍 **Real-time scanning** on file open/save with inline diagnostics
 - 🤖 **LLM-powered deep analysis** via LM Studio, Ollama, or any OpenAI-compatible API
 - 📋 **53 detection rules** covering modern developer-targeting campaigns, IDE abuse, and stealth tradecraft
-- 🛡️ **Security interceptors** for tasks.json, npm scripts, and git config (block before execution)
+- 🛡️ **Configuration interceptors** inspect tasks.json, npm scripts and git config, with selected remediation/backup behavior
 - 📦 **Quarantine manager** with restore capability and SHA-256 verification
 - 📊 **Security dashboard** with threat overview (webview panel)
 - 🌳 **Threat tree view** in the sidebar with severity-based filtering
 - 🔧 **Extensible** — add new JSON rules or LLM prompt templates without code changes
-- 🎯 **MITRE ATT&CK mapped** — all rules linked to ATT&CK techniques for attack-graph traceability
+- 🎯 **MITRE ATT&CK metadata** in detection rules to aid classification and review; this is not MITRE certification
 
 ## Quick Start
 
@@ -108,9 +124,9 @@ graph TD
     end
 
     subgraph "Security Interceptors"
-        G["Task Interceptor<br>blocks malicious tasks.json"]
-        H["npm Script Interceptor<br>blocks dangerous lifecycle scripts"]
-        I["Git Config Interceptor<br>blocks core.fsmonitor exploits"]
+        G["Task Interceptor<br>inspects and modifies selected tasks"]
+        H["npm Script Interceptor<br>inspects selected lifecycle scripts"]
+        I["Git Config Interceptor<br>inspects selected git configuration"]
     end
 
     subgraph "Output"
@@ -176,7 +192,7 @@ extension/
 
 ### MITRE ATT&CK Mapping
 
-All 53 detection rules are mapped to MITRE ATT&CK techniques:
+The rule metadata includes MITRE ATT&CK tactic/technique labels. Review those labels against the rule and current ATT&CK definitions; the mapping is descriptive, not an independent evaluation:
 
 | Tactic | Techniques Covered |
 |--------|-------------------|
@@ -190,7 +206,7 @@ All 53 detection rules are mapped to MITRE ATT&CK techniques:
 
 ## LLM Integration
 
-FakeInterviewGuard integrates with local LLM providers for deep code analysis that goes beyond pattern matching.
+FakeInterviewGuard can submit code-analysis prompts to a local or compatible cloud provider. Model output is advisory and may be incorrect. The setting example below explicitly opts in; `fig.llm.enabled` defaults to `false`.
 
 ### Supported Providers
 
@@ -248,7 +264,7 @@ Matcher types: `string`, `string-any`, `regex`, `entropy`, `ast`, `file-structur
 
 Add a `.prompt.md` file to `extension/prompts/<category>/`:
 
-```markdown
+````markdown
 ---
 name: My Analysis
 max_tokens: 1024
@@ -264,13 +280,13 @@ Analyze this {{language}} file ({{filename}}):
 ```
 {{code}}
 ```
-```
+````
 
 Variables: `{{code}}`, `{{filename}}`, `{{language}}`
 
 ## Fake Malware Samples
 
-The `samples/` directory contains **safe, simulated** fixtures that mimic real developer-targeting attack patterns for testing purposes:
+The `samples/` directory contains simulated fixtures intended to exercise developer-targeting detection patterns:
 
 ```
 samples/
@@ -281,7 +297,7 @@ samples/
 └── stage3-data-collection/       # AI assistant and wallet exfiltration patterns
 ```
 
-> ⚠️ These files contain **no actual malicious payloads**. They use inert patterns and localhost/demo endpoints to trigger the detection rules safely.
+> Treat these as inspection fixtures, not instructions to execute. Review their contents and use an isolated test environment; a fixture label does not make arbitrary execution safe.
 
 ## Development
 
