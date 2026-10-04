@@ -12,7 +12,7 @@ function findTestFiles(dir) {
   return results;
 }
 
-module.exports = function run() {
+function run() {
   const mocha = new Mocha({ ui: 'tdd', color: true, timeout: 10000 });
   const testsRoot = path.resolve(__dirname, 'unit');
   const files = findTestFiles(testsRoot);
@@ -24,4 +24,9 @@ module.exports = function run() {
       else resolve();
     });
   });
-};
+}
+
+module.exports = run;
+if (require.main === module) {
+  run().catch(error => { console.error(error); process.exitCode = 1; });
+}

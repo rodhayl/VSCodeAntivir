@@ -8,8 +8,13 @@ export class LlmClient {
   constructor(config: LlmConfig) {
     this.config = config;
     const defaults = PROVIDER_DEFAULTS[config.provider] || PROVIDER_DEFAULTS.custom;
+    const baseURL = config.baseUrl || defaults.baseUrl;
+    const endpoint = new URL(baseURL);
+    if (!['http:', 'https:'].includes(endpoint.protocol) || endpoint.username || endpoint.password) {
+      throw new Error('Use an HTTP(S) model endpoint without embedded credentials');
+    }
     this.client = new OpenAI({
-      baseURL: config.baseUrl || defaults.baseUrl,
+      baseURL,
       apiKey: config.apiKey || defaults.apiKey || 'no-key',
       timeout: config.timeout,
       maxRetries: 1,
@@ -19,7 +24,7 @@ export class LlmClient {
   async chat(
     systemPrompt: string,
     userPrompt: string,
-    options?: { maxTokens?: number; temperature?: number }
+    options?: { maxTokens?: number; temperature?: number; signal?: AbortSignal }
   ): Promise<{ content: string; model: string; promptTokens: number; completionTokens: number }> {
     const response = await this.client.chat.completions.create({
       model: this.config.model,
@@ -29,7 +34,7 @@ export class LlmClient {
       ],
       max_tokens: options?.maxTokens ?? this.config.maxTokens,
       temperature: options?.temperature ?? this.config.temperature,
-    });
+    }, { signal: options?.signal });
 
     return {
       content: response.choices[0]?.message?.content || '',

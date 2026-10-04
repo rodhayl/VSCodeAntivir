@@ -29,8 +29,9 @@ export class LlmAnalysisEngine {
   async analyzeFile(
     filePath: string,
     content: string,
-    options?: { promptOverride?: string }
+    options?: { promptOverride?: string; signal?: AbortSignal }
   ): Promise<{ threats: Threat[]; result: LlmAnalysisResult }> {
+    options?.signal?.throwIfAborted();
     const templateName = options?.promptOverride || this.promptProfile;
 
     // Check cache
@@ -68,25 +69,28 @@ export class LlmAnalysisEngine {
       if (!fallback) {
         throw new Error(`No prompt template found: "${templateName}" or "Security Analysis"`);
       }
-      return this.executeAnalysis(fallback, filePath, content, templateName);
+      return this.executeAnalysis(fallback, filePath, content, templateName, options?.signal);
     }
 
-    return this.executeAnalysis(prompt, filePath, content, templateName);
+    return this.executeAnalysis(prompt, filePath, content, templateName, options?.signal);
   }
 
   private async executeAnalysis(
     prompt: { systemPrompt: string; userPrompt: string; maxTokens: number; temperature: number },
     filePath: string,
     content: string,
-    cacheKey: string
+    cacheKey: string,
+    signal?: AbortSignal
   ): Promise<{ threats: Threat[]; result: LlmAnalysisResult }> {
     const start = Date.now();
 
     const response = await this.client.chat(prompt.systemPrompt, prompt.userPrompt, {
       maxTokens: prompt.maxTokens,
       temperature: prompt.temperature,
+      signal,
     });
 
+    signal?.throwIfAborted();
     const durationMs = Date.now() - start;
     const result = this.responseParser.parseAnalysisResponse(response.content, response.model, durationMs);
 
@@ -101,8 +105,10 @@ export class LlmAnalysisEngine {
     filePath: string,
     ruleName: string,
     description: string,
-    evidence: string
+    evidence: string,
+    options?: { signal?: AbortSignal }
   ): Promise<string> {
+    options?.signal?.throwIfAborted();
     const prompt = this.promptBuilder.buildPrompt('Explain Threat', {
       filename: path.basename(filePath),
       rule_name: ruleName,
@@ -117,7 +123,10 @@ export class LlmAnalysisEngine {
     const response = await this.client.chat(prompt.systemPrompt, prompt.userPrompt, {
       maxTokens: prompt.maxTokens,
       temperature: prompt.temperature,
+      signal: options?.signal,
     });
+
+    options?.signal?.throwIfAborted();
 
     // Try to parse the JSON explanation
     try {
@@ -141,7 +150,8 @@ export class LlmAnalysisEngine {
     }
   }
 
-  async suggestRule(filePath: string, content: string): Promise<string> {
+  async suggestRule(filePath: string, content: string, options?: { signal?: AbortSignal }): Promise<string> {
+    options?.signal?.throwIfAborted();
     const ext = path.extname(filePath).toLowerCase();
     const langMap: Record<string, string> = {
       '.js': 'javascript', '.mjs': 'javascript', '.ts': 'typescript',
@@ -162,7 +172,10 @@ export class LlmAnalysisEngine {
     const response = await this.client.chat(prompt.systemPrompt, prompt.userPrompt, {
       maxTokens: prompt.maxTokens,
       temperature: prompt.temperature,
+      signal: options?.signal,
     });
+
+    options?.signal?.throwIfAborted();
 
     // Try to format the JSON nicely
     try {

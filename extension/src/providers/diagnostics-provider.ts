@@ -1,14 +1,21 @@
 import * as vscode from 'vscode';
 import { Threat } from '../scanner/models/threat';
-import { Severity } from '../scanner/models/severity';
+import { Severity, stringToSeverity } from '../scanner/models/severity';
 import { ScanResult } from '../scanner/models/scan-result';
 
 export class DiagnosticsProvider {
   private collection: vscode.DiagnosticCollection;
+  private minimumSeverity: Severity = Severity.LOW;
   private threatMap: Map<string, Threat[]> = new Map();
 
   constructor() {
     this.collection = vscode.languages.createDiagnosticCollection('fakeInterviewGuard');
+  }
+
+  setMinimumSeverity(value: string): void {
+    this.minimumSeverity = stringToSeverity(value);
+    const results = [...this.threatMap].map(([filePath, threats]) => ({ filePath, threats, scanDurationMs: 0 }));
+    this.updateFromResults(results);
   }
 
   updateFromResults(results: ScanResult[]): void {
@@ -20,7 +27,7 @@ export class DiagnosticsProvider {
       const uri = vscode.Uri.file(result.filePath);
       const diagnostics: vscode.Diagnostic[] = [];
 
-      for (const threat of result.threats) {
+      for (const threat of result.threats.filter(t => t.severity <= this.minimumSeverity)) {
         const range = new vscode.Range(
           new vscode.Position(threat.location.startLine, threat.location.startCol),
           new vscode.Position(threat.location.endLine, Math.max(threat.location.endCol, threat.location.startCol + 1))
@@ -56,7 +63,7 @@ export class DiagnosticsProvider {
       return;
     }
 
-    const diagnostics: vscode.Diagnostic[] = result.threats.map(threat => {
+    const diagnostics: vscode.Diagnostic[] = result.threats.filter(t => t.severity <= this.minimumSeverity).map(threat => {
       const range = new vscode.Range(
         new vscode.Position(threat.location.startLine, threat.location.startCol),
         new vscode.Position(threat.location.endLine, Math.max(threat.location.endCol, threat.location.startCol + 1))
@@ -80,7 +87,7 @@ export class DiagnosticsProvider {
 
     // Update diagnostics
     const uri = vscode.Uri.file(filePath);
-    const diagnostics: vscode.Diagnostic[] = merged.map(threat => {
+    const diagnostics: vscode.Diagnostic[] = merged.filter(t => t.severity <= this.minimumSeverity).map(threat => {
       const range = new vscode.Range(
         new vscode.Position(threat.location.startLine, threat.location.startCol),
         new vscode.Position(threat.location.endLine, Math.max(threat.location.endCol, threat.location.startCol + 1))
@@ -94,7 +101,12 @@ export class DiagnosticsProvider {
   }
 
   getThreats(): Map<string, Threat[]> {
-    return new Map(this.threatMap);
+    const visible = new Map<string, Threat[]>();
+    for (const [file, threats] of this.threatMap) {
+      const filtered = threats.filter(t => t.severity <= this.minimumSeverity);
+      if (filtered.length) visible.set(file, filtered);
+    }
+    return visible;
   }
 
   clear(): void {

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { FileChange, readForReview } from '../safety/file-change';
 
 export interface NpmScriptThreat {
   scriptName: string;
@@ -16,6 +17,9 @@ export interface NpmScanResult {
   packageJsonPath: string;
   blocked: boolean;
   npmrcModified: boolean;
+  content?: string;
+  npmrcContent?: string;
+  error?: string;
 }
 
 const DANGEROUS_SCRIPTS = ['preinstall', 'postinstall', 'prestart', 'prepare'];
@@ -37,6 +41,7 @@ const DANGEROUS_INDICATORS = [
 export class NpmScriptInterceptor {
   private outputChannel: vscode.OutputChannel;
   private blockedPackages = new Set<string>();
+  private changes = new FileChange();
   private onThreatDetected: ((result: NpmScanResult) => void) | null = null;
 
   constructor(outputChannel: vscode.OutputChannel) {
@@ -68,15 +73,20 @@ export class NpmScriptInterceptor {
 
     let content: string;
     try {
-      content = fs.readFileSync(packageJsonPath, 'utf-8');
-    } catch {
+      content = readForReview(packageJsonPath);
+      result.content = content;
+      const npmrc = path.join(path.dirname(packageJsonPath), '.npmrc');
+      if (fs.existsSync(npmrc)) result.npmrcContent = readForReview(npmrc);
+    } catch (error) {
+      result.error = String(error);
       return result;
     }
 
     let pkg: any;
     try {
       pkg = JSON.parse(content);
-    } catch {
+    } catch (error) {
+      result.error = String(error);
       return result;
     }
 
@@ -85,7 +95,7 @@ export class NpmScriptInterceptor {
 
     for (const scriptName of DANGEROUS_SCRIPTS) {
       const scriptCommand = scripts[scriptName];
-      if (!scriptCommand) continue;
+      if (typeof scriptCommand !== 'string' || !scriptCommand) continue;
 
       for (const indicator of DANGEROUS_INDICATORS) {
         if (indicator.pattern.test(scriptCommand)) {
@@ -104,63 +114,24 @@ export class NpmScriptInterceptor {
 
     result.hasThreats = result.threats.length > 0;
 
-    if (result.hasThreats) {
-      const hasCritical = result.threats.some(t => t.severity === 'critical');
-      
-      if (hasCritical) {
-        result.npmrcModified = await this.blockNpmScripts(packageJsonPath);
-        result.blocked = result.npmrcModified;
-        
-        if (result.blocked) {
-          this.outputChannel.appendLine(`[BLOCKED] Disabled npm scripts for: ${packageJsonPath}`);
-          this.blockedPackages.add(packageJsonPath);
-        }
-      }
-
-      if (this.onThreatDetected) {
-        this.onThreatDetected(result);
-      }
-    }
-
+    if (result.hasThreats && this.onThreatDetected) this.onThreatDetected(result);
     return result;
   }
 
-  private async blockNpmScripts(packageJsonPath: string): Promise<boolean> {
-    const dir = path.dirname(packageJsonPath);
-    const npmrcPath = path.join(dir, '.npmrc');
-
+  async applyBlock(review: NpmScanResult): Promise<boolean> {
     try {
-      let npmrcContent = '';
-      let alreadyHasIgnore = false;
-
-      if (fs.existsSync(npmrcPath)) {
-        npmrcContent = fs.readFileSync(npmrcPath, 'utf-8');
-        alreadyHasIgnore = npmrcContent.includes('ignore-scripts');
-
-        // Backup original .npmrc if we're going to modify it
-        if (!alreadyHasIgnore) {
-          const backupPath = npmrcPath + '.fig-backup';
-          if (!fs.existsSync(backupPath)) {
-            fs.writeFileSync(backupPath, npmrcContent, 'utf-8');
-            this.outputChannel.appendLine(`[NPM-INTERCEPTOR] Backed up original .npmrc to ${backupPath}`);
-          }
-        }
-      }
-
-      if (alreadyHasIgnore) {
-        return true;
-      }
-
-      const newContent = npmrcContent.trim() +
-        '\n# Added by FakeInterviewGuard - malicious install scripts detected\n' +
-        'ignore-scripts=true\n';
-
-      fs.writeFileSync(npmrcPath, newContent, 'utf-8');
-
-      this.outputChannel.appendLine(`[NPM-INTERCEPTOR] Created/modified .npmrc with ignore-scripts=true`);
-      return true;
-    } catch (e: any) {
-      this.outputChannel.appendLine(`[NPM-INTERCEPTOR] Failed to modify .npmrc: ${e.message}`);
+      if (review.content === undefined || readForReview(review.packageJsonPath) !== review.content) return false;
+      const npmrc = path.join(path.dirname(review.packageJsonPath), '.npmrc');
+      const original = review.npmrcContent;
+      const activeLines = (original || '').split(/\r?\n/).filter(line => /^\s*ignore-scripts\s*=/i.test(line));
+      const alreadyEnabled = /^\s*ignore-scripts\s*=\s*true\s*(?:[#;].*)?$/i.test(activeLines.at(-1) || '');
+      if (alreadyEnabled) return false; // Existing user protection is not an extension-owned modification.
+      const replacement = (original || '').replace(/\s*$/, '') + '\n# Added after review by FakeInterviewGuard\nignore-scripts=true\n';
+      const applied = this.changes.apply(npmrc, original, replacement);
+      if (applied) this.blockedPackages.add(review.packageJsonPath);
+      return applied;
+    } catch (error) {
+      this.outputChannel.appendLine(`[NPM-INTERCEPTOR] Change refused: ${String(error)}`);
       return false;
     }
   }
@@ -179,48 +150,12 @@ export class NpmScriptInterceptor {
   }
 
   async removeBlock(packageJsonPath: string): Promise<boolean> {
-    const dir = path.dirname(packageJsonPath);
-    const npmrcPath = path.join(dir, '.npmrc');
-    const backupPath = npmrcPath + '.fig-backup';
-
-    // Restore from backup if available
-    if (fs.existsSync(backupPath)) {
-      try {
-        const original = fs.readFileSync(backupPath, 'utf-8');
-        fs.writeFileSync(npmrcPath, original, 'utf-8');
-        fs.unlinkSync(backupPath);
-        this.blockedPackages.delete(packageJsonPath);
-        this.outputChannel.appendLine(`[NPM-INTERCEPTOR] Restored original .npmrc from backup for: ${packageJsonPath}`);
-        return true;
-      } catch {
-        // Fall through to manual cleanup
-      }
-    }
-
-    if (!fs.existsSync(npmrcPath)) {
-      this.blockedPackages.delete(packageJsonPath);
-      return true;
-    }
-
     try {
-      let content = fs.readFileSync(npmrcPath, 'utf-8');
-
-      content = content
-        .replace(/# Added by FakeInterviewGuard.*\n?/g, '')
-        .replace(/ignore-scripts=true\n?/g, '')
-        .trim();
-
-      if (content.length === 0) {
-        fs.unlinkSync(npmrcPath);
-      } else {
-        fs.writeFileSync(npmrcPath, content + '\n', 'utf-8');
-      }
-
-      this.blockedPackages.delete(packageJsonPath);
-      this.outputChannel.appendLine(`[NPM-INTERCEPTOR] Removed script blocking for: ${packageJsonPath}`);
-      return true;
-    } catch {
-      return false;
-    }
+      const npmrc = path.join(path.dirname(packageJsonPath), '.npmrc');
+      if (!fs.existsSync(npmrc)) return true;
+      const restored = this.changes.restore(npmrc);
+      if (restored) this.blockedPackages.delete(packageJsonPath);
+      return restored;
+    } catch { return false; }
   }
 }

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { FileChange, readForReview } from '../safety/file-change';
 
 export interface GitConfigThreat {
   type: 'fsmonitor' | 'hookspath' | 'sshcommand' | 'malicious-hook';
@@ -15,6 +16,7 @@ export interface GitScanResult {
   hasThreats: boolean;
   threats: GitConfigThreat[];
   blocked: boolean;
+  snapshots?: Record<string, string>;
 }
 
 const DANGEROUS_CONFIG_PATTERNS = [
@@ -35,6 +37,8 @@ const DANGEROUS_HOOK_PATTERNS = [
 export class GitConfigInterceptor {
   private outputChannel: vscode.OutputChannel;
   private blockedPaths = new Set<string>();
+  private changes = new FileChange();
+  private changedHooks = new Set<string>();
   private onThreatDetected: ((result: GitScanResult) => void) | null = null;
 
   constructor(outputChannel: vscode.OutputChannel) {
@@ -56,50 +60,67 @@ export class GitConfigInterceptor {
       hasThreats: false,
       threats: [],
       blocked: false,
+      snapshots: {},
     };
 
     // Check .git/config
     const configPath = path.join(gitDir, 'config');
     if (fs.existsSync(configPath)) {
-      const configThreats = await this.scanGitConfig(configPath);
+      const configThreats = await this.scanGitConfig(configPath, result.snapshots!);
       result.threats.push(...configThreats);
     }
 
     // Check git hooks
     const hooksDir = path.join(gitDir, 'hooks');
     if (fs.existsSync(hooksDir)) {
-      const hookThreats = await this.scanGitHooks(hooksDir);
+      const hookThreats = await this.scanGitHooks(hooksDir, result.snapshots!);
       result.threats.push(...hookThreats);
     }
 
     result.hasThreats = result.threats.length > 0;
 
-    if (result.hasThreats) {
-      const hasCritical = result.threats.some(t => t.severity === 'critical');
-      
-      if (hasCritical) {
-        result.blocked = await this.neutralizeDangerousConfig(configPath, result.threats);
-        
-        if (result.blocked) {
-          this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Neutralized dangerous git config in ${workspaceFolder.name}`);
-          this.blockedPaths.add(configPath);
-        }
-      }
-
-      if (this.onThreatDetected) {
-        this.onThreatDetected(result);
-      }
-    }
-
+    if (result.hasThreats && this.onThreatDetected) this.onThreatDetected(result);
     return result;
   }
 
-  private async scanGitConfig(configPath: string): Promise<GitConfigThreat[]> {
+  async applyBlock(review: GitScanResult): Promise<boolean> {
+    const snapshots = review.snapshots;
+    if (!snapshots || !review.hasThreats) return false;
+    try {
+      const groups = new Map<string, GitConfigThreat[]>();
+      for (const threat of review.threats) groups.set(threat.filePath, [...(groups.get(threat.filePath) || []), threat]);
+      for (const file of groups.keys()) if (readForReview(file) !== snapshots[file]) return false;
+      let changed = 0;
+      for (const [file, threats] of groups) {
+        const original = snapshots[file];
+        if (original === undefined) return false;
+        let replacement: string;
+        if (threats.some(t => t.type === 'malicious-hook')) {
+          replacement = '#!/bin/sh\n# Hook disabled after review by FakeInterviewGuard\n';
+        } else {
+          const lines = original.split('\n');
+          for (const threat of threats) lines[threat.line] = '# Disabled after review by FakeInterviewGuard: ' + lines[threat.line];
+          replacement = lines.join('\n');
+        }
+        if (!this.changes.apply(file, original, replacement)) return false;
+        this.blockedPaths.add(file);
+        if (threats.some(t => t.type === 'malicious-hook')) this.changedHooks.add(file);
+        changed++;
+      }
+      return changed > 0;
+    } catch (error) {
+      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Could not complete every proposed change; inspect retained backups: ${String(error)}`);
+      return false;
+    }
+  }
+
+  private async scanGitConfig(configPath: string, snapshots: Record<string, string>): Promise<GitConfigThreat[]> {
     const threats: GitConfigThreat[] = [];
     
     let content: string;
     try {
-      content = fs.readFileSync(configPath, 'utf-8');
+      content = readForReview(configPath);
+      snapshots[configPath] = content;
     } catch {
       return threats;
     }
@@ -142,7 +163,7 @@ export class GitConfigInterceptor {
     return threats;
   }
 
-  private async scanGitHooks(hooksDir: string): Promise<GitConfigThreat[]> {
+  private async scanGitHooks(hooksDir: string, snapshots: Record<string, string>): Promise<GitConfigThreat[]> {
     const threats: GitConfigThreat[] = [];
     const dangerousHooks = [
       'pre-commit', 'post-commit', 'pre-push', 'post-checkout', 'post-merge',
@@ -157,7 +178,8 @@ export class GitConfigInterceptor {
 
       let content: string;
       try {
-        content = fs.readFileSync(hookPath, 'utf-8');
+        content = readForReview(hookPath);
+        snapshots[hookPath] = content;
       } catch {
         continue;
       }
@@ -181,105 +203,29 @@ export class GitConfigInterceptor {
     return threats;
   }
 
-  private async neutralizeDangerousConfig(configPath: string, threats: GitConfigThreat[]): Promise<boolean> {
-    const configThreats = threats.filter(t => t.type !== 'malicious-hook' && t.filePath === configPath);
-    const hookThreats = threats.filter(t => t.type === 'malicious-hook');
-
-    if (configThreats.length === 0 && hookThreats.length === 0) {
-      return false;
-    }
-
-    try {
-      // Neutralize dangerous config lines
-      if (configThreats.length > 0) {
-        let content = fs.readFileSync(configPath, 'utf-8');
-
-        // Create backup
-        const backupPath = configPath + '.fig-backup';
-        if (!fs.existsSync(backupPath)) {
-          fs.writeFileSync(backupPath, content, 'utf-8');
-        }
-
-        // Comment out dangerous lines
-        const lines = content.split('\n');
-        for (const threat of configThreats) {
-          const idx = threat.line;
-          if (idx >= 0 && idx < lines.length) {
-            lines[idx] = '# BLOCKED by FakeInterviewGuard: ' + lines[idx].trimStart();
-          }
-        }
-        content = lines.join('\n');
-
-        fs.writeFileSync(configPath, content, 'utf-8');
-        this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Config neutralized: ${configPath}`);
-        this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Backup saved to: ${backupPath}`);
-      }
-
-      // Neutralize malicious hooks by renaming them
-      for (const hookThreat of hookThreats) {
-        const hookPath = hookThreat.filePath;
-        const disabledPath = hookPath + '.fig-disabled';
-        try {
-          if (fs.existsSync(hookPath) && !fs.existsSync(disabledPath)) {
-            fs.renameSync(hookPath, disabledPath);
-            this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Malicious hook disabled: ${hookPath} → ${disabledPath}`);
-          }
-        } catch (e: any) {
-          this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Failed to disable hook ${hookPath}: ${e.message}`);
-        }
-      }
-
-      return true;
-    } catch (e: any) {
-      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Failed to neutralize: ${e.message}`);
-      return false;
-    }
-  }
-
-  isBlocked(filePath: string): boolean {
-    return this.blockedPaths.has(filePath);
-  }
+  isBlocked(filePath: string): boolean { return this.blockedPaths.has(filePath); }
 
   async restoreHook(hookPath: string): Promise<boolean> {
-    const disabledPath = hookPath + '.fig-disabled';
-    if (!fs.existsSync(disabledPath)) return false;
     try {
-      fs.renameSync(disabledPath, hookPath);
-      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Hook restored: ${disabledPath} → ${hookPath}`);
-      return true;
-    } catch (e: any) {
-      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Failed to restore hook: ${e.message}`);
-      return false;
-    }
+      const restored = this.changes.restore(hookPath);
+      if (restored) { this.changedHooks.delete(hookPath); this.blockedPaths.delete(hookPath); }
+      return restored;
+    } catch { return false; }
   }
 
   async restoreAllHooks(hooksDir: string): Promise<number> {
     let restored = 0;
-    if (!fs.existsSync(hooksDir)) return 0;
-    const entries = fs.readdirSync(hooksDir);
-    for (const entry of entries) {
-      if (entry.endsWith('.fig-disabled')) {
-        const original = path.join(hooksDir, entry.replace('.fig-disabled', ''));
-        if (await this.restoreHook(original)) restored++;
-      }
+    for (const hook of [...this.changedHooks]) {
+      if (path.dirname(hook) === path.resolve(hooksDir) && await this.restoreHook(hook)) restored++;
     }
     return restored;
   }
 
   async restoreGitConfig(configPath: string): Promise<boolean> {
-    const backupPath = configPath + '.fig-backup';
-    if (!fs.existsSync(backupPath)) return false;
-
     try {
-      const original = fs.readFileSync(backupPath, 'utf-8');
-      fs.writeFileSync(configPath, original, 'utf-8');
-      fs.unlinkSync(backupPath);
-      this.blockedPaths.delete(configPath);
-      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Config restored from backup: ${configPath}`);
-      return true;
-    } catch (e: any) {
-      this.outputChannel.appendLine(`[GIT-INTERCEPTOR] Failed to restore config: ${e.message}`);
-      return false;
-    }
+      const restored = this.changes.restore(configPath);
+      if (restored) this.blockedPaths.delete(configPath);
+      return restored;
+    } catch { return false; }
   }
 }

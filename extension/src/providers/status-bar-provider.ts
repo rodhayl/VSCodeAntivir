@@ -12,9 +12,9 @@ export class StatusBarProvider {
   }
 
   setClean(): void {
-    this.item.text = '$(shield) FIG: Clean';
+    this.item.text = '$(shield) FIG: No findings';
     this.item.backgroundColor = undefined;
-    this.item.tooltip = 'FakeInterviewGuard — No threats detected. Click to scan.';
+    this.item.tooltip = 'FakeInterviewGuard — No reported findings. Unscanned files may remain; a scan is not a safety guarantee. Click to scan.';
   }
 
   setScanning(): void {

@@ -28,3 +28,8 @@ npm-debug.log*
 
 # Session / copilot state
 .copilot/
+
+# Local remediation/recovery artifacts (review before removing)
+*.fig-backup
+.fig-*.tmp
+.fig-*.undo

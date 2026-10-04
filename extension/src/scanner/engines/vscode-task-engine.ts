@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { parse, ParseError } from 'jsonc-parser';
 import { Threat, ThreatLocation } from '../models/threat';
 import { Severity } from '../models/severity';
 
@@ -21,13 +22,16 @@ export function runVscodeTaskEngine(content: string, filePath: string): Threat[]
 
   let tasks: any;
   try {
-    tasks = JSON.parse(content);
+    const errors: ParseError[] = [];
+    tasks = parse(content, errors, { allowTrailingComma: true });
+    if (errors.length || !tasks || !Array.isArray(tasks.tasks ?? [])) return threats;
   } catch {
     return threats;
   }
 
   const taskList = tasks.tasks || [];
   for (const task of taskList) {
+    if (!task || typeof task !== 'object') continue;
     // 1. Auto-execute on folder open
     if (task.runOptions?.runOn === 'folderOpen') {
       const line = findLine(content, 'folderOpen');
@@ -50,8 +54,8 @@ export function runVscodeTaskEngine(content: string, filePath: string): Threat[]
     }
 
     // 2. Shell commands with curl/wget
-    const command = task.command || '';
-    const args = (task.args || []).join(' ');
+    const command = typeof task.command === 'string' ? task.command : '';
+    const args = (Array.isArray(task.args) ? task.args : []).join(' ');
     const fullCommand = `${command} ${args}`.toLowerCase();
 
     const dangerousPatterns = [

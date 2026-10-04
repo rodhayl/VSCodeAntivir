@@ -7,12 +7,13 @@ import { CodeActionProvider } from './providers/code-action-provider';
 import { ThreatTreeProvider } from './providers/threat-tree-provider';
 import { StatusBarProvider } from './providers/status-bar-provider';
 import { DashboardPanel } from './providers/dashboard-panel';
+import { ScanResult } from './scanner/models/scan-result';
 import { Severity } from './scanner/models/severity';
 import { LlmClient } from './llm/llm-client';
 import { LlmCache } from './llm/llm-cache';
 import { PromptBuilder } from './llm/prompt-builder';
 import { LlmAnalysisEngine } from './scanner/engines/llm-analysis-engine';
-import { readLlmConfig } from './llm/models';
+import { readLlmConfig, PROVIDER_DEFAULTS } from './llm/models';
 import { TaskInterceptor } from './interceptors/task-interceptor';
 import { NpmScriptInterceptor } from './interceptors/npm-script-interceptor';
 import { GitConfigInterceptor } from './interceptors/git-config-interceptor';
@@ -38,11 +39,60 @@ let llmClient: LlmClient | null = null;
 let llmCache: LlmCache;
 let promptBuilder: PromptBuilder;
 let llmEngine: LlmAnalysisEngine | null = null;
-const filesInAnalysis = new Set<string>();
+const activeAnalyses = new Map<string, AbortController>();
+let llmGeneration = 0;
+let automaticConsent = '';
+function userLlmConfig() {
+  return readLlmConfig(key => {
+    const setting = vscode.workspace.getConfiguration().inspect(key);
+    return setting?.globalValue ?? setting?.defaultValue;
+  });
+}
+function consentKey(): string {
+  if (!llmClient) return '';
+  const config = llmClient.getConfig();
+  return JSON.stringify([config.baseUrl || PROVIDER_DEFAULTS[config.provider]?.baseUrl, config.model,
+    vscode.workspace.workspaceFolders?.map(folder => folder.uri.toString()) || []]);
+}
+async function confirmLlmInput(description: string, allowAutomatic = false, sendsCode = true): Promise<boolean> {
+  if (!vscode.workspace.isTrusted || !llmClient) return false;
+  const key = consentKey();
+  const config = llmClient.getConfig();
+  const endpoint = config.baseUrl || PROVIDER_DEFAULTS[config.provider]?.baseUrl || '(not configured)';
+  const automatic = allowAutomatic && userLlmConfig().autoAnalyze;
+  const choices = automatic ? ['Analyze once', 'Allow automatic analysis this session'] : ['Analyze once'];
+  const choice = await vscode.window.showWarningMessage('Send analysis input to the configured model endpoint?', {
+    modal: true,
+    detail: `${description}\nEndpoint: ${endpoint}\nModel: ${config.model}\n${sendsCode ? 'Code, filename and analysis instructions will be sent. The provider may store input or charge for requests.' : 'Only a model-list request is sent; no code or file contents are included.'} ${automatic ? 'Automatic approval also covers eligible high-severity workspace files for this endpoint, model and workspace in this session.' : ''}`,
+  }, ...choices);
+  if (key !== consentKey() || !vscode.workspace.isTrusted) return false;
+  if (choice === 'Allow automatic analysis this session') { automaticConsent = key; return true; }
+  return choice === 'Analyze once';
+}
+function eligibleAutomaticFile(filePath: string): boolean {
+  const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
+  if (!folder) return false;
+  try {
+    const stat = fs.lstatSync(filePath);
+    if (!stat.isFile() || stat.nlink !== 1) return false;
+    const relative = path.relative(fs.realpathSync(folder.uri.fsPath), fs.realpathSync(filePath));
+    return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+  } catch { return false; }
+}
+function contentStillCurrent(filePath: string, content: string): boolean {
+  const doc = vscode.workspace.textDocuments.find(document => document.uri.fsPath === filePath);
+  if (doc) return doc.getText() === content;
+  try { return fs.readFileSync(filePath, 'utf8') === content; } catch { return false; }
+}
 
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('FakeInterviewGuard');
   outputChannel.appendLine('FakeInterviewGuard activating...');
+  if (!vscode.workspace.isTrusted) {
+    outputChannel.appendLine('Disabled in Restricted Mode; no file changes or model requests were made.');
+    context.subscriptions.push(outputChannel);
+    return;
+  }
 
   // Initialize core components
   scanner = new Scanner();
@@ -50,7 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
   treeProvider = new ThreatTreeProvider();
   statusBar = new StatusBarProvider();
 
-  // Initialize security interceptors (CRITICAL - must run early)
+  // Initialize configuration inspection and explicit remediation.
   taskInterceptor = new TaskInterceptor(outputChannel);
   npmInterceptor = new NpmScriptInterceptor(outputChannel);
   gitInterceptor = new GitConfigInterceptor(outputChannel);
@@ -64,25 +114,25 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Set up threat handlers for interceptors
   taskInterceptor.setThreatHandler(result => {
-    if (result.blocked) {
+    if (result.hasThreats) {
       notificationService.notifyTaskBlocked(result);
     }
   });
 
   npmInterceptor.setThreatHandler(result => {
-    if (result.blocked) {
+    if (result.hasThreats) {
       notificationService.notifyNpmScriptBlocked(result);
     }
   });
 
   gitInterceptor.setThreatHandler(result => {
-    if (result.blocked) {
+    if (result.hasThreats) {
       notificationService.notifyGitConfigBlocked(result);
     }
   });
 
-  // Intercept workspace on activation (BEFORE VS Code processes tasks)
-  interceptWorkspaceOnOpen();
+  // Inspect workspace on activation; changes require an explicit review action.
+  void interceptWorkspaceOnOpen().catch(error => outputChannel.appendLine(`Workspace inspection failed: ${String(error)}`));
 
   // Load rules
   const rulesDir = path.join(context.extensionPath, 'rules');
@@ -177,11 +227,8 @@ export function activate(context: vscode.ExtensionContext) {
       const ext = path.extname(uri.fsPath).toLowerCase();
       if (!scanExts.includes(ext)) return;
       try {
-        if (!fs.existsSync(uri.fsPath)) return;
-        const stat = fs.statSync(uri.fsPath);
-        if (stat.size > scanner.getMaxFileSizeKB() * 1024) return;
-        const content = fs.readFileSync(uri.fsPath, 'utf-8');
-        const result = scanner.scanFile(uri.fsPath, content);
+        activeAnalyses.get(uri.fsPath)?.abort();
+        const result = scanner.scanFile(uri.fsPath, undefined, vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath);
         diagnosticsProvider.updateFileResults(result);
         updateUI();
       } catch (e: any) {
@@ -191,12 +238,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     watcher.onDidCreate(scanUri);
     watcher.onDidChange(scanUri);
+    watcher.onDidDelete(uri => { activeAnalyses.get(uri.fsPath)?.abort(); diagnosticsProvider.clearFile(uri.fsPath); updateUI(); });
     context.subscriptions.push(watcher);
   }
 
   // Listen for config changes
   context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument(e => { activeAnalyses.get(e.document.uri.fsPath)?.abort(); }),
     vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration('fig')) { loadRules(rulesDir); updateUI(); }
       if (e.affectsConfiguration('fig.llm')) {
         initializeLlm();
       }
@@ -222,36 +272,35 @@ async function interceptWorkspaceOnOpen(): Promise<void> {
   if (!folders) return;
 
   for (const folder of folders) {
-    // Intercept tasks.json BEFORE VS Code processes it
+    // Read-only inspection. VS Code controls task execution independently.
     const taskResult = await taskInterceptor.interceptWorkspace(folder);
-    if (taskResult?.blocked) {
-      outputChannel.appendLine(`[STARTUP] Blocked malicious tasks.json in ${folder.name}`);
-    }
+    if (taskResult?.error) outputChannel.appendLine(`Task inspection incomplete: ${taskResult.error}`);
+    if (taskResult?.hasThreats) outputChannel.appendLine(`[STARTUP] Task findings awaiting review in ${folder.name}`);
 
     // Intercept npm install scripts
     const npmResult = await npmInterceptor.interceptWorkspace(folder);
-    if (npmResult?.blocked) {
-      outputChannel.appendLine(`[STARTUP] Blocked malicious npm scripts in ${folder.name}`);
-    }
+    if (npmResult?.error) outputChannel.appendLine(`Package inspection incomplete: ${npmResult.error}`);
+    if (npmResult?.hasThreats) outputChannel.appendLine(`[STARTUP] Package findings awaiting review in ${folder.name}`);
 
     // Intercept dangerous git config (core.fsmonitor exploit - March 2026)
     const gitResult = await gitInterceptor.interceptWorkspace(folder);
-    if (gitResult?.blocked) {
-      outputChannel.appendLine(`[STARTUP] Blocked dangerous git config in ${folder.name}`);
-    }
+    if (gitResult?.hasThreats) outputChannel.appendLine(`[STARTUP] Git findings awaiting review in ${folder.name}`);
   }
 }
 
 function initializeLlm(): void {
-  const config = readLlmConfig((key: string) => {
-    return vscode.workspace.getConfiguration().get(key);
-  });
+  const config = userLlmConfig();
+  llmGeneration++;
+  automaticConsent = '';
+  for (const controller of activeAnalyses.values()) controller.abort();
+  activeAnalyses.clear();
+  llmCache?.clear();
 
   // Clear old references before creating new instances
   llmClient = null;
   llmEngine = null;
 
-  if (config.enabled) {
+  if (config.enabled && vscode.workspace.isTrusted) {
     try {
       llmClient = new LlmClient(config);
       llmEngine = new LlmAnalysisEngine(llmClient, llmCache, promptBuilder, config.promptProfile);
@@ -280,23 +329,25 @@ function loadRules(rulesDir: string): void {
   const excluded = config.get<string[]>('excludedPaths', ['**/node_modules/**', '**/.git/**']);
   scanner.setExcludedPatterns(excluded);
   scanner.setMaxFileSizeKB(config.get<number>('maxFileSizeKB', 512));
+  diagnosticsProvider.setMinimumSeverity(config.get<string>('minimumSeverity', 'low'));
 }
 
 function scanDocument(doc: vscode.TextDocument): void {
   if (doc.uri.scheme !== 'file') return;
   const filePath = doc.uri.fsPath;
+  activeAnalyses.get(filePath)?.abort();
   const ext = path.extname(filePath).toLowerCase();
   const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'];
   if (!scanExts.includes(ext)) return;
 
   try {
-    const result = scanner.scanFile(filePath, doc.getText());
+    const result = scanner.scanFile(filePath, doc.getText(), vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.fsPath);
     diagnosticsProvider.updateFileResults(result);
     updateUI();
 
     // Auto-analyze with LLM if enabled and threats found
-    if (llmEngine && result.threats.length > 0) {
-      const llmConfig = readLlmConfig((key: string) => vscode.workspace.getConfiguration().get(key));
+    if (result.status === 'scanned' && llmEngine && result.threats.length > 0) {
+      const llmConfig = userLlmConfig();
       if (llmConfig.autoAnalyze) {
         const hasHighSeverity = result.threats.some(t => t.severity <= Severity.HIGH);
         if (hasHighSeverity) {
@@ -310,41 +361,34 @@ function scanDocument(doc: vscode.TextDocument): void {
 }
 
 async function runLlmAnalysisBackground(filePath: string, content: string): Promise<void> {
-  if (!llmEngine) return;
-  if (filesInAnalysis.has(filePath)) return;
-  filesInAnalysis.add(filePath);
+  const engine = llmEngine;
+  if (!engine || !vscode.workspace.isTrusted || automaticConsent !== consentKey() ||
+      !eligibleAutomaticFile(filePath)) return;
+  const generation = llmGeneration;
+  const controller = new AbortController();
+  activeAnalyses.get(filePath)?.abort();
+  activeAnalyses.set(filePath, controller);
   try {
-    outputChannel.appendLine(`[LLM] Auto-analyzing: ${path.basename(filePath)}`);
-    const { threats, result } = await llmEngine.analyzeFile(filePath, content);
-    if (threats.length > 0) {
-      diagnosticsProvider.appendLlmResults(filePath, threats);
-      updateUI();
-      outputChannel.appendLine(`[LLM] Found ${threats.length} threat(s) in ${path.basename(filePath)} [${result.durationMs}ms, ${result.fromCache ? 'cached' : 'live'}]`);
-    }
-  } catch (e: any) {
-    outputChannel.appendLine(`[LLM] Auto-analysis error: ${e.message}`);
+    const { threats } = await engine.analyzeFile(filePath, content, { signal: controller.signal });
+    if (controller.signal.aborted || generation !== llmGeneration || !contentStillCurrent(filePath, content)) return;
+    diagnosticsProvider.appendLlmResults(filePath, threats); updateUI();
+  } catch (error) {
+    if (!controller.signal.aborted) outputChannel.appendLine(`[LLM] Auto-analysis failed: ${String(error)}`);
   } finally {
-    filesInAnalysis.delete(filePath);
+    if (activeAnalyses.get(filePath) === controller) activeAnalyses.delete(filePath);
   }
 }
 
-function scanSingleFile(uri?: vscode.Uri): void {
-  const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
-  if (!targetUri) {
-    vscode.window.showWarningMessage('No file selected to scan');
-    return;
-  }
-
-  const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === targetUri.toString());
-  if (doc) {
-    scanDocument(doc);
-    const threats = diagnosticsProvider.getThreats().get(targetUri.fsPath) || [];
-    vscode.window.showInformationMessage(
-      threats.length > 0
-        ? `FIG: Found ${threats.length} threat(s) in ${path.basename(targetUri.fsPath)}`
-        : `FIG: No threats in ${path.basename(targetUri.fsPath)}`
-    );
-  }
+async function scanSingleFile(uri?: vscode.Uri): Promise<void> {
+  const target = uri || vscode.window.activeTextEditor?.document.uri;
+  if (!target || target.scheme !== 'file') { vscode.window.showWarningMessage('Select a local file to scan.'); return; }
+  try {
+    const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === target.toString()) || await vscode.workspace.openTextDocument(target);
+    const result = scanner.scanFile(target.fsPath, doc.getText(), vscode.workspace.getWorkspaceFolder(target)?.uri.fsPath);
+    diagnosticsProvider.updateFileResults(result); updateUI();
+    if (result.status !== 'scanned') vscode.window.showWarningMessage(`FIG: File not scanned: ${result.detail || result.status}`);
+    else vscode.window.showInformationMessage(`FIG: ${result.threats.length} finding(s) in scanned file ${path.basename(target.fsPath)}. A scan is not a safety guarantee.`);
+  } catch (error) { vscode.window.showWarningMessage(`FIG: File scan failed: ${String(error)}`); }
 }
 
 async function scanWorkspace(_context: vscode.ExtensionContext): Promise<void> {
@@ -357,28 +401,30 @@ async function scanWorkspace(_context: vscode.ExtensionContext): Promise<void> {
   statusBar.setScanning();
   outputChannel.appendLine('Starting workspace scan...');
 
+  const combined: ScanResult[] = [];
+  let scanned = 0, skipped = 0;
+  const errors: string[] = [];
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: 'FakeInterviewGuard: Scanning workspace...', cancellable: false },
     async (progress) => {
       for (const folder of folders) {
         progress.report({ message: folder.name });
         const summary = scanner.scanWorkspace(folder.uri.fsPath);
-        diagnosticsProvider.updateFromResults(summary.results);
+        combined.push(...summary.results); scanned += summary.scannedFiles; skipped += summary.skippedFiles; errors.push(...summary.errors);
         outputChannel.appendLine(`Scanned ${summary.scannedFiles}/${summary.totalFiles} files in ${summary.durationMs}ms — ${summary.totalThreats} threats found`);
       }
     }
   );
 
+  diagnosticsProvider.updateFromResults(combined);
   updateUI();
 
   const threats = diagnosticsProvider.getThreats();
   let total = 0;
   for (const t of threats.values()) total += t.length;
-  vscode.window.showInformationMessage(
-    total > 0
-      ? `FakeInterviewGuard: ${total} threat(s) detected across workspace`
-      : 'FakeInterviewGuard: Workspace is clean ✅'
-  );
+  const message = `FIG: ${total} reported finding(s); ${scanned} files scanned, ${skipped} skipped, ${errors.length} error(s). A scan is not a safety guarantee.`;
+  if (errors.length) { errors.forEach(error => outputChannel.appendLine(error)); vscode.window.showWarningMessage(message); }
+  else vscode.window.showInformationMessage(message);
 }
 
 async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<void> {
@@ -395,6 +441,14 @@ async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<
 
   const filePath = editor.document.uri.fsPath;
   const content = editor.document.getText();
+  const generation = llmGeneration;
+  const engine = llmEngine;
+  const skip = scanner.getSkipReason(filePath, vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.fsPath, content);
+  if (skip) { vscode.window.showWarningMessage(`FIG: Analysis skipped: ${skip}`); return; }
+  if (!await confirmLlmInput(`Analyze the selected file: ${filePath}`, true) || generation !== llmGeneration || !contentStillCurrent(filePath, content)) return;
+  const controller = new AbortController();
+  activeAnalyses.get(filePath)?.abort();
+  activeAnalyses.set(filePath, controller);
 
   await vscode.window.withProgress(
     {
@@ -407,24 +461,15 @@ async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<
       try {
         statusBar.setLlmAnalyzing();
 
-        const analysisPromise = llmEngine!.analyzeFile(filePath, content);
-        cancelDisposable = token.onCancellationRequested(() => {
-          analysisPromise.then(() => {}, () => {}); // prevent unhandled rejection
-        });
-        const cancelPromise = new Promise<never>((_, reject) => {
-          token.onCancellationRequested(() => reject(new Error('Cancelled')));
-        });
-
-        const { threats, result } = await Promise.race([analysisPromise, cancelPromise]);
-
-        if (threats.length > 0) {
-          diagnosticsProvider.appendLlmResults(filePath, threats);
-          updateUI();
-        }
+        cancelDisposable = token.onCancellationRequested(() => controller.abort());
+        if (token.isCancellationRequested) controller.abort();
+        const { threats, result } = await engine.analyzeFile(filePath, content, { signal: controller.signal });
+        if (controller.signal.aborted || generation !== llmGeneration || !contentStillCurrent(filePath, content)) return;
+        diagnosticsProvider.appendLlmResults(filePath, threats); updateUI();
 
         const status = result.malicious
           ? `🤖 LLM: ${threats.length} threat(s) found (${result.confidence}% confidence)`
-          : `🤖 LLM: Code appears clean (${result.confidence}% confidence)`;
+          : '🤖 LLM: No findings reported. Model output is advisory.';
 
         const cached = result.fromCache ? ' [cached]' : ` [${(result.durationMs / 1000).toFixed(1)}s]`;
         outputChannel.appendLine(`[LLM] ${path.basename(filePath)}: ${result.summary}${cached}`);
@@ -445,7 +490,7 @@ async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<
         });
 
        } catch (e: any) {
-        if (e.message === 'Cancelled') {
+        if (controller.signal.aborted || e.name === 'AbortError') {
           vscode.window.showInformationMessage('LLM analysis cancelled');
         } else {
           outputChannel.appendLine(`[LLM] Error: ${e.message}`);
@@ -453,6 +498,7 @@ async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<
         }
       } finally {
         cancelDisposable?.dispose();
+        if (activeAnalyses.get(filePath) === controller) activeAnalyses.delete(filePath);
         updateUI();
       }
     }
@@ -483,16 +529,28 @@ async function llmExplainThreat(
     evidence = editor.document.getText(figDiag.range);
   }
 
+  const engine = llmEngine;
+  const generation = llmGeneration;
+  if (!await confirmLlmInput(`Explain finding in ${filePath}: the finding description and selected evidence will be sent.`) || generation !== llmGeneration) return;
+  const controller = new AbortController();
+  activeAnalyses.get(filePath)?.abort();
+  activeAnalyses.set(filePath, controller);
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: '🤖 Generating explanation...' },
-    async () => {
+    { location: vscode.ProgressLocation.Notification, title: '🤖 Generating explanation...', cancellable: true },
+    async (_progress, token) => {
+      const cancelDisposable = token.onCancellationRequested(() => controller.abort());
       try {
-        const explanation = await llmEngine!.explainThreat(filePath!, ruleName!, description || '', evidence || '');
+        if (token.isCancellationRequested) controller.abort();
+        const explanation = await engine.explainThreat(filePath!, ruleName!, description || '', evidence || '', { signal: controller.signal });
+        if (controller.signal.aborted || generation !== llmGeneration) return;
         outputChannel.appendLine(`\n--- LLM Threat Explanation ---\n${explanation}`);
         outputChannel.show();
         vscode.window.showInformationMessage('Explanation written to Output channel');
       } catch (e: any) {
-        vscode.window.showErrorMessage(`LLM explain failed: ${e.message}`);
+        if (!controller.signal.aborted) vscode.window.showErrorMessage(`LLM explain failed: ${e.message}`);
+      } finally {
+        cancelDisposable.dispose();
+        if (activeAnalyses.get(filePath!) === controller) activeAnalyses.delete(filePath!);
       }
     }
   );
@@ -508,50 +566,44 @@ async function llmSuggestRule(): Promise<void> {
   if (!editor) { vscode.window.showWarningMessage('No file open'); return; }
 
   const content = editor.document.getText(editor.selection.isEmpty ? undefined : editor.selection);
+  const documentContent = editor.document.getText();
   const filePath = editor.document.uri.fsPath;
 
+  const engine = llmEngine;
+  const generation = llmGeneration;
+  if (!await confirmLlmInput(`Suggest a rule using selected code from ${filePath}.`) || generation !== llmGeneration || !contentStillCurrent(filePath, documentContent)) return;
+  const controller = new AbortController();
+  activeAnalyses.get(filePath)?.abort();
+  activeAnalyses.set(filePath, controller);
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: '🤖 Generating detection rule...' },
-    async () => {
+    { location: vscode.ProgressLocation.Notification, title: '🤖 Generating detection rule...', cancellable: true },
+    async (_progress, token) => {
+      const cancelDisposable = token.onCancellationRequested(() => controller.abort());
       try {
-        const ruleJson = await llmEngine!.suggestRule(filePath, content);
+        if (token.isCancellationRequested) controller.abort();
+        const ruleJson = await engine.suggestRule(filePath, content, { signal: controller.signal });
+        if (controller.signal.aborted || generation !== llmGeneration || !contentStillCurrent(filePath, documentContent)) return;
         const doc = await vscode.workspace.openTextDocument({ content: ruleJson, language: 'json' });
         await vscode.window.showTextDocument(doc);
         vscode.window.showInformationMessage('LLM-suggested rule opened. Save to extension/rules/ to activate.');
       } catch (e: any) {
-        vscode.window.showErrorMessage(`LLM rule suggestion failed: ${e.message}`);
+        if (!controller.signal.aborted) vscode.window.showErrorMessage(`LLM rule suggestion failed: ${e.message}`);
+      } finally {
+        cancelDisposable.dispose();
+        if (activeAnalyses.get(filePath) === controller) activeAnalyses.delete(filePath);
       }
     }
   );
 }
 
 async function llmCheckStatus(): Promise<void> {
-  if (!llmClient) {
-    const config = readLlmConfig((key: string) => vscode.workspace.getConfiguration().get(key));
-    if (!config.enabled) {
-      vscode.window.showInformationMessage('LLM is disabled. Set fig.llm.enabled = true to enable.');
-      return;
-    }
-    // Try to create a temporary client for checking
-    const tmpClient = new LlmClient(config);
-    const result = await tmpClient.checkHealth();
-    if (result.ok) {
-      vscode.window.showInformationMessage(`✅ LLM provider reachable. Models: ${result.models.join(', ')}`);
-    } else {
-      vscode.window.showErrorMessage(`❌ LLM provider not reachable: ${result.error}`);
-    }
-    return;
-  }
-
-  const result = await llmClient.checkHealth();
-  const config = llmClient.getConfig();
-  if (result.ok) {
-    vscode.window.showInformationMessage(
-      `✅ LLM connected: ${config.provider} / ${config.model}\nModels: ${result.models.join(', ')}`
-    );
-  } else {
-    vscode.window.showErrorMessage(`❌ LLM connection failed: ${result.error}`);
-  }
+  if (!llmClient) { vscode.window.showInformationMessage('LLM is disabled. Configure it in User settings.'); return; }
+  if (!await confirmLlmInput('Check provider health by requesting its model list.', false, false)) return;
+  const client = llmClient;
+  if (!client) return;
+  const result = await client.checkHealth();
+  if (result.ok) vscode.window.showInformationMessage(`LLM provider reachable. Models: ${result.models.join(', ')}`);
+  else vscode.window.showWarningMessage(`LLM provider check failed: ${result.error}`);
 }
 
 function showDashboard(context: vscode.ExtensionContext): void {
@@ -571,6 +623,20 @@ async function quarantineFile(uri?: vscode.Uri): Promise<void> {
   }
 
   const filePath = targetUri.fsPath;
+  if (!vscode.workspace.isTrusted || vscode.workspace.textDocuments.some(d => d.uri.fsPath === filePath && d.isDirty)) {
+    vscode.window.showWarningMessage('FIG: Quarantine requires a trusted workspace and no unsaved edits in the selected file.');
+    return;
+  }
+  let reviewedContent: Buffer;
+  try { reviewedContent = fs.readFileSync(filePath); } catch { vscode.window.showWarningMessage('FIG: Selected file cannot be read.'); return; }
+  const confirmed = await vscode.window.showWarningMessage('Move this file to quarantine?', {
+    modal: true, detail: `${filePath}\nThis removes the original after saving a recovery copy and can disrupt the project.`,
+  }, 'Quarantine file');
+  if (confirmed !== 'Quarantine file' || !vscode.workspace.isTrusted ||
+      vscode.workspace.textDocuments.some(d => d.uri.fsPath === filePath && d.isDirty)) return;
+  try {
+    if (!fs.readFileSync(filePath).equals(reviewedContent)) { vscode.window.showWarningMessage('FIG: File changed during confirmation. Inspect it again before quarantining.'); return; }
+  } catch { return; }
   const threats = diagnosticsProvider.getThreats().get(filePath) || [];
 
   const result = await quarantineManager.quarantine(filePath, threats);
@@ -579,7 +645,7 @@ async function quarantineFile(uri?: vscode.Uri): Promise<void> {
     diagnosticsProvider.clearFile(filePath);
     updateUI();
   } else {
-    vscode.window.showErrorMessage('Failed to quarantine file');
+    vscode.window.showErrorMessage(`Quarantine did not complete: ${quarantineManager.getLastError() || 'Inspect the source and recovery copies before retrying.'}`);
   }
 }
 
@@ -611,6 +677,9 @@ export function deactivate() {
   outputChannel?.appendLine('FakeInterviewGuard deactivating...');
   llmClient = null;
   llmEngine = null;
-  filesInAnalysis.clear();
+  for (const controller of activeAnalyses.values()) controller.abort();
+  activeAnalyses.clear();
+  automaticConsent = '';
+  llmGeneration++;
   llmCache?.clear();
 }

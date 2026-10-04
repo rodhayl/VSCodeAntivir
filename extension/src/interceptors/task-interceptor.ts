@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { parse, modify, applyEdits, ParseError } from 'jsonc-parser';
+import { FileChange, readForReview } from '../safety/file-change';
 
 export interface TaskThreat {
   type: 'auto-execute' | 'dangerous-command' | 'url-shortener' | 'piped-exec';
   severity: 'critical' | 'high' | 'medium';
   taskLabel: string;
+  taskIndex: number;
   command: string;
   evidence: string;
   line: number;
@@ -16,6 +19,8 @@ export interface TaskScanResult {
   threats: TaskThreat[];
   tasksJsonPath: string;
   blocked: boolean;
+  content?: string;
+  error?: string;
 }
 
 const DANGEROUS_PATTERNS = [
@@ -31,6 +36,7 @@ const URL_SHORTENERS = ['bit.ly', 'short.gy', 'tinyurl.com', 'is.gd', 't.co', 'r
 export class TaskInterceptor {
   private outputChannel: vscode.OutputChannel;
   private blockedPaths = new Set<string>();
+  private changes = new FileChange();
   private onThreatDetected: ((result: TaskScanResult) => void) | null = null;
 
   constructor(outputChannel: vscode.OutputChannel) {
@@ -51,7 +57,7 @@ export class TaskInterceptor {
     return this.scanAndBlock(tasksJsonPath);
   }
 
-  async scanAndBlock(tasksJsonPath: string): Promise<TaskScanResult> {
+  async scanAndBlock(tasksJsonPath: string, notify = true): Promise<TaskScanResult> {
     const result: TaskScanResult = {
       hasThreats: false,
       threats: [],
@@ -61,24 +67,30 @@ export class TaskInterceptor {
 
     let content: string;
     try {
-      content = fs.readFileSync(tasksJsonPath, 'utf-8');
-    } catch {
+      content = readForReview(tasksJsonPath);
+      result.content = content;
+    } catch (error) {
+      result.error = String(error);
       return result;
     }
 
     let tasks: any;
     try {
-      tasks = JSON.parse(content);
-    } catch {
+      const errors: ParseError[] = [];
+      tasks = parse(content, errors, { allowTrailingComma: true });
+      if (errors.length || !tasks || !Array.isArray(tasks.tasks ?? [])) throw new Error('Invalid task configuration');
+    } catch (error) {
+      result.error = String(error);
       return result;
     }
 
     const taskList = tasks.tasks || [];
     const lines = content.split('\n');
 
-    for (const task of taskList) {
+    for (const [taskIndex, task] of taskList.entries()) {
+      if (!task || typeof task !== 'object') continue;
       const taskLabel = task.label || 'unnamed';
-      const command = task.command || '';
+      const command = typeof task.command === 'string' ? task.command : '';
       const args = (Array.isArray(task.args) ? task.args : [task.args || '']).join(' ');
       const fullCommand = `${command} ${args}`.trim();
 
@@ -89,6 +101,7 @@ export class TaskInterceptor {
           type: 'auto-execute',
           severity: 'critical',
           taskLabel,
+          taskIndex,
           command: fullCommand,
           evidence: '"runOn": "folderOpen"',
           line: lineNum,
@@ -103,6 +116,7 @@ export class TaskInterceptor {
             type: dp.type,
             severity: dp.severity,
             taskLabel,
+            taskIndex,
             command: fullCommand.substring(0, 200),
             evidence: fullCommand.match(dp.pattern)?.[0] || '',
             line: lineNum,
@@ -118,6 +132,7 @@ export class TaskInterceptor {
             type: 'url-shortener',
             severity: 'high',
             taskLabel,
+            taskIndex,
             command: fullCommand.substring(0, 200),
             evidence: shortener,
             line: lineNum,
@@ -128,72 +143,34 @@ export class TaskInterceptor {
 
     result.hasThreats = result.threats.length > 0;
 
-    if (result.hasThreats) {
-      const hasCritical = result.threats.some(t => t.severity === 'critical');
-      
-      if (hasCritical) {
-        result.blocked = await this.blockTasks(tasksJsonPath, content, result.threats);
-        
-        if (result.blocked) {
-          this.outputChannel.appendLine(`[BLOCKED] Neutralized malicious tasks.json: ${tasksJsonPath}`);
-          this.blockedPaths.add(tasksJsonPath);
-        }
-      }
-
-      if (this.onThreatDetected) {
-        this.onThreatDetected(result);
-      }
-    }
-
+    if (result.hasThreats && notify && this.onThreatDetected) this.onThreatDetected(result);
     return result;
   }
 
-  private async blockTasks(filePath: string, content: string, threats: TaskThreat[]): Promise<boolean> {
+  async applyBlock(review: TaskScanResult): Promise<boolean> {
+    if (review.content === undefined || !review.hasThreats) return false;
     try {
-      let neutralized = content;
-
-      // Neutralize auto-execute (folderOpen → default)
-      if (threats.some(t => t.type === 'auto-execute')) {
-        neutralized = neutralized.replace(/"folderOpen"/g, '"default" /* BLOCKED by FakeInterviewGuard */');
-      }
-
-      // Neutralize piped shell execution (curl ... | sh → echo blocked)
-      if (threats.some(t => t.type === 'piped-exec')) {
-        neutralized = neutralized.replace(/"command"\s*:\s*"[^"]*\|\s*(?:sh|bash|cmd|powershell)[^"]*"/g,
-          '"command": "echo BLOCKED by FakeInterviewGuard — piped execution removed"');
-      }
-
-      // Neutralize dangerous commands (curl/wget/Invoke-Expression)
-      if (threats.some(t => t.type === 'dangerous-command')) {
-        neutralized = neutralized.replace(/"command"\s*:\s*"(curl|wget|Invoke-WebRequest|Invoke-Expression)[^"]*"/g,
-          '"command": "echo BLOCKED by FakeInterviewGuard — dangerous command removed"');
-      }
-
-      // Neutralize URL shorteners
-      if (threats.some(t => t.type === 'url-shortener')) {
-        const shorteners = ['bit\\.ly', 'short\\.gy', 'tinyurl\\.com', 'is\\.gd', 't\\.co', 'rb\\.gy', 'goo\\.gl'];
-        for (const s of shorteners) {
-          const re = new RegExp('\u0022' + s + '[^\u0022]*\u0022', 'g');
-          neutralized = neutralized.replace(re, '"BLOCKED_URL"');
+      let updated = review.content;
+      const byTask = new Map<number, TaskThreat[]>();
+      for (const threat of review.threats) byTask.set(threat.taskIndex, [...(byTask.get(threat.taskIndex) || []), threat]);
+      for (const [index, threats] of byTask) {
+        const edit = (keys: (string | number)[], value: unknown) => {
+          updated = applyEdits(updated, modify(updated, keys, value, { formattingOptions: { insertSpaces: true, tabSize: 2 } }));
+        };
+        if (threats.some(t => t.type === 'auto-execute')) edit(['tasks', index, 'runOptions', 'runOn'], 'default');
+        if (threats.some(t => t.type !== 'auto-execute')) {
+          edit(['tasks', index, 'command'], 'echo Task disabled after review by FakeInterviewGuard');
+          edit(['tasks', index, 'args'], []);
         }
       }
-
-      // Create backup
-      const backupPath = filePath + '.fig-backup';
-      if (!fs.existsSync(backupPath)) {
-        fs.writeFileSync(backupPath, content, 'utf-8');
-      }
-
-      // Write neutralized version
-      fs.writeFileSync(filePath, neutralized, 'utf-8');
-
-      const blockedTypes = [...new Set(threats.map(t => t.type))].join(', ');
-      this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Blocked threats (${blockedTypes}) in ${filePath}`);
-      this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Original backed up to ${backupPath}`);
-
+      const applied = this.changes.apply(review.tasksJsonPath, review.content, updated);
+      if (!applied) return false;
+      const verified = await this.scanAndBlock(review.tasksJsonPath, false);
+      if (verified.error || verified.hasThreats) return false;
+      this.blockedPaths.add(review.tasksJsonPath);
       return true;
-    } catch (e: any) {
-      this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Failed to block: ${e.message}`);
+    } catch (error) {
+      this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Change refused: ${String(error)}`);
       return false;
     }
   }
@@ -212,21 +189,10 @@ export class TaskInterceptor {
   }
 
   async restoreOriginal(tasksJsonPath: string): Promise<boolean> {
-    const backupPath = tasksJsonPath + '.fig-backup';
-    
-    if (!fs.existsSync(backupPath)) {
-      return false;
-    }
-
     try {
-      const original = fs.readFileSync(backupPath, 'utf-8');
-      fs.writeFileSync(tasksJsonPath, original, 'utf-8');
-      fs.unlinkSync(backupPath);
-      this.blockedPaths.delete(tasksJsonPath);
-      this.outputChannel.appendLine(`[TASK-INTERCEPTOR] Restored original: ${tasksJsonPath}`);
-      return true;
-    } catch {
-      return false;
-    }
+      const restored = this.changes.restore(tasksJsonPath);
+      if (restored) this.blockedPaths.delete(tasksJsonPath);
+      return restored;
+    } catch { return false; }
   }
 }

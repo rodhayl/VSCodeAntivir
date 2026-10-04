@@ -23,6 +23,18 @@ Rules can produce false positives and miss malicious behavior. A clean scan is n
 
 LLM analysis is disabled by default. Enabling it sends the selected analysis input to the configured endpoint, which may be local or remote. Check the provider and prompt contents before analyzing confidential code.
 
+## Review before changing files
+
+Startup task, package-script and Git inspections are read-only. Findings describe suspicious patterns and may be legitimate. A review dialog explains the specific target and proposed edit; dismissing it changes nothing. Restricted Mode disables the extension. Remediation refuses symlink targets, unsaved editor changes and files changed since inspection.
+
+- Explicit configuration edits retain a `.fig-backup` beside the affected file. The immediate **Undo this change** action verifies extension-owned state and current bytes. After a restart, or if either file changed, automatic undo is refused: review and recover from the retained backup manually. Do not commit backup or temporary recovery files.
+- Configuration remediation refuses files that cannot round-trip through UTF-8. Undo checks the restored bytes against the approved original and backup before deleting recovery copies; an unverifiable restore keeps the backup for manual recovery.
+- Quarantine saves a private recovery record before moving the original. Restore never replaces an existing destination. If a conflict, corrupt store, busy/interrupted lock or unsupported filesystem operation is reported, preserve the originals and recovery copies and inspect the message before retrying. Do not delete an interrupted-operation lock or modify its manifest blindly.
+- Quarantine uses an atomic move into its storage filesystem. A cross-filesystem move fails closed, retaining the original and recovery copy instead of falling back to a racing copy-and-delete operation. Hard-linked sources are also refused. If metadata persistence is interrupted after capturing changed bytes, restore refuses the hash mismatch and leaves the captured payload for manual recovery.
+- “No findings” describes the files actually scanned, not a safety verdict. Workspace results include skipped files and inspection errors. The minimum-severity setting controls the reported view. Workspace traversal remains synchronous; cancellable model requests are separate.
+
+LLM endpoint, enablement and related settings are **User/application settings**, not repository-controlled settings. Every manual model operation names its destination and input before sending. Optional automatic analysis also requires explicit session approval for that endpoint, model and workspace; excluded/oversize files and files outside the workspace are not automatically submitted. Configuration changes revoke approval, abort active analysis and clear cached results. Cancelling sends an abort signal to the transport; it cannot retract input a provider already received or guarantee that provider-side billing stops. API keys are not migrated by this update; keep them out of repository settings.
+
 ## Detection approach
 
 ### Detection Engines
@@ -305,10 +317,12 @@ samples/
 cd extension
 npm install
 npm run compile        # TypeScript → out/
-npm test               # Run unit + VS Code integration tests
+npm test               # Run offline unit + isolated VS Code integration tests
 npm run lint           # Run ESLint
 npx vsce package       # Build VSIX package
 ```
+
+The default unit runner executes its assertions and fails the process on failure. LLM transport behavior is covered by stubs. `extension/test/live/` contains optional live-provider experiments; it is excluded from `npm test` and CI and must only be run deliberately against an authorized provider. Fixture files are read as data, never executed as payloads.
 
 ## License
 

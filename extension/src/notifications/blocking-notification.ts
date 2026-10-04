@@ -1,338 +1,133 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { TaskScanResult, TaskThreat, TaskInterceptor } from '../interceptors/task-interceptor';
-import { NpmScanResult, NpmScriptThreat, NpmScriptInterceptor } from '../interceptors/npm-script-interceptor';
-import { GitScanResult, GitConfigThreat, GitConfigInterceptor } from '../interceptors/git-config-interceptor';
+import * as fs from 'fs';
+import { regularPath } from '../safety/file-change';
+import { TaskScanResult, TaskInterceptor } from '../interceptors/task-interceptor';
+import { NpmScanResult, NpmScriptInterceptor } from '../interceptors/npm-script-interceptor';
+import { GitScanResult, GitConfigInterceptor } from '../interceptors/git-config-interceptor';
 import { QuarantineManager } from '../quarantine/quarantine-manager';
 import { Threat } from '../scanner/models/threat';
-import { Severity, stringToSeverity } from '../scanner/models/severity';
+import { Severity } from '../scanner/models/severity';
 
-export interface BlockingNotificationOptions {
-  showModal?: boolean;
-  autoQuarantine?: boolean;
-}
+export interface BlockingNotificationOptions { showModal?: boolean; autoQuarantine?: boolean; }
 
 export class BlockingNotificationService {
-  private outputChannel: vscode.OutputChannel;
   private quarantineManager: QuarantineManager | null = null;
   private taskInterceptor: TaskInterceptor | null = null;
   private npmInterceptor: NpmScriptInterceptor | null = null;
   private gitInterceptor: GitConfigInterceptor | null = null;
+  constructor(private outputChannel: vscode.OutputChannel) {}
+  setQuarantineManager(value: QuarantineManager): void { this.quarantineManager = value; }
+  setTaskInterceptor(value: TaskInterceptor): void { this.taskInterceptor = value; }
+  setNpmInterceptor(value: NpmScriptInterceptor): void { this.npmInterceptor = value; }
+  setGitInterceptor(value: GitConfigInterceptor): void { this.gitInterceptor = value; }
 
-  constructor(outputChannel: vscode.OutputChannel) {
-    this.outputChannel = outputChannel;
+  private canChange(files: string[]): boolean {
+    if (!vscode.workspace.isTrusted) {
+      vscode.window.showWarningMessage('FIG: Changes are disabled in Restricted Mode.');
+      return false;
+    }
+    if (vscode.workspace.textDocuments.some(d => files.includes(d.uri.fsPath) && d.isDirty)) {
+      vscode.window.showWarningMessage('FIG: Save or revert unsaved edits before applying a file change.');
+      return false;
+    }
+    return true;
   }
 
-  setQuarantineManager(manager: QuarantineManager): void {
-    this.quarantineManager = manager;
+  private async reportApplied(applied: boolean, restore: () => Promise<boolean>): Promise<void> {
+    if (!applied) {
+      vscode.window.showWarningMessage('FIG: No verified complete change. Files may have changed or already be protected. Review the output and any retained backups.');
+      return;
+    }
+    const selection = await vscode.window.showInformationMessage('FIG: Reviewed change applied. The original backup is retained.', 'Undo this change');
+    if (selection === 'Undo this change') {
+      if (await restore()) vscode.window.showInformationMessage('FIG: Original restored.');
+      else vscode.window.showWarningMessage('FIG: Undo refused because the file changed or the backup could not be verified. Your current file was retained.');
+    }
   }
 
-  setTaskInterceptor(interceptor: TaskInterceptor): void {
-    this.taskInterceptor = interceptor;
+  private readContent(filePath: string): Buffer | undefined {
+    try { return fs.readFileSync(regularPath(filePath)); } catch { return undefined; }
   }
 
-  setNpmInterceptor(interceptor: NpmScriptInterceptor): void {
-    this.npmInterceptor = interceptor;
+  private unchanged(filePath: string, reviewedContent: Buffer): boolean {
+    if (this.readContent(filePath)?.equals(reviewedContent)) return true;
+    vscode.window.showWarningMessage('FIG: File changed during confirmation or since inspection, or cannot be read. Inspect it again before quarantining.');
+    return false;
   }
 
-  setGitInterceptor(interceptor: GitConfigInterceptor): void {
-    this.gitInterceptor = interceptor;
+  private async quarantine(filePath: string, threats: Threat[], reviewedContent: Buffer | undefined): Promise<void> {
+    if (!this.quarantineManager || !this.canChange([filePath])) return;
+    if (!reviewedContent) { vscode.window.showWarningMessage('FIG: Selected file could not be read for review. Inspect it again before quarantining.'); return; }
+    if (!this.unchanged(filePath, reviewedContent)) return;
+    const choice = await vscode.window.showWarningMessage('Move this file to quarantine?', {
+      modal: true, detail: `${filePath}\nThe original will be removed only after a recovery copy and record are saved. This can disrupt the project.`,
+    }, 'Quarantine file');
+    if (choice !== 'Quarantine file' || !this.canChange([filePath]) || !this.unchanged(filePath, reviewedContent)) return;
+    const result = await this.quarantineManager.quarantine(filePath, threats);
+    if (result) vscode.window.showInformationMessage('FIG: File quarantined.');
+    else vscode.window.showErrorMessage(`FIG: Quarantine did not complete. ${this.quarantineManager.getLastError() || 'Inspect the source and quarantine manager before retrying.'}`);
   }
 
   async notifyTaskBlocked(result: TaskScanResult): Promise<void> {
-    const fileName = path.basename(result.tasksJsonPath);
-    const criticalThreats = result.threats.filter(t => t.severity === 'critical');
-    
-    if (criticalThreats.length === 0) {
-      return;
-    }
-
-    const message = `⚠️ FakeInterviewGuard BLOCKED malicious tasks.json!\n\n` +
-      `File: ${fileName}\n` +
-      `Threat: Auto-execute on folder open detected.\n\n` +
-      `The task configuration was neutralized to prevent automatic code execution.`;
-
-    const selection = await vscode.window.showWarningMessage(
-      `🛡️ BLOCKED: Malicious tasks.json neutralized`,
-      { modal: true, detail: message },
-      'View Details',
-      'Quarantine File',
-      'Restore Original'
-    );
-
-    if (selection === 'View Details') {
-      this.showTaskThreatDetails(result);
-    } else if (selection === 'Quarantine File' && this.quarantineManager) {
-      const threats = this.taskThreatsToThreats(result.threats, result.tasksJsonPath);
-      await this.quarantineManager.quarantine(result.tasksJsonPath, threats);
-      vscode.window.showInformationMessage('File moved to quarantine');
-    } else if (selection === 'Restore Original') {
-      vscode.window.showWarningMessage(
-        '⚠️ Restoring the original file will re-enable auto-execute. Are you sure?',
-        'Yes, restore',
-        'Cancel'
-      ).then(async answer => {
-        if (answer === 'Yes, restore') {
-          if (this.taskInterceptor) {
-            const restored = await this.taskInterceptor.restoreOriginal(result.tasksJsonPath);
-            if (restored) {
-              vscode.window.showInformationMessage('Original tasks.json restored');
-            } else {
-              vscode.window.showErrorMessage('Failed to restore tasks.json');
-            }
-          }
-        }
-      });
+    if (!result.hasThreats) return;
+    const reviewedContent = result.content === undefined ? this.readContent(result.tasksJsonPath) : Buffer.from(result.content, 'utf8');
+    const choice = await vscode.window.showWarningMessage('FIG: Task configuration needs review', {
+      modal: true,
+      detail: `${result.tasksJsonPath}\n${result.threats.map(t => `${t.taskLabel}: ${t.type}`).join('\n')}\nThese patterns can be legitimate. Disable will remove automatic startup and replace flagged commands/arguments with a harmless echo. No change has been made.`,
+    }, 'View file', 'Disable flagged tasks', 'Quarantine file');
+    if (choice === 'View file') await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(result.tasksJsonPath));
+    else if (choice === 'Quarantine file') await this.quarantine(result.tasksJsonPath, [], reviewedContent);
+    else if (choice === 'Disable flagged tasks' && this.taskInterceptor && this.canChange([result.tasksJsonPath])) {
+      await this.reportApplied(await this.taskInterceptor.applyBlock(result), async () =>
+        this.canChange([result.tasksJsonPath]) && this.taskInterceptor!.restoreOriginal(result.tasksJsonPath));
     }
   }
 
   async notifyNpmScriptBlocked(result: NpmScanResult): Promise<void> {
-    const fileName = path.basename(result.packageJsonPath);
-    
-    if (result.threats.length === 0) {
-      return;
+    if (!result.hasThreats) return;
+    const reviewedContent = result.content === undefined ? this.readContent(result.packageJsonPath) : Buffer.from(result.content, 'utf8');
+    const choice = await vscode.window.showWarningMessage('FIG: Package scripts need review', {
+      modal: true,
+      detail: `${result.packageJsonPath}\n${result.threats.map(t => `${t.scriptName}: ${t.reason}`).join('\n')}\nThese patterns can be legitimate. Disable will add ignore-scripts=true to this package directory’s .npmrc; installation scripts may be required for the project. No change has been made.`,
+    }, 'View file', 'Disable lifecycle scripts', 'Quarantine file');
+    if (choice === 'View file') await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(result.packageJsonPath));
+    else if (choice === 'Quarantine file') await this.quarantine(result.packageJsonPath, [], reviewedContent);
+    else if (choice === 'Disable lifecycle scripts' && this.npmInterceptor && this.canChange([result.packageJsonPath, path.join(path.dirname(result.packageJsonPath), '.npmrc')])) {
+      await this.reportApplied(await this.npmInterceptor.applyBlock(result), async () =>
+        this.canChange([result.packageJsonPath, path.join(path.dirname(result.packageJsonPath), '.npmrc')]) && this.npmInterceptor!.removeBlock(result.packageJsonPath));
     }
-
-    const scriptNames = result.threats.map(t => t.scriptName).join(', ');
-    
-    const message = `⚠️ FakeInterviewGuard BLOCKED malicious npm scripts!\n\n` +
-      `File: ${fileName}\n` +
-      `Blocked scripts: ${scriptNames}\n\n` +
-      `An .npmrc file was created with ignore-scripts=true to prevent execution.`;
-
-    const selection = await vscode.window.showWarningMessage(
-      `🛡️ BLOCKED: Malicious npm scripts disabled`,
-      { modal: true, detail: message },
-      'View Details',
-      'Quarantine package.json',
-      'Remove Block'
-    );
-
-    if (selection === 'View Details') {
-      this.showNpmThreatDetails(result);
-    } else if (selection === 'Quarantine package.json' && this.quarantineManager) {
-      const threats = this.npmThreatsToThreats(result.threats, result.packageJsonPath);
-      await this.quarantineManager.quarantine(result.packageJsonPath, threats);
-      vscode.window.showInformationMessage('File moved to quarantine');
-    } else if (selection === 'Remove Block') {
-      vscode.window.showWarningMessage(
-        '⚠️ Removing the block will re-enable npm script execution. Are you sure?',
-        'Yes, remove',
-        'Cancel'
-      ).then(async answer => {
-        if (answer === 'Yes, remove') {
-          if (this.npmInterceptor) {
-            const removed = await this.npmInterceptor.removeBlock(result.packageJsonPath);
-            if (removed) {
-              vscode.window.showInformationMessage('npm block removed');
-            } else {
-              vscode.window.showErrorMessage('Failed to remove npm block');
-            }
-          }
-        }
-      });
-    }
-  }
-
-  async notifyThreatDetected(filePath: string, threats: Threat[], options: BlockingNotificationOptions = {}): Promise<void> {
-    const fileName = path.basename(filePath);
-    const severeCount = threats.filter(t => t.severity === Severity.CRITICAL).length;
-
-    if (severeCount === 0) {
-      return;
-    }
-
-    const message = `${severeCount} critical threat${severeCount !== 1 ? 's' : ''} detected in ${fileName}`;
-
-    if (options.showModal) {
-      const selection = await vscode.window.showWarningMessage(
-        `🛡️ ${message}`,
-        { modal: true },
-        'View File',
-        'Quarantine',
-        'Dismiss'
-      );
-
-      if (selection === 'Quarantine' && this.quarantineManager) {
-        await this.quarantineManager.quarantine(filePath, threats);
-        vscode.window.showInformationMessage('File moved to quarantine');
-      } else if (selection === 'View File') {
-        const doc = await vscode.workspace.openTextDocument(filePath);
-        await vscode.window.showTextDocument(doc);
-      }
-    } else {
-      const selection = await vscode.window.showWarningMessage(
-        `🛡️ ${message}`,
-        'View',
-        'Quarantine',
-        'Dismiss'
-      );
-
-      if (selection === 'Quarantine' && this.quarantineManager) {
-        await this.quarantineManager.quarantine(filePath, threats);
-      } else if (selection === 'View') {
-        const doc = await vscode.workspace.openTextDocument(filePath);
-        await vscode.window.showTextDocument(doc);
-      }
-    }
-  }
-
-  private showTaskThreatDetails(result: TaskScanResult): void {
-    this.outputChannel.appendLine('\n=== Malicious Task Configuration Details ===');
-    this.outputChannel.appendLine(`File: ${result.tasksJsonPath}`);
-    this.outputChannel.appendLine(`Blocked: ${result.blocked ? 'Yes' : 'No'}`);
-    this.outputChannel.appendLine('\nThreats:');
-    
-    for (const threat of result.threats) {
-      this.outputChannel.appendLine(`  [${threat.severity.toUpperCase()}] ${threat.type}`);
-      this.outputChannel.appendLine(`    Task: ${threat.taskLabel}`);
-      this.outputChannel.appendLine(`    Evidence: ${threat.evidence}`);
-      this.outputChannel.appendLine(`    Command: ${threat.command.substring(0, 100)}`);
-    }
-    
-    this.outputChannel.appendLine('=========================================\n');
-    this.outputChannel.show();
-  }
-
-  private showNpmThreatDetails(result: NpmScanResult): void {
-    this.outputChannel.appendLine('\n=== Malicious npm Script Details ===');
-    this.outputChannel.appendLine(`File: ${result.packageJsonPath}`);
-    this.outputChannel.appendLine(`Scripts Blocked: ${result.npmrcModified ? 'Yes' : 'No'}`);
-    this.outputChannel.appendLine('\nThreats:');
-    
-    for (const threat of result.threats) {
-      this.outputChannel.appendLine(`  [${threat.severity.toUpperCase()}] ${threat.scriptName}`);
-      this.outputChannel.appendLine(`    Reason: ${threat.reason}`);
-      this.outputChannel.appendLine(`    Command: ${threat.scriptCommand.substring(0, 100)}`);
-    }
-    
-    this.outputChannel.appendLine('=====================================\n');
-    this.outputChannel.show();
-  }
-
-  private taskThreatsToThreats(taskThreats: TaskThreat[], filePath: string): Threat[] {
-    return taskThreats.map((t, idx) => ({
-      id: `task-${t.type}-${idx}`,
-      ruleId: `interceptor-task-${t.type}`,
-      ruleName: `Task ${t.type.replace('-', ' ')}`,
-      severity: stringToSeverity(t.severity),
-      confidence: 'high',
-      message: `Task "${t.taskLabel}": ${t.evidence}`,
-      filePath,
-      location: { startLine: t.line, startCol: 0, endLine: t.line, endCol: 100 },
-      matchedStrings: [t.evidence],
-    }));
-  }
-
-  private npmThreatsToThreats(npmThreats: NpmScriptThreat[], filePath: string): Threat[] {
-    return npmThreats.map((t, idx) => ({
-      id: `npm-${t.scriptName}-${idx}`,
-      ruleId: `interceptor-npm-${t.scriptName}`,
-      ruleName: `Malicious ${t.scriptName} script`,
-      severity: stringToSeverity(t.severity),
-      confidence: 'high',
-      message: `${t.reason}: ${t.scriptCommand.substring(0, 80)}`,
-      filePath,
-      location: { startLine: t.line, startCol: 0, endLine: t.line, endCol: 100 },
-      matchedStrings: [t.scriptCommand],
-    }));
   }
 
   async notifyGitConfigBlocked(result: GitScanResult): Promise<void> {
-    if (result.threats.length === 0) {
-      return;
-    }
-
-    const threatTypes = [...new Set(result.threats.map(t => t.type))];
-    const firstThreat = result.threats[0];
-    const configPath = firstThreat.filePath;
-    
-    let threatDescription = '';
-    if (threatTypes.includes('fsmonitor')) {
-      threatDescription = 'core.fsmonitor exploit (arbitrary code execution)';
-    } else if (threatTypes.includes('hookspath')) {
-      threatDescription = 'custom hooks path (redirected git hooks)';
-    } else if (threatTypes.includes('malicious-hook')) {
-      threatDescription = 'malicious git hook scripts detected';
-    } else {
-      threatDescription = threatTypes.join(', ');
-    }
-
-    const message = `⚠️ FakeInterviewGuard BLOCKED dangerous git configuration!\n\n` +
-      `Config: ${configPath}\n` +
-      `Threat: ${threatDescription}\n\n` +
-      `This exploit technique was used in the March 2026 Emacs/Vim RCE attacks.\n` +
-      `The dangerous configuration has been commented out to prevent execution.`;
-
-    const selection = await vscode.window.showWarningMessage(
-      `🛡️ BLOCKED: Dangerous git config neutralized`,
-      { modal: true, detail: message },
-      'View Details',
-      'Quarantine .git/config',
-      'Restore Original'
-    );
-
-    if (selection === 'View Details') {
-      this.showGitThreatDetails(result);
-    } else if (selection === 'Quarantine .git/config' && this.quarantineManager) {
-      const threats = this.gitThreatsToThreats(result.threats, configPath);
-      await this.quarantineManager.quarantine(configPath, threats);
-      vscode.window.showInformationMessage('Git config moved to quarantine');
-    } else if (selection === 'Restore Original') {
-      vscode.window.showWarningMessage(
-        '⚠️ Restoring the original config will re-enable code execution. Are you sure?',
-        'Yes, restore',
-        'Cancel'
-      ).then(async answer => {
-        if (answer === 'Yes, restore') {
-          if (this.gitInterceptor) {
-            const configRestored = await this.gitInterceptor.restoreGitConfig(configPath);
-            const hooksDir = path.join(path.dirname(configPath), 'hooks');
-            const hooksRestored = await this.gitInterceptor.restoreAllHooks(hooksDir);
-            const parts = [];
-            if (configRestored) parts.push('config');
-            if (hooksRestored > 0) parts.push(`${hooksRestored} hook(s)`);
-            if (parts.length > 0) {
-              vscode.window.showInformationMessage(`Restored: ${parts.join(' and ')} from backup`);
-            } else {
-              vscode.window.showErrorMessage('Nothing to restore (no backup found)');
-            }
-          }
+    if (!result.hasThreats) return;
+    const files = [...new Set(result.threats.map(t => t.filePath))];
+    const choice = await vscode.window.showWarningMessage('FIG: Git configuration needs review', {
+      modal: true,
+      detail: `${result.threats.map(t => `${t.filePath}: ${t.configKey}`).join('\n')}\nThese settings and hooks can be legitimate. Disable will comment selected configuration lines and replace flagged hooks with a no-op. Backups will be retained. No change has been made.`,
+    }, 'View details', 'Disable reviewed entries');
+    if (choice === 'View details') {
+      for (const t of result.threats) this.outputChannel.appendLine(`${t.filePath}:${t.line + 1}: ${t.configKey}: ${t.value}`);
+      this.outputChannel.show();
+    } else if (choice === 'Disable reviewed entries' && this.gitInterceptor && this.canChange(files)) {
+      await this.reportApplied(await this.gitInterceptor.applyBlock(result), async () => {
+        if (!this.canChange(files)) return false;
+        let restored = true;
+        for (const file of files) {
+          const hook = result.threats.some(t => t.filePath === file && t.type === 'malicious-hook');
+          const value = hook ? await this.gitInterceptor!.restoreHook(file) : await this.gitInterceptor!.restoreGitConfig(file);
+          restored = value && restored;
         }
+        return restored;
       });
     }
   }
 
-  private showGitThreatDetails(result: GitScanResult): void {
-    this.outputChannel.appendLine('\n=== Dangerous Git Configuration Details ===');
-    this.outputChannel.appendLine(`Blocked: ${result.blocked ? 'Yes' : 'No'}`);
-    this.outputChannel.appendLine('\nThreats:');
-    
-    for (const threat of result.threats) {
-      this.outputChannel.appendLine(`  [${threat.severity.toUpperCase()}] ${threat.type}`);
-      this.outputChannel.appendLine(`    File: ${threat.filePath}`);
-      this.outputChannel.appendLine(`    Line: ${threat.line}`);
-      this.outputChannel.appendLine(`    Config: ${threat.configKey} = ${threat.value.substring(0, 100)}`);
-    }
-    
-    this.outputChannel.appendLine('\nThis attack vector was used in March 2026 by:');
-    this.outputChannel.appendLine('  - Emacs/Vim RCE attacks via core.fsmonitor');
-    this.outputChannel.appendLine('  - Lazarus/BlueNoroff supply chain attacks');
-    this.outputChannel.appendLine('==========================================\n');
-    this.outputChannel.show();
-  }
-
-  private gitThreatsToThreats(gitThreats: GitConfigThreat[], filePath: string): Threat[] {
-    return gitThreats.map((t, idx) => ({
-      id: `git-${t.type}-${idx}`,
-      ruleId: `interceptor-git-${t.type}`,
-      ruleName: `Git ${t.type} exploit`,
-      severity: stringToSeverity(t.severity),
-      confidence: 'high',
-      message: `${t.configKey}: ${t.value.substring(0, 80)}`,
-      filePath,
-      location: { startLine: t.line, startCol: 0, endLine: t.line, endCol: 100 },
-      matchedStrings: [t.value],
-    }));
+  async notifyThreatDetected(filePath: string, threats: Threat[], _options: BlockingNotificationOptions = {}): Promise<void> {
+    if (!threats.some(t => t.severity === Severity.CRITICAL)) return;
+    const reviewedContent = this.readContent(filePath);
+    const choice = await vscode.window.showWarningMessage(`FIG: ${threats.length} finding(s) need review in ${filePath}`, 'View file', 'Quarantine file');
+    if (choice === 'View file') await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(filePath));
+    else if (choice === 'Quarantine file') await this.quarantine(filePath, threats, reviewedContent);
   }
 }

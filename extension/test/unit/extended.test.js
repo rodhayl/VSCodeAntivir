@@ -102,7 +102,7 @@ suite('Area 4: Task Interceptor Logic', () => {
     assert(threats.some(t => t.ruleId === 'vscode-task-piped-exec'), 'Should detect piped exec');
   });
 
-  test('scanAndBlock detects folderOpen auto-execute and blocks', async () => {
+  test('inspection is read-only and explicit apply disables folderOpen', async () => {
     const { TaskInterceptor } = require('../../out/interceptors/task-interceptor');
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-test-'));
     const tasksPath = path.join(tmpDir, '.vscode', 'tasks.json');
@@ -119,7 +119,8 @@ suite('Area 4: Task Interceptor Logic', () => {
     const result = await interceptor.scanAndBlock(tasksPath);
 
     assert.strictEqual(result.hasThreats, true, 'Should report threats');
-    assert.strictEqual(result.blocked, true, 'Should block auto-execute');
+    assert.strictEqual(result.blocked, false, 'Inspection must not mutate');
+    assert.strictEqual(await interceptor.applyBlock(result), true, 'Explicit apply should disable auto-execute');
     assert(result.threats.some(t => t.type === 'auto-execute'), 'Should have auto-execute threat');
 
     // File content should be modified: folderOpen replaced with default
@@ -131,7 +132,7 @@ suite('Area 4: Task Interceptor Logic', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('scanAndBlock creates .fig-backup before blocking', async () => {
+  test('explicit apply creates .fig-backup before changing tasks', async () => {
     const { TaskInterceptor } = require('../../out/interceptors/task-interceptor');
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-backup-'));
     const tasksPath = path.join(tmpDir, '.vscode', 'tasks.json');
@@ -145,7 +146,8 @@ suite('Area 4: Task Interceptor Logic', () => {
 
     const outputChannel = { appendLine: () => {} };
     const interceptor = new TaskInterceptor(outputChannel);
-    await interceptor.scanAndBlock(tasksPath);
+    const review = await interceptor.scanAndBlock(tasksPath);
+    assert.strictEqual(await interceptor.applyBlock(review), true);
 
     const backupPath = tasksPath + '.fig-backup';
     assert(fs.existsSync(backupPath), '.fig-backup should exist after blocking');
@@ -171,7 +173,8 @@ suite('Area 4: Task Interceptor Logic', () => {
 
     const outputChannel = { appendLine: () => {} };
     const interceptor = new TaskInterceptor(outputChannel);
-    await interceptor.scanAndBlock(tasksPath);
+    const review = await interceptor.scanAndBlock(tasksPath);
+    assert.strictEqual(await interceptor.applyBlock(review), true);
 
     // Verify blocked state
     let content = fs.readFileSync(tasksPath, 'utf-8');
@@ -1470,7 +1473,7 @@ suite('Area 7: Minimum Severity Filtering', () => {
 });
 
 suite('Area 7: NpmScriptInterceptor removeBlock', () => {
-  test('removeBlock cleans FakeInterviewGuard comment and ignore-scripts from .npmrc', async () => {
+  test('removeBlock refuses unowned .npmrc even when it contains a FIG comment', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-npm-remove-'));
     try {
       const pkgJsonPath = path.join(tmpDir, 'package.json');
@@ -1489,10 +1492,8 @@ suite('Area 7: NpmScriptInterceptor removeBlock', () => {
       const interceptor = new (require('../../out/interceptors/npm-script-interceptor').NpmScriptInterceptor)(outputChannel);
 
       const removed = await interceptor.removeBlock(pkgJsonPath);
-      assert.strictEqual(removed, true, 'removeBlock should succeed');
-
-      // .npmrc should be deleted since it only had FakeInterviewGuard content
-      assert(!fs.existsSync(npmrcPath), '.npmrc should be deleted when only FakeInterviewGuard content');
+      assert.strictEqual(removed, false, 'Unowned settings must not be removed');
+      assert.strictEqual(fs.readFileSync(npmrcPath, 'utf-8'), fakeNpmrc);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -1519,14 +1520,13 @@ suite('Area 7: NpmScriptInterceptor removeBlock', () => {
       const interceptor = new (require('../../out/interceptors/npm-script-interceptor').NpmScriptInterceptor)(outputChannel);
 
       const removed = await interceptor.removeBlock(pkgJsonPath);
-      assert.strictEqual(removed, true);
+      assert.strictEqual(removed, false);
 
-      // File should exist with only user content
+      // Unowned settings remain byte-for-byte unchanged
       assert(fs.existsSync(npmrcPath), '.npmrc should still exist with user content');
       const remaining = fs.readFileSync(npmrcPath, 'utf-8');
       assert(remaining.includes('registry=https://my-registry.com'), 'User registry config should be preserved');
-      assert(!remaining.includes('FakeInterviewGuard'), 'FakeInterviewGuard comment should be removed');
-      assert(!remaining.includes('ignore-scripts'), 'ignore-scripts should be removed');
+      assert.strictEqual(remaining, mixedNpmrc, 'Unowned content must remain unchanged');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

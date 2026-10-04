@@ -5,6 +5,15 @@ All notable changes to FakeInterviewGuard will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Safety and correctness
+- Make startup configuration inspection read-only and require explicit review before remediation; preserve verified backups and refuse changed, dirty or symlink targets.
+- Make quarantine conflict-safe, private and recoverable across metadata failures and independent windows; refuse corrupt/escaping entries, snapshot destructive selections and confirm actions in the extension host.
+- Preserve multi-root findings; apply file exclusions, size limits and minimum severity consistently; report incomplete scans, scan unopened selected files and clear deleted-file findings.
+- Scope LLM configuration to User settings, add endpoint/input consent, abort cancelled requests and reject stale results. Keep real-provider experiments outside the default test runner.
+- Execute the actual unit suite from its CLI entrypoint, with benign regression coverage for these boundaries.
+
 ## [1.0.0] - 2026-05-01
 
 ### Added

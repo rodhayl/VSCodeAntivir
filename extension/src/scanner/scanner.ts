@@ -10,6 +10,7 @@ import { runHeuristicEngine } from './engines/heuristic-engine';
 import { runNpmAuditEngine } from './engines/npm-audit-engine';
 import { runVscodeTaskEngine } from './engines/vscode-task-engine';
 import { minimatch } from 'minimatch';
+import { parse, ParseError } from 'jsonc-parser';
 
 export class Scanner {
   private rules: DetectionRule[] = [];
@@ -61,20 +62,40 @@ export class Scanner {
   }
 
   setMaxFileSizeKB(kb: number): void {
-    this.maxFileSizeKB = kb;
+    this.maxFileSizeKB = Number.isFinite(kb) && kb > 0 ? kb : 512;
   }
 
   getMaxFileSizeKB(): number {
     return this.maxFileSizeKB;
   }
 
-  scanFile(filePath: string, content?: string): ScanResult {
+  getSkipReason(filePath: string, rootDir?: string, content?: string): string | undefined {
+    const relative = (rootDir ? path.relative(rootDir, filePath) : filePath).replace(/\\/g, '/');
+    if (this.excludedPatterns.some(pattern => minimatch(relative, pattern, { dot: true }))) return 'Excluded by configuration';
+    const size = content === undefined ? fs.statSync(filePath).size : Buffer.byteLength(content, 'utf8');
+    return size > this.maxFileSizeKB * 1024 ? 'File exceeds configured size limit' : undefined;
+  }
+
+  scanFile(filePath: string, content?: string, rootDir?: string): ScanResult {
     const start = Date.now();
     let fileContent: string;
     try {
+      const detail = this.getSkipReason(filePath, rootDir, content);
+      if (detail) return { filePath, threats: [], scanDurationMs: Date.now() - start, status: 'skipped', detail };
       fileContent = content ?? fs.readFileSync(filePath, 'utf-8');
-    } catch {
-      return { filePath, threats: [], scanDurationMs: Date.now() - start };
+    } catch (error) {
+      return { filePath, threats: [], scanDurationMs: Date.now() - start, status: 'error', detail: String(error) };
+    }
+    if (path.basename(filePath) === 'tasks.json' || path.basename(filePath) === 'package.json') {
+      try {
+        if (path.basename(filePath) === 'tasks.json') {
+          const errors: ParseError[] = [];
+          const tasks = parse(fileContent, errors, { allowTrailingComma: true });
+          if (errors.length || !tasks || !Array.isArray(tasks.tasks ?? [])) throw new Error('Invalid task configuration');
+        } else { JSON.parse(fileContent); }
+      } catch (error) {
+        return { filePath, threats: [], scanDurationMs: Date.now() - start, status: 'error', detail: `Configuration parse failed: ${String(error)}` };
+      }
     }
     const threats: Threat[] = [];
 
@@ -94,13 +115,14 @@ export class Scanner {
       filePath,
       threats,
       scanDurationMs: Date.now() - start,
+      status: 'scanned',
     };
   }
 
   scanWorkspace(rootDir: string): ScanSummary {
     const start = Date.now();
     const summary = createEmptySummary();
-    const files = this.walkDirectory(rootDir);
+    const files = this.walkDirectory(rootDir, summary.errors);
     summary.totalFiles = files.length;
 
     for (const file of files) {
@@ -115,7 +137,9 @@ export class Scanner {
           summary.skippedFiles++;
           continue;
         }
-        const result = this.scanFile(file);
+        const result = this.scanFile(file, undefined, rootDir);
+        if (result.status === 'error') { summary.failedFiles++; summary.errors.push(result.detail || file); continue; }
+        if (result.status === 'skipped') { summary.skippedFiles++; continue; }
         summary.scannedFiles++;
         summary.results.push(result);
         for (const threat of result.threats) {
@@ -123,8 +147,8 @@ export class Scanner {
           const key = severityToString(threat.severity);
           summary.threatsBySeverity[key] = (summary.threatsBySeverity[key] || 0) + 1;
         }
-      } catch {
-        summary.skippedFiles++;
+      } catch (error) {
+        summary.failedFiles++; summary.errors.push(String(error));
       }
     }
 
@@ -134,10 +158,10 @@ export class Scanner {
 
   private shouldSkip(filePath: string, rootDir: string): boolean {
     const relativePath = path.relative(rootDir, filePath).replace(/\\/g, '/');
-    return this.excludedPatterns.some(pattern => minimatch(relativePath, pattern));
+    return this.excludedPatterns.some(pattern => minimatch(relativePath, pattern, { dot: true }));
   }
 
-  private walkDirectory(dir: string): string[] {
+  private walkDirectory(dir: string, errors: string[]): string[] {
     const results: string[] = [];
     const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'];
     try {
@@ -146,7 +170,7 @@ export class Scanner {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'out') continue;
-          results.push(...this.walkDirectory(fullPath));
+          results.push(...this.walkDirectory(fullPath, errors));
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name).toLowerCase();
           if (scanExts.includes(ext)) {
@@ -154,7 +178,7 @@ export class Scanner {
           }
         }
       }
-    } catch { /* skip unreadable dirs */ }
+    } catch (error) { errors.push(`Cannot enumerate ${dir}: ${String(error)}`); }
     return results;
   }
 }

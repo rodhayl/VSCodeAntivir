@@ -1,7 +1,7 @@
 {
   "name": "fake-interview-guard",
   "displayName": "FakeInterviewGuard",
-  "description": "Detect Contagious Interview malware patterns in your workspace — npm supply-chain attacks, VS Code task abuse, backdoor signatures, and more.",
+  "description": "Detect Contagious Interview malware patterns in your workspace \u2014 npm supply-chain attacks, VS Code task abuse, backdoor signatures, and more.",
   "version": "1.0.0",
   "publisher": "fakeinterviewguard",
   "icon": "icon.png",
@@ -204,7 +204,8 @@
         "fig.llm.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Enable LLM-powered deep analysis (requires LM Studio, Ollama, or compatible provider)"
+          "description": "Enable LLM-powered deep analysis (requires LM Studio, Ollama, or compatible provider)",
+          "scope": "application"
         },
         "fig.llm.provider": {
           "type": "string",
@@ -215,47 +216,56 @@
             "openai",
             "custom"
           ],
-          "description": "LLM provider to use"
+          "description": "LLM provider to use",
+          "scope": "application"
         },
         "fig.llm.baseUrl": {
           "type": "string",
           "default": "",
-          "description": "Custom API base URL (leave empty to use provider default)"
+          "description": "Custom API base URL (leave empty to use provider default)",
+          "scope": "application"
         },
         "fig.llm.model": {
           "type": "string",
           "default": "qwen3.5-4b",
-          "description": "Model name to use for analysis"
+          "description": "Model name to use for analysis",
+          "scope": "application"
         },
         "fig.llm.apiKey": {
           "type": "string",
           "default": "",
-          "description": "API key (leave empty for local providers)"
+          "description": "API key (leave empty for local providers)",
+          "scope": "application"
         },
         "fig.llm.maxTokens": {
           "type": "number",
           "default": 1024,
-          "description": "Maximum tokens in LLM response"
+          "description": "Maximum tokens in LLM response",
+          "scope": "application"
         },
         "fig.llm.temperature": {
           "type": "number",
           "default": 0.1,
-          "description": "LLM temperature (0.0-1.0, lower = more deterministic)"
+          "description": "LLM temperature (0.0-1.0, lower = more deterministic)",
+          "scope": "application"
         },
         "fig.llm.autoAnalyze": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically run LLM analysis when fast scan finds high-severity threats"
+          "description": "Automatically run LLM analysis when fast scan finds high-severity threats",
+          "scope": "application"
         },
         "fig.llm.timeout": {
           "type": "number",
           "default": 60000,
-          "description": "LLM request timeout in milliseconds"
+          "description": "LLM request timeout in milliseconds",
+          "scope": "application"
         },
         "fig.llm.promptProfile": {
           "type": "string",
           "default": "Security Analysis",
-          "description": "Prompt template name to use for analysis"
+          "description": "Prompt template name to use for analysis",
+          "scope": "application"
         }
       }
     }
@@ -286,7 +296,14 @@
   "dependencies": {
     "acorn": "^8.17.0",
     "acorn-walk": "^8.3.0",
+    "jsonc-parser": "^3.3.1",
     "minimatch": "^10.2.5",
     "openai": "^6.46.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Read-only inspection and explicit file/LLM actions require an enabled trusted workspace. Startup inspection never applies changes automatically."
+    }
   }
 }
