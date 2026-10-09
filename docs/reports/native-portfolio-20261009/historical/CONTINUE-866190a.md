@@ -1,0 +1,46 @@
+> SUPERSEDED HISTORICAL CLAIMS. Preserved verbatim below from commit 866190a9130a986cb3846c1e38465f967337e409. This is not current acceptance evidence. See ../REPORT.md for the corrected status.
+
+# Continuación única: aceptación instalada de FakeInterviewGuard
+
+## Objetivo y alcance
+
+Continúa en la conversación y el Windows de trabajo existentes con **Gemini 3.8 Flash, High**, si ese modelo está disponible; informa si no lo está. Tu trabajo es **pruebas, documentación y evidencia** del producto actual para cerrar su presentación como proyecto de portfolio/CV. No implementes funciones, no refactorices producto ni amplíes requisitos. Si encuentras un defecto, entrega reproducción mínima y evidencia al responsable de implementación; no lo repares por tu cuenta.
+
+Repositorio: `rodhayl/VSCodeAntivir`. Rama única: `codex/safe-remediation-20261004`, PR #21. No abras otra rama o conversación, no hagas merge, release, publicación en Marketplace, cambios de visibilidad, force-push ni cambios de seguridad del equipo. No ejecutes muestras, tareas, hooks, scripts de paquetes de muestras ni sus endpoints. Usa solo archivos sintéticos e inertes, perfiles/carpetas temporales identificados y almacenamiento separado. Conserva el estado y la evidencia previa; no toques datos ni perfiles reales.
+
+## Punto de partida que debes volver a comprobar
+
+1. Lee `AGENTS.md`, `docs/VERIFICATION.md` y los tres documentos de esta carpeta. Comprueba rama, HEAD completo, `git status`, procesos/editor abiertos y trabajo ajeno antes de cambiar nada. El punto de producto revisado es `18195df8667f27526bdbb5c9c0a73555782b2804`; su padre `88cca02765577e4b5009acdcafca9c052ab8a137` era la base anterior, no el árbol con las correcciones Windows. La corrección posterior de esta carpeta es solo documental. Si hay nuevos cambios de producto o un escritor activo, detente y concilia el candidato antes de probar. No descartes cambios.
+2. Fija el HEAD real y cualquier diff identificable. Construye desde ese candidato final, con Node 22.13+ y el lockfile, o recupera el VSIX original y demuestra su identidad. Registra comandos exactos, horas, códigos de salida, versión/build de Windows y VS Code, Node/npm, rutas de origen/paquete/instalado y todos los flags. No presupongas que un VSIX viejo corresponde al árbol actual.
+3. El VSIX previo tenía hash **reportado**, no revalidado aquí: `a872b0c71e690788ca0510936cc3488ea618a802759fb49784f5218a303d9288`. Para los 98 inputs de `18195df…`, digest de bytes Git: `2824ef95e427699228d246aaab30b2c95390921e656febea47a41f21dfa797cd`; digest con CRLF Windows: `1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e`. Explica diferencias de finales de línea y compara la lista completa de hashes de `out/build-metadata.json`, no solo `files.length`. Un nuevo empaquetado puede tener otro hash VSIX: documenta su procedencia y prueba ese mismo paquete durante toda la campaña.
+
+## Evidencia reutilizable y límites
+
+El reporte anterior comunicó 376 unit tests pasados + 6 pendientes, 34 tests de Extension Host pasados, benchmark y smoke del paquete. No hay raw logs ni VSIX accesible desde ese commit para corroborarlo. Si recuperas los originales, consérvalos con hashes; si no, registra una nueva ejecución y sus límites.
+
+`extension/test/runTest.js` usa `extensionDevelopmentPath` y `--disable-extensions`. Eso prueba el host de desarrollo. `extension/scripts/test-installed-vsix-acceptance.js` instala por CLI, pero luego importa módulos con Node. Sus comprobaciones ayudan con bytes/conflictos; no prueban ventanas instaladas, Restricted Mode ni diálogos. Las capturas previas son del host de desarrollo y quedan históricas. No las renombres ni las presentes como nuevas.
+
+Puedes corregir nombres/aserciones engañosos del arnés dentro de tests/scripts de prueba y añadir comprobaciones de identidad/evidencia, sin tocar `extension/src`, reglas, prompts, dependencias, producto ni comportamiento de ejecución. No cambies configuración de confianza o seguridad para hacer pasar una prueba. Un fallo al capturar evidencia o un skip debe figurar como tal.
+
+## Campaña mínima sobre el VSIX realmente instalado
+
+Instala en un perfil y directorio de extensiones desechables, con home/store separado; abre un **VS Code normal** usando esa instalación. No uses `extensionDevelopmentPath`, `--disable-extensions` ni flags que desactiven Workspace Trust para acreditar aceptación instalada. Registra el proceso/ventana, argumentos de lanzamiento, ruta de la extensión activa y coincidencia del metadata con el paquete. Captura pantalla y logs del mismo artefacto. Si no tienes acceso a la GUI real, marca lo dependiente BLOCKED; no lo sustituyas por invocaciones directas de módulos.
+
+Prueba únicamente los recorridos ya requeridos en `docs/VERIFICATION.md`:
+
+1. **Identidad y ciclo de vida:** instalación, activación, recarga/reapertura y desinstalación/reinstalación en el perfil temporal, sin copias activas antiguas. Verifica registros y rutas, no solo nombre/versión. No borres evidencia ni datos reales durante limpieza.
+2. **Restricted Mode real:** abre un workspace desechable no confiable, acredita `workspace.isTrusted === false` junto al estado visible, y ejecuta manualmente scan de archivo, scan de workspace y dashboard. Compara inventarios/hashes de workspace y home/store antes/después. Comprueba que no se habilitan remediación/cuarentena, clientes/modelos, reglas personalizadas ni watchers automáticos, y que ajustes de workspace no eluden esas restricciones. Usa observaciones/instrumentación de pruebas sin modificar el producto. Si un efecto no es observable, marca ese subcriterio pendiente; la ausencia de un directorio por sí sola no prueba todo.
+3. **Cancelar de verdad:** en un workspace benigno de prueba deliberadamente confiable, abre los diálogos reales de revisión y cuarentena, cancela/cierra cada uno, y verifica bytes, backups y store sin cambios. Captura control, acción y resultado; `scanFile` no equivale a cancelar.
+4. **Revisión → Apply → Undo:** usa la interfaz y una tarea sintética que nunca ejecutarás. Verifica backup y cambio revisado, Undo limpio con hash original y rechazo de Undo cuando añades una edición nueva, conservando esa edición y recuperación. Comprueba quick fixes existentes sin borrado de líneas. No simules el recorrido llamando directamente a `TaskInterceptor`.
+5. **Cuarentena → recarga → restauración:** desde la GUI, guarda bytes benignos, recarga el editor y restaura; compara hash y permisos realmente observables. Recrea el destino con otros bytes y verifica rechazo sin sobrescribirlos; conserva esa copia antes de resolver el conflicto. Los seis skips de symlink siguen declarados como NOT_RUN; no son un requisito nuevo para cerrar esta campaña. Solo comprueba enlaces/junctions si un recorrido existente los requiere y los permisos actuales lo permiten; si no, registra el límite, sin activar Developer Mode ni elevar privilegios.
+6. **Interrupciones y uso repetido:** dentro del perfil temporal, repite acciones, cierra/reabre paneles y comprueba mensajes y conservación del estado ante store ocupado/corrupto e interrupciones reproducibles de forma segura. Guarda copia recuperable del store sintético antes de alterarlo; no simules cortes de energía reales. Ejecuta comandos por teclado, observa foco, legibilidad y feedback expresado con palabras. Una lista en la paleta no demuestra ejecución ni foco.
+
+No llames a proveedores LLM, no uses credenciales ni hagas peticiones pagadas. Live LLM, seguridad ACL de Windows y durabilidad ante pérdida de energía siguen siendo límites declarados; esta campaña no solicita funciones nuevas ni un programa nuevo de certificación de esos límites.
+
+## Validación y entrega
+
+Desde `extension/`, conserva salidas completas y exit codes de los gates existentes que deban actualizarse: `npm ci --ignore-scripts`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run benchmark`, `npm run package`, `npm run verify:package`. Distingue unit, host de desarrollo, smoke y GUI instalada. Si un gate queda bloqueado, informa el punto exacto; no llames PASS al total. Evita repetir checks costosos ya recuperados y atribuibles al mismo candidato sin motivo, pero ejecuta los afectados por cambios de tests.
+
+Actualiza `REPORT.md`, `EVIDENCE.json` y `DEFECTS.md` en esta carpeta con matriz por caso: candidato/VSIX, condiciones, pasos reales, esperado, observado, PASS/FAIL/PARTIAL/BLOCKED/NOT_RUN/N/A, evidencia y límite. Guarda las nuevas capturas separadas de las históricas. Conserva logs, paquete y manifest con SHA-256 en una ubicación persistente y accesible al responsable; no hagas commit de VSIX, `out`, `node_modules`, cachés o raw logs. Incluye enlaces/rutas comprobados y comandos de reproducción.
+
+Entrega un único resultado: qué quedó probado, qué falló o no se ejecutó, defectos mínimos para el responsable y diff exclusivamente de pruebas/documentación/evidencia. No declares aceptación humana ni cierre nativo mientras falte un criterio obligatorio. No publiques cambios sin autorización vigente y coordinación de escritor único en esta misma rama. Si el producto cambia después, fija el candidato nuevo y repite solo la cobertura afectada más los gates exigidos.
