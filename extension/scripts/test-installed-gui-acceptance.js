@@ -381,7 +381,8 @@ async function runInstalledGuiAcceptance(options = {}) {
     await cdp.click('.monaco-dialog-box button,.monaco-dialog-box .monaco-button', 'Quarantine file'); const captured = await cdp.toast('File quarantined:');
     const store = path.join(trusted.home, '.fakeinterviewguard/quarantine'); const manifestFile = path.join(store, 'manifest.json');
     const entries = () => JSON.parse(fs.readFileSync(manifestFile)).files;
-    const entry = entries().find(value => value.originalPath === artifactFile);
+    const samePath = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+    const entry = entries().find(value => samePath(value.originalPath, artifactFile));
     recorder.check('quarantine_capture', !!entry && !fs.existsSync(artifactFile) && hash(fs.readFileSync(entry.quarantinePath)) === artifactHash, { captured, entry });
     await cdp.command(title('fig.showQuarantine'));
     const captureRow = await cdp.webviewAction(entry.id);
@@ -424,6 +425,7 @@ async function runInstalledGuiAcceptance(options = {}) {
     await cdp.evaluate(`(() => { (document.querySelector('.native-edit-context') || document.querySelector('.monaco-workbench'))?.focus(); })()`);
     await cdp.key('F1', 'F1', 112);
     await until(() => cdp.evaluate(`Array.from(document.querySelectorAll('.quick-input-widget input')).some(el => (${visibleScript})(el))`), 'Command Palette input');
+    await cdp.evaluate(`(() => { const el = Array.from(document.querySelectorAll('.quick-input-widget input')).find(${visibleScript}); if (el) { el.focus(); el.select(); } })()`);
     await cdp.insert('FIG:');
     const focusedBefore = await until(() => cdp.evaluate(`document.querySelector('.quick-input-widget input')?.getAttribute('aria-activedescendant')`), 'keyboard-focused palette row');
     await cdp.key('ArrowDown', 'ArrowDown', 40);
