@@ -174,7 +174,10 @@ class CdpClient {
   async toast(text) { return until(async () => { const values = await this.toasts(); return values.find(value => value.includes(text)); }, `notification: ${text}`); }
   async trust() {
     await this.command('Workspaces: Manage Workspace Trust');
-    return this.evaluate(`(() => { const editor = Array.from(document.querySelectorAll('.workspace-trust-editor')).find(${visibleScript}); const status = document.getElementById('status.workspaceTrust'); return { editorText: editor?.textContent?.trim() || '', statusText: status?.textContent?.trim() || null }; })()`);
+    return until(async () => {
+      const state = await this.evaluate(`(() => { const editor = Array.from(document.querySelectorAll('.workspace-trust-editor')).find(${visibleScript}); const status = document.getElementById('status.workspaceTrust'); return { editorText: editor?.textContent?.trim() || '', statusText: status?.textContent?.trim() || null }; })()`);
+      return state.editorText ? state : null;
+    }, 'workspace trust editor text', 15000);
   }
   async webviewAction(id, buttonClass) {
     // Attach only frame targets belonging to this disposable editor. Never run product code.
@@ -214,7 +217,13 @@ async function runInstalledGuiAcceptance(options = {}) {
   try {
     assert.equal(process.platform, 'win32', 'This driver requires the owner-authorized Windows native editor; cloud/headless checks are not GUI acceptance');
     const codeExe = options.codeExe || process.env.FIG_CODE_EXE || path.join(root, '.vscode-test', 'vscode-win32-x64-archive-1.141.0', 'Code.exe');
-    const cli = path.join(path.dirname(codeExe), 'resources', 'app', 'out', 'cli.js');
+    let cli = path.join(path.dirname(codeExe), 'resources', 'app', 'out', 'cli.js');
+    if (!fs.existsSync(cli)) {
+      for (const entry of fs.readdirSync(path.dirname(codeExe))) {
+        const candidate = path.join(path.dirname(codeExe), entry, 'resources', 'app', 'out', 'cli.js');
+        if (fs.existsSync(candidate)) { cli = candidate; break; }
+      }
+    }
     assert(fs.existsSync(codeExe) && fs.existsSync(cli), 'A real VS Code executable and its CLI are required');
     const pkg = require('../package.json'); const vsix = options.vsix || path.join(root, `${pkg.name}-${pkg.version}.vsix`);
     const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
@@ -268,6 +277,7 @@ async function runInstalledGuiAcceptance(options = {}) {
       const startup = await until(() => cdp.dialog(), 'Workspace Trust startup dialog');
       requireDialog(startup, 'trust', "No, I don't trust the authors");
       await cdp.click('.monaco-dialog-box button,.monaco-dialog-box .monaco-button', "No, I don't trust the authors");
+      await until(async () => !await cdp.dialog(), 'startup dialog dismissal');
       const state = await cdp.trust(); assert.equal(classifyTrust(state), 'restricted', 'Known Restricted Mode must be established explicitly');
       return { workspace, workspaceName, home, profile, port, launchEnv, launchArgs, state };
     }
