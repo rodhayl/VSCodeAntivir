@@ -177,9 +177,9 @@ class CdpClient {
   async trust() {
     await this.command('Workspaces: Manage Workspace Trust');
     return until(async () => {
-      const state = await this.evaluate(`(() => { const editor = Array.from(document.querySelectorAll('.workspace-trust-editor')).find(${visibleScript}); const status = document.getElementById('status.workspaceTrust'); return { editorText: editor?.textContent?.trim() || '', statusText: status?.textContent?.trim() || null }; })()`);
-      return state.editorText ? state : null;
-    }, 'workspace trust editor text', 15000);
+      const state = await this.evaluate(`(() => { const editor = document.querySelector('.workspace-trust-editor') || Array.from(document.querySelectorAll('.workspace-trust-editor')).find(${visibleScript}); const status = document.getElementById('status.workspaceTrust'); return { editorText: editor?.textContent?.trim() || '', statusText: status?.textContent?.trim() || null }; })()`);
+      return classifyTrust(state) !== 'unknown' ? state : null;
+    }, 'determinate Workspace Trust state', 15000);
   }
   async webviewAction(id, buttonClass) {
     // Attach only frame targets belonging to this disposable editor. Never run product code.
