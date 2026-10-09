@@ -312,3 +312,37 @@ suite('Staged restore regressions', () => {
     assert.strictEqual(fs.readFileSync(source, 'utf8'), 'another writer'); assert(fs.existsSync(entry.quarantinePath)); assert.strictEqual(manager.getCount(), 1);
   }));
 });
+
+suite('Cross-platform and Windows quarantine regressions', () => {
+  test('nested store directory initialization handles extended-path prefix without looping', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-win-reg-'));
+    const nested = path.join(root, 'deep', 'nested', 'store');
+    try {
+      const qm = new QuarantineManager({ appendLine() {} }, nested);
+      assert.strictEqual(qm.getCount(), 0);
+      assert(fs.existsSync(nested));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+  test('quarantine and restore roundtrip succeeds without read-only descriptor fsync error', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-win-reg2-'));
+    const store = path.join(root, 'store');
+    const source = path.join(root, 'sample.txt');
+    fs.writeFileSync(source, 'cross platform payload');
+    try {
+      const qm = new QuarantineManager({ appendLine() {} }, store);
+      const entry = await qm.quarantine(source, []);
+      assert(entry, 'Quarantine entry should be returned');
+      assert.strictEqual(qm.getLastError(), undefined);
+      assert(!fs.existsSync(source));
+      assert(fs.existsSync(entry.quarantinePath));
+      const restored = await qm.restore(entry.id);
+      assert.strictEqual(restored, true);
+      assert.strictEqual(fs.readFileSync(source, 'utf8'), 'cross platform payload');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+

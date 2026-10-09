@@ -79,7 +79,12 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
       await vscode.commands.executeCommand('fig.scanFile');
       const diagnostics = vscode.languages.getDiagnostics(doc.uri).filter(d=>d.source==='FakeInterviewGuard');
       assert.strictEqual(diagnostics.length, 0, `Expected no findings, got ${diagnostics.length}`);
-    } finally { await vscode.commands.executeCommand('workbench.action.closeActiveEditor'); fs.rmSync(root,{recursive:true,force:true}); }
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+      try {
+        fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch {}
+    }
 
   });
 

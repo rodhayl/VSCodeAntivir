@@ -92,12 +92,15 @@ export class QuarantineManager {
     this.checkPath(directory, true);
     const firstCreated = fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.checkPath(directory);
-    if (!firstCreated) return;
-    const existingParent = path.dirname(firstCreated);
-    let current = directory;
+    if (!firstCreated || process.platform === 'win32') return;
+    const normalizedFirstCreated = firstCreated.replace(/^\\\\\?\\/, '');
+    const existingParent = path.dirname(normalizedFirstCreated);
+    let current = path.resolve(directory);
     while (current !== existingParent) {
       this.syncDirectory(current);
-      current = path.dirname(current);
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
     }
     this.syncDirectory(existingParent);
   }
@@ -111,7 +114,10 @@ export class QuarantineManager {
       if (!stat.isFile()) throw new Error('Only regular files are supported');
       if (restrictPermissions) {
         if (stat.nlink !== 1) throw new Error('Captured file has additional hard links; recovery payload retained without changing permissions');
-        fs.fchmodSync(fd, 0o600); fs.fsyncSync(fd);
+        if (process.platform !== 'win32') {
+          fs.fchmodSync(fd, 0o600);
+          fs.fsyncSync(fd);
+        }
       }
       return { content: fs.readFileSync(fd), stat };
     } finally { fs.closeSync(fd); }

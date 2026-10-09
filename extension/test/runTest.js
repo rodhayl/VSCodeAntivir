@@ -18,6 +18,7 @@ async function main() {
       launchArgs: [
         testWorkspace,
         '--disable-extensions',
+        '--remote-debugging-port=9228',
         `--user-data-dir=${path.join(isolated, 'profile')}`,
         `--extensions-dir=${path.join(isolated, 'extensions')}`,
         '--enable-proposed-api=fakeinterviewguard.fake-interview-guard',
