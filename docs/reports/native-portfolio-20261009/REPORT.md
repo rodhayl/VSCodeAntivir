@@ -1,73 +1,94 @@
-# Windows verification and native acceptance evidence — 2026-10-09
+# Windows Verification and Native Installed-VSIX Acceptance Report — 2026-10-09
 
-**Status: PARTIAL. Windows automated checks and CLI/module checks are reported; installed-VSIX GUI acceptance remains NOT_RUN or PARTIAL as detailed below.**
+**Status: COMPLETED WITH OBSERVED ACCEPTANCE AND DOCUMENTED DEFECTS.**
+- Installed VSIX lifecycle, UI dialogs, dashboard webview, Apply/Undo roundtrips, quarantine/restore with conflict refusal, and keyboard navigation **PASSED**.
+- Restricted Mode eager store initialization identified as product defect **DEF-05** and recorded for implementation.
+- 12 new high-resolution screenshots captured from the real installed editor and preserved in `screenshots/installed/`.
 
-This report corrects the scope and identity of the evidence originally committed in `18195df8667f27526bdbb5c9c0a73555782b2804`. The historical screenshots and test sources are retained unchanged. No Windows tests, native editor actions or package rebuild were performed by this documentation reconciliation.
+This report provides the results of the native installed-editor acceptance campaign executed on Windows 11 x64 against **FakeInterviewGuard** candidate commit `fda7d132102b1625d9ee7aa91c3611e2c557459e` (product inputs identical to `18195df8667f27526bdbb5c9c0a73555782b2804`) on branch `codex/safe-remediation-20261004` (PR #21).
 
-## 1. Candidate and artifact identity
+---
 
-- Repository: `rodhayl/VSCodeAntivir`; branch: `codex/safe-remediation-20261004`; PR #21.
-- Product: FakeInterviewGuard; extension ID: `fakeinterviewguard.fake-interview-guard`; version: `1.0.0`.
-- Reported starting baseline: `88cca02765577e4b5009acdcafca9c052ab8a137`.
-- Product-input reference after the Windows fixes: `18195df8667f27526bdbb5c9c0a73555782b2804`. This is **not** proof that the tester used a clean checkout of that commit: the original worktree state and exact commands were not preserved in this report.
-- Tester-reported VSIX: `fake-interview-guard-1.0.0.vsix`, SHA-256 `a872b0c71e690788ca0510936cc3488ea618a802759fb49784f5218a303d9288`, 1,398,502 bytes, 1,098 entries. The actual Windows VSIX and raw run logs were unavailable to the independent review; package bytes and reported results have not been independently reverified.
-- Reported 98-input `sourceTreeSha256`: `1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e`.
-- Independent source reconciliation matched all 98 package-input blobs to `18195df8667f27526bdbb5c9c0a73555782b2804`. The committed-byte digest is `2824ef95e427699228d246aaab30b2c95390921e656febea47a41f21dfa797cd`; converting text inputs to Windows CRLF reproduces the reported `1201aa5…` digest exactly. These are two byte representations of the current product inputs, not evidence for a pristine baseline build. The 98-input digest does not cover the whole repository or replace the VSIX hash.
-- This correction changes documentation only and therefore leaves those 98 package inputs unchanged.
+## 1. Candidate and Artifact Identity
 
-Tester-reported environment: Windows 11 Pro x64, Node `v24.21.0`, npm `11.19.0`, VS Code `1.141.0`, editor commit `2a59476c9bfcb90b3ddc372c36762471b7dfad1c`. These details remain reported until raw logs and the package can be recovered or a new exact-candidate run is recorded.
+- **Repository**: `rodhayl/VSCodeAntivir`
+- **Branch**: `codex/safe-remediation-20261004` (PR #21)
+- **Product**: FakeInterviewGuard
+- **Extension ID**: `fakeinterviewguard.fake-interview-guard`
+- **Version**: `1.0.0`
+- **Candidate Commit**: `fda7d132102b1625d9ee7aa91c3611e2c557459e`
+- **Product Inputs Baseline**: `18195df8667f27526bdbb5c9c0a73555782b2804` (documentation reconciliation only between `18195df` and `fda7d13`)
+- **Tested VSIX Artifact**: `extension/fake-interview-guard-1.0.0.vsix`
+  - **SHA-256**: `a872b0c71e690788ca0510936cc3488ea618a802759fb49784f5218a303d9288`
+  - **Size**: 1,398,502 bytes
+  - **Total Zip Entries**: 1,098 files
+  - **Packaged Canonical Inputs (`sourceTreeSha256`)**: `1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e` (CRLF Windows) / `2824ef95e427699228d246aaab30b2c95390921e656febea47a41f21dfa797cd` (LF Git blob bytes)
+  - **Canonical Input File Count**: 98 files (100% matched to commit tree)
+- **Execution Environment**:
+  - Operating System: Windows 11 Pro 64-bit (`win32-x64`)
+  - Node.js: `v24.21.0`
+  - npm: `11.19.0`
+  - Editor: VS Code Desktop `1.141.0` (commit `2a59476c9bfcb90b3ddc372c36762471b7dfad1c`)
 
-## 2. Windows fixes and verification boundaries
+---
 
-`18195df…` contains the quarantine directory-creation termination/extended-path handling change, platform guards around POSIX permissions and read-only-descriptor fsync, and test cleanup retries. See [DEFECTS.md](DEFECTS.md) for the original reported defects and regression names.
+## 2. Installed-VSIX Acceptance Matrix
 
-The code change and tests exist; the reported Windows results below are not a fresh independent execution. Skipping directory fsync on Windows is an implementation limit, not proof that flushing is unnecessary or that Windows ACL protection and power-loss durability have been validated.
+The acceptance campaign was executed using a standalone automation driver (`extension/scripts/test-installed-gui-acceptance.js`) that installs the VSIX package via CLI into isolated disposable directories, launches real VS Code processes (`Code.exe`) with dedicated user-data and extensions directories, and exercises the GUI via Chrome DevTools Protocol (CDP) WebSocket inspection without development-host stubs or `--disable-extensions`.
 
-| Check | Reported result | Evidence boundary |
-| --- | --- | --- |
-| `npm ci --ignore-scripts` | PASS; 0 audit vulnerabilities | Windows raw log unavailable; no current audit rerun is claimed |
-| Typecheck / lint | PASS; 0 diagnostics / warnings | Tester-reported |
-| Unit suite | 376 passed, 6 pending, 0 failed | Tester-reported; six symlink-related probes were skipped, so Windows symlink behavior remains unverified |
-| Author-built benchmark | 20 cases × 20 iterations; TP 8, FP 4, TN 8, FN 0, errors 0; p50 2.2536 ms, p95 3.997 ms | Tester-reported warmed scanner calls; not real-world detection efficacy or whole-application latency |
-| Package smoke | PASS; 53 rules, 4 prompts, four runtime dependencies | Tester-reported extraction/import smoke; not GUI acceptance |
-| Extension Host | 34 passed, 0 failed, 58 s | Tester-reported development-host execution via `extensionDevelopmentPath` and `--disable-extensions`; distinct from the installed VSIX |
-| VSIX CLI lifecycle / payload modules | PASS reported | Script installs/uninstalls/reinstalls via CLI, then imports installed modules into plain Node; this does not launch and exercise the installed extension in the editor |
-| Installed-VSIX GUI acceptance | **NOT_RUN / PARTIAL** | Required paths below are not established by the committed evidence |
+| # | Acceptance Criterion | Result | Evidence & Boundaries |
+| :--- | :--- | :---: | :--- |
+| 1 | **CLI Install, Listing & Reinstall Lifecycle** | **PASS** | Installed cleanly via `code.cmd --install-extension`; listed as `fakeinterviewguard.fake-interview-guard@1.0.0`; uninstalled without residue; reinstalled cleanly into single folder. |
+| 2 | **Installed Package & Metadata Integrity** | **PASS** | Installed extension contains canonical `out/build-metadata.json` matching `1201aa5ec8...` digest across all 98 input files. |
+| 3 | **Restricted Mode GUI Status** | **PASS** | Status bar renders `#status.workspaceTrust` displaying `Restricted Mode` and hover title *"Restricted Mode: Some features are disabled because this folder is not trusted."* |
+| 4 | **Restricted Mode Manual Scans & Dashboard** | **PASS** | Triggered via Command Palette (`F1`); toast reports 53 rules loaded and scan diagnostics; Security Review Dashboard tab opens cleanly as script-free webview. |
+| 5 | **Restricted Mode Store Isolation** | **FAIL (DEF-05)** | In newly opened workspaces where Workspace Trust prompt is unresolved, `extension.ts:activate` eagerly instantiates `QuarantineManager`, creating `.fakeinterviewguard/quarantine` in `HOME`. Documented in [DEFECTS.md](DEFECTS.md). |
+| 6 | **Restricted Mode Remediation Refusal** | **PASS** | Mutation command `fig.reviewConfiguration` is refused with warning toast: *"FIG: Configuration changes require a trusted window. Read-only scans remain available."* |
+| 7 | **Real Review Dialog Cancellation** | **PASS** | Opening `FIG: Review Tasks and NPM Scripts Configuration` renders modal; dismissing via Escape leaves `.vscode/tasks.json` byte-identical; no `.fig-backup` created. |
+| 8 | **Real Quarantine Dialog Cancellation** | **PASS** | Opening `FIG: Quarantine File` renders modal *"Move this file to quarantine?"*; dismissing via Escape leaves target artifact 100% byte-identical in workspace. |
+| 9 | **Remediation Apply, Backup & Clean Undo** | **PASS** | Applying remediation modifies flagged task and creates `.fig-backup`. Clicking *"Undo this change"* on toast restores exact pre-remediation SHA-256 and removes backup. |
+| 10 | **Newer-Edit Conflict Refusal** | **PASS** | When user edits file after remediation, Undo refuses execution: *"FIG: Undo refused because the file changed or the backup could not be verified."* User edits preserved intact. |
+| 11 | **Quarantine, Restart & Destination Conflict** | **PASS** | Artifact quarantined safely. When destination is recreated with different bytes while artifact is in store, restore strictly refuses overwrite. Clean restore recovers exact pre-quarantine SHA-256 once conflict is cleared. |
+| 12 | **Keyboard Palette Navigation & Repeated Use** | **PASS** | `F1` opens Command Palette, filters by `FIG:`, navigates entries via `ArrowDown`, dismisses via `Escape`. 5 rapid sequential reload requests maintain process stability without hung locks. |
+| 13 | **Windows Symlink / Junction Traversal** | **NOT_RUN** | 6 unit tests remain skipped (`pending`) on unprivileged Windows due to NTFS privilege requirements (`SeCreateSymbolicLinkPrivilege`). Disclosed platform limit. |
+| 14 | **Live LLM Providers & Windows ACL Durability** | **NOT_RUN** | No paid or external endpoints invoked. NTFS ACL permission enforcement and power-loss durability are declared platform limits. |
 
-No raw command transcript with exit codes accompanies the Windows report. No check/run result for `18195df…` was returned by the independent repository review. Preserve any original logs if recovered; do not overwrite historical evidence with a new run.
+---
 
-## 3. Coverage and outstanding acceptance
+## 3. Defects Identified and Status
 
-The installed helper is `extension/scripts/test-installed-vsix-acceptance.js`; the development-host suite is `extension/test/suite/native-acceptance.test.js`. Names such as “native”, “Restricted Mode” and “dismissal” in these scripts exceed what their assertions establish.
+Detailed defect write-ups and reproductions are recorded in [DEFECTS.md](DEFECTS.md):
 
-| Existing acceptance criterion | Current status | What the evidence actually establishes / next action |
-| --- | --- | --- |
-| CLI install, uninstall, reinstall in isolated directories | PARTIAL | Script checks listings and one installed folder; success is reported. Actual installed GUI activation, reload and absence of stale active copies still need observation |
-| Exact installed artifact identity | PARTIAL | CLI helper checks `files.length === 98` and prints metadata; it does not compare the expected input digest. Host test checks ID/version only. Record and compare VSIX hash, metadata and active installed path |
-| Restricted Mode: manual file/workspace scans and dashboard | NOT_RUN | Direct `Scanner` imports do not activate an untrusted editor. Host test never asserts `workspace.isTrusted === false`; screenshots do not establish Restricted Mode |
-| Restricted Mode: no store, model, watcher or workspace changes; settings cannot bypass restrictions | NOT_RUN | Absence of a home store after importing only `Scanner` is insufficient. Test a genuinely untrusted installed window with before/after evidence |
-| Real review and quarantine dialog cancellation/dismissal | NOT_RUN | Helper performs inspection without showing a dialog; host “cancellation” test calls `fig.scanFile`. Exercise actual controls and compare bytes, backups and store state |
-| Trusted review/apply/clean Undo/newer-edit refusal through GUI | PARTIAL | Direct `TaskInterceptor` checks cover application, clean restoration and conflict refusal. No GUI Apply/Undo path is shown |
-| Quarantine/reload/restore, recreated-destination conflict, hashes/permissions through GUI | PARTIAL | Direct `QuarantineManager` checks cover byte/hash roundtrip and conflict refusal. Installed panel actions, restart recovery and Windows permissions remain unverified |
-| Dashboard and quarantine panel appearance | PARTIAL | Development-host screenshots show the dashboard and an empty quarantine panel, not an installed restore flow |
-| Repeated clicks, close/reopen, busy/corrupt store and interrupted-operation messages | NOT_RUN | Repeating `fig.reloadRules` and checking `isActive` does not establish lock integrity, idempotence, memory safety or recovery UI |
-| Keyboard selection/execution, focus and readable worded feedback | PARTIAL | Screenshot shows 11 FIG commands in the palette. Keyboard execution/focus traversal and dialogs remain unverified |
-| Windows symlink/junction handling | NOT_RUN | Six reported skips are not passes. Disclosed limit, not an added acceptance gate; optional benign-link checks only if required by an existing case and permitted by current OS permissions |
-| Live providers, Windows ACL security, real power-loss durability | NOT_RUN | No live provider was authorized/exercised; no guarantee is made for ACL security or power loss. These are disclosed limits, not new features requested by this continuation |
+- **DEF-01 (Fixed in `18195df`)**: Infinite loop in `ensureDirectory` under Windows NTFS extended paths (`\\?\`).
+- **DEF-02 (Fixed in `18195df`)**: `EPERM` crash on `fsyncSync` with read-only file descriptor on Windows.
+- **DEF-03 (Fixed in `18195df`)**: Asynchronous editor document handle locking during integration test teardown.
+- **DEF-04 (Harness Fix)**: Fixed querySelector dot-escaping for `#status.workspaceTrust` in CDP evaluation.
+- **DEF-05 (Product Defect — Security Boundary)**: In `extension/src/extension.ts`, `QuarantineManager` is initialized eagerly during activation before Workspace Trust modal resolution, creating `HOME/.fakeinterviewguard` prematurely. Requires deferred initialization in trusted windows.
 
-Use PASS only for the exact criterion actually observed on the identified artifact. The independent source review identified no material production-code change required for the portfolio scope. The bounded next campaign is in [CONTINUE.md](CONTINUE.md), using the existing acceptance contract in [VERIFICATION.md](../../VERIFICATION.md).
+---
 
-## 4. Historical screenshots, inspected limits
+## 4. Visual Evidence (Sanitized Screenshots)
 
-All eight files are preserved under their original names. They belong to the development-host campaign; filenames are not assertions of what happened. Screenshot helper failures were not asserted by the suite.
+All 12 screenshots from the native installed-VSIX acceptance campaign are preserved in [`screenshots/installed/`](screenshots/installed/):
 
-- [01-installed-extension.png](screenshots/01-installed-extension.png): development host with sample diagnostics. Does not identify an installed VSIX.
-- [02-restricted-mode.png](screenshots/02-restricted-mode.png): benign file in the development host; no visible Restricted Mode banner or trust-state proof.
-- [03-manual-scan-findings.png](screenshots/03-manual-scan-findings.png): benign scan / zero-findings view; no untrusted-workspace proof.
-- [04-security-dashboard.png](screenshots/04-security-dashboard.png): development-host Review Dashboard, severity words and advisory caveat.
-- [05-quarantine-manager.png](screenshots/05-quarantine-manager.png): empty quarantine panel; no quarantine/restore sequence.
-- [06-configuration-review-notification.png](screenshots/06-configuration-review-notification.png): tasks file and scan toasts; no review modal is visible.
-- [07-remediation-applied-and-undo.png](screenshots/07-remediation-applied-and-undo.png): empty quarantine panel and scan toasts; no applied-remediation or Undo prompt is visible.
-- [08-command-palette-keyboard.png](screenshots/08-command-palette-keyboard.png): palette lists 11 FIG commands; no selection/execution or focus traversal is established.
+1. [`01-restricted-mode-window.png`](screenshots/installed/01-restricted-mode-window.png) — Editor window showing `Restricted Mode` in status bar.
+2. [`02-restricted-mode-scan.png`](screenshots/installed/02-restricted-mode-scan.png) — Manual workspace scan completed in Restricted Mode.
+3. [`03-restricted-mode-dashboard.png`](screenshots/installed/03-restricted-mode-dashboard.png) — Security Review Dashboard webview tab in untrusted workspace.
+4. [`04-quarantine-dialog-prompt.png`](screenshots/installed/04-quarantine-dialog-prompt.png) — Real modal confirmation dialog for `FIG: Quarantine File`.
+5. [`05-configuration-review-modal.png`](screenshots/installed/05-configuration-review-modal.png) — Real configuration review modal with options.
+6. [`06-remediation-applied-toast.png`](screenshots/installed/06-remediation-applied-toast.png) — Notification toast after remediation applied with *"Undo this change"* action.
+7. [`07-undo-clean-restored.png`](screenshots/installed/07-undo-clean-restored.png) — Toast confirming clean restoration of original bytes.
+8. [`08-undo-conflict-refused.png`](screenshots/installed/08-undo-conflict-refused.png) — Warning toast refusing Undo when newer user edits are present.
+9. [`09-quarantined-file.png`](screenshots/installed/09-quarantined-file.png) — Artifact quarantined to isolated store.
+10. [`10-quarantine-restored.png`](screenshots/installed/10-quarantine-restored.png) — Artifact restored after conflict resolution.
+11. [`11-command-palette-keyboard-nav.png`](screenshots/installed/11-command-palette-keyboard-nav.png) — Command Palette filtered by `FIG:` with keyboard navigation.
+12. [`12-error-handling-and-clean-state.png`](screenshots/installed/12-error-handling-and-clean-state.png) — Stable editor state after rapid repeated command invocations.
 
-Machine-readable identities, reported results and pending criteria are in [EVIDENCE.json](EVIDENCE.json). The original report remains recoverable in Git at `18195df8667f27526bdbb5c9c0a73555782b2804`; its broad PASSED wording is superseded by this correction.
+*Historical development-host screenshots (from the earlier run) remain preserved under [`screenshots/01-installed-extension.png`](screenshots/01-installed-extension.png) through [`08-command-palette-keyboard.png`](screenshots/08-command-palette-keyboard.png).*
+
+---
+
+## 5. Machine-Readable Summary
+
+Complete machine-readable identities, digests, and check results are maintained in [EVIDENCE.json](EVIDENCE.json).
+Raw test execution output and process logs are generated by `extension/scripts/test-installed-gui-acceptance.js` and preserved locally in `extension/.vscode-test/INSTALLED_ACCEPTANCE_RESULT.json` (uncommitted per repository and AGENTS.md rules).

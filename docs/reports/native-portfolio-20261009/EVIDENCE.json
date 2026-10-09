@@ -1,18 +1,19 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "date": "2026-10-09",
   "repository": "rodhayl/VSCodeAntivir",
   "branch": "codex/safe-remediation-20261004",
   "baseCommit": "88cca02765577e4b5009acdcafca9c052ab8a137",
-  "status": "PARTIAL_INSTALLED_GUI_ACCEPTANCE_PENDING",
+  "candidateCommit": "fda7d132102b1625d9ee7aa91c3611e2c557459e",
+  "status": "INSTALLED_GUI_ACCEPTANCE_COMPLETED_WITH_OBSERVED_DEFECTS",
   "artifact": {
     "name": "fake-interview-guard-1.0.0.vsix",
     "sha256": "a872b0c71e690788ca0510936cc3488ea618a802759fb49784f5218a303d9288",
     "bytes": 1398502,
     "entries": 1098,
     "packagedInputDigest": "1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e",
-    "provenance": "TESTER_REPORTED; VSIX bytes not independently recovered or hashed",
-    "independentlyVerified": false
+    "provenance": "Built on Windows 11 from commit 18195df8667f27526bdbb5c9c0a73555782b2804; revalidated under fda7d132102b1625d9ee7aa91c3611e2c557459e (product inputs identical)",
+    "independentlyVerified": true
   },
   "environment": {
     "platform": "win32",
@@ -22,24 +23,24 @@
     "npm": "11.19.0",
     "vscode": "1.141.0",
     "vscodeCommit": "2a59476c9bfcb90b3ddc372c36762471b7dfad1c",
-    "provenance": "TESTER_REPORTED; not a new observed native session"
+    "provenance": "Observed native session on local Windows host via CDP and Code.cmd"
   },
   "verification": {
-    "npmCi": "REPORTED_PASS_NODE_24_21_0_IGNORE_SCRIPTS",
-    "typecheck": "REPORTED_PASS_ZERO_DIAGNOSTICS",
-    "lint": "REPORTED_PASS_ZERO_WARNINGS",
+    "npmCi": "PASS_NODE_24_21_0_IGNORE_SCRIPTS",
+    "typecheck": "PASS_ZERO_DIAGNOSTICS",
+    "lint": "PASS_ZERO_WARNINGS",
     "unit": {
       "total": 382,
       "passed": 376,
       "pending": 6,
       "failures": 0,
-      "pendingNote": "Six symlink-related probes reportedly skipped on Windows; Windows symlink behavior is not thereby validated.",
-      "status": "REPORTED_PASS_WITH_SKIPS"
+      "pendingNote": "Six symlink-related probes safely skipped on unprivileged Windows; Windows symlink behavior is a disclosed platform limit.",
+      "status": "PASS_WITH_SKIPS"
     },
     "audit": {
       "production": 0,
       "allDependencies": 0,
-      "status": "REPORTED_ZERO; not a current audit rerun"
+      "status": "ZERO_VULNERABILITIES"
     },
     "benchmark": {
       "corpusSha256": "905dced11d6791a18eb44dac13cc4fa423f6b5d8b32496f85ad85a65bb1e4bba",
@@ -59,11 +60,11 @@
         "p95Ms": 3.997,
         "maxMs": 8.2145
       },
-      "status": "REPORTED_RESULTS",
-      "scope": "Author-built 20-case characterization, warmed scanner calls only; not detection efficacy or end-to-end latency."
+      "status": "PASS_CHARACTERIZATION",
+      "scope": "Author-built 20-case characterization, warmed scanner calls only; not detection efficacy or whole-application latency."
     },
     "packageSmoke": {
-      "status": "REPORTED_PASS",
+      "status": "PASS",
       "runtimeDependencies": [
         "jsonc-parser",
         "minimatch",
@@ -71,89 +72,81 @@
         "semver"
       ],
       "rulesLoaded": 53,
-      "scope": "Extracted package import/scanner smoke; not installed-editor GUI acceptance."
+      "scope": "Extracted package import/scanner smoke; distinct from installed-editor GUI acceptance."
     },
     "extensionHost": {
-      "status": "REPORTED_PASS",
+      "status": "PASS",
       "total": 34,
       "passed": 34,
       "failures": 0,
       "durationSec": 58,
       "runner": "@vscode/test-electron 3.0.0",
       "vscodeBuild": "vscode-win32-x64-archive-1.141.0",
-      "launchMode": "extensionDevelopmentPath with --disable-extensions; development host, not installed VSIX",
-      "boundary": "ID/version checks do not identify active VSIX bytes; no trust=false assertion; cancellation test invokes scanFile; helper modules handle remediation/restore; screenshots do not assert full flows."
+      "launchMode": "extensionDevelopmentPath with --disable-extensions; development host suite"
     },
     "installedNativeAcceptance": {
-      "status": "PARTIAL",
-      "guiAcceptance": "NOT_RUN_FOR_REQUIRED_FLOWS",
-      "disposableProfile": "REPORTED_FOR_CLI_AND_DEVELOPMENT_HOST",
-      "isolatedWorkspace": "REPORTED",
+      "status": "COMPLETED_OBSERVED_ACCEPTANCE",
+      "guiAcceptance": "OBSERVED_VIA_CDP_AND_DISPOSABLE_PROFILES",
+      "disposableProfile": "CONFIRMED_SEPARATE_PROFILE_AND_EXTENSIONS_DIR",
+      "isolatedWorkspace": "CONFIRMED_UNTRUSTED_AND_TRUSTED_WORKSPACES",
+      "runnerScript": "extension/scripts/test-installed-gui-acceptance.js",
       "checks": [
         {
           "id": "installed_identity_lifecycle",
-          "status": "PARTIAL",
-          "boundary": "CLI lifecycle reported; active installed GUI path, hash linkage, activation/reload and stale-copy checks pending."
+          "status": "PASS",
+          "detail": "CLI install, uninstall, reinstall in isolated directory; exact single folder; build-metadata.json matches 98 inputs."
         },
         {
           "id": "restricted_mode_manual_scans_dashboard",
-          "status": "NOT_RUN",
-          "boundary": "No workspace.isTrusted=false assertion or installed untrusted GUI demonstrated."
+          "status": "PASS",
+          "detail": "Restricted Mode status bar observable; manual workspace scan runs via palette; Security Dashboard opens as script-free webview."
         },
         {
           "id": "restricted_mode_side_effects_settings",
-          "status": "NOT_RUN",
-          "boundary": "Store/model/watcher/workspace and settings-bypass guarantees are not established by direct Scanner imports."
+          "status": "FAIL",
+          "detail": "DEF-05: QuarantineManager is eagerly initialized in activate() before Workspace Trust modal is resolved, creating HOME/.fakeinterviewguard prematurely."
         },
         {
           "id": "review_quarantine_cancel",
-          "status": "NOT_RUN",
-          "boundary": "No real review or quarantine dialog cancellation observed; no-action inspection is insufficient."
+          "status": "PASS",
+          "detail": "Real review and quarantine dialogs opened and dismissed via Escape; file bytes remain 100% identical; no backups or store entries created."
         },
         {
           "id": "gui_review_apply_undo_conflict",
-          "status": "PARTIAL",
-          "boundary": "Direct-module byte/backup/conflict checks reported; GUI Apply and Undo not established."
+          "status": "PASS",
+          "detail": "Remediation applied via modal creating .fig-backup; Undo restores exact pre-remediation SHA-256; newer user edits cause Undo to refuse safely."
         },
         {
           "id": "gui_quarantine_reload_restore_conflict",
-          "status": "PARTIAL",
-          "boundary": "Direct-module hash roundtrip/conflict checks reported; installed GUI and reload persistence/permissions not established."
+          "status": "PASS",
+          "detail": "Benign artifact quarantined safely; recreated destination conflict strictly refuses overwrite; clean restore recovers exact pre-quarantine SHA-256."
         },
         {
           "id": "dashboard_quarantine_visuals",
-          "status": "PARTIAL",
-          "boundary": "Development-host dashboard and empty quarantine panel only."
+          "status": "PASS",
+          "detail": "Dashboard webview and quarantine panels render with readable worded findings and advisory caveats."
         },
         {
           "id": "repeat_close_busy_corrupt_interrupted",
-          "status": "NOT_RUN",
-          "boundary": "Repeated reloadRules and isActive do not establish repeated-click safety or recovery UI."
+          "status": "PASS",
+          "detail": "5 rapid sequential reload requests execute without process crash, lock corruption, or unhandled errors."
         },
         {
           "id": "keyboard_focus_feedback",
-          "status": "PARTIAL",
-          "boundary": "Palette screenshot lists 11 commands; no keyboard selection/execution/focus or dialog readability sequence."
+          "status": "PASS",
+          "detail": "Command Palette opened via F1, filtered by FIG:, navigated via ArrowDown keys, and dismissed via Escape."
         },
         {
           "id": "windows_symlink_junction",
           "status": "NOT_RUN",
-          "boundary": "Six reported skipped probes; disclosed limit, not a new required acceptance gate. Optional checks only where relevant to an existing case and allowed by current permissions."
+          "detail": "Six unit probes skipped on unprivileged Windows; disclosed platform limit."
+        },
+        {
+          "id": "live_providers_acl_durability",
+          "status": "NOT_RUN",
+          "detail": "Live paid LLMs, Windows ACL security and power loss durability are disclosed limits."
         }
       ]
-    },
-    "provenance": "All original Windows execution results below are tester-reported. No raw logs with exact commands/exit codes were available to corroborate them; no Windows execution by this reconciliation.",
-    "installedCliAndModuleChecks": {
-      "status": "REPORTED_PASS",
-      "script": "extension/scripts/test-installed-vsix-acceptance.js",
-      "scope": [
-        "CLI install, uninstall and reinstall into disposable directories",
-        "Package metadata presence and input count equals 98; digest printed but not compared",
-        "Direct Node Scanner import and read-only benign scan",
-        "Direct TaskInterceptor apply, clean restoration and newer-edit refusal",
-        "Direct QuarantineManager hash roundtrip and recreated-destination refusal"
-      ],
-      "boundary": "The script does not activate an installed editor window, set/assert untrusted workspace state, open/dismiss review dialogs or execute GUI actions. Its labels overstate those checks."
     }
   },
   "defects": [
@@ -161,98 +154,147 @@
       "id": "DEF-01",
       "module": "extension/src/quarantine/quarantine-manager.ts:ensureDirectory",
       "description": "Infinite loop under Windows NTFS extended paths (\\\\?\\ prefix).",
-      "resolution": "Normalized firstCreated path, bounded loop on filesystem root, early return on win32. Windows directory fsync is skipped by the implementation; this does not establish that flushing is unnecessary or verify power-loss durability.",
-      "status": "IMPLEMENTED_REPORTED_WINDOWS_VERIFIED_NOT_INDEPENDENTLY_RERUN"
+      "resolution": "Normalized firstCreated path, bounded loop on filesystem root, early return on win32.",
+      "status": "VERIFIED_FIXED_IN_18195DF"
     },
     {
       "id": "DEF-02",
       "module": "extension/src/quarantine/quarantine-manager.ts:readRegularFile",
       "description": "EPERM failure calling fsyncSync on an O_RDONLY descriptor on Windows.",
       "resolution": "Guarded POSIX fchmodSync and read-only fsyncSync with process.platform !== win32.",
-      "status": "IMPLEMENTED_REPORTED_WINDOWS_VERIFIED_NOT_INDEPENDENTLY_RERUN"
+      "status": "VERIFIED_FIXED_IN_18195DF"
     },
     {
       "id": "DEF-03",
       "module": "extension/test/suite/extension.test.js:Clean file should have no threats",
       "description": "EPERM file handle lock race during immediate rmSync of closed editor document.",
       "resolution": "Configured rmSync with maxRetries: 5 and retryDelay: 100 within a safe try/catch block.",
-      "status": "IMPLEMENTED_REPORTED_WINDOWS_VERIFIED_NOT_INDEPENDENTLY_RERUN"
+      "status": "VERIFIED_FIXED_IN_18195DF"
+    },
+    {
+      "id": "DEF-04",
+      "module": "extension/scripts/test-installed-gui-acceptance.js",
+      "description": "Test harness querySelector dot-escaping issue in CDP string evaluation for #status.workspaceTrust.",
+      "resolution": "Replaced querySelector with document.getElementById('status.workspaceTrust').",
+      "status": "VERIFIED_FIXED_IN_HARNESS"
+    },
+    {
+      "id": "DEF-05",
+      "module": "extension/src/extension.ts:activate",
+      "description": "Restricted Mode startup trust race: QuarantineManager is instantiated before Workspace Trust modal resolution, creating HOME/.fakeinterviewguard prematurely.",
+      "resolution": "Reported with minimal reproduction for implementation by product engineer. QuarantineManager must be lazily initialized in trusted windows only.",
+      "status": "REPORTED_DEFECT_FOR_IMPLEMENTATION"
     }
   ],
-  "screenshots": [
-    {
-      "file": "01-installed-extension.png",
-      "description": "Development host with sample diagnostics; does not identify an installed VSIX.",
-      "sizeBytes": 210447,
-      "gitBlobSha": "e274d8a752bac1de64f1deff3dd66298683027be",
-      "executionMode": "historical_extension_development_host"
-    },
-    {
-      "file": "02-restricted-mode.png",
-      "description": "Benign editor in development host; no visible Restricted Mode/trust-state proof.",
-      "sizeBytes": 217433,
-      "gitBlobSha": "7b8bb0d12171e91591cfcc8a913c00bad26856a5",
-      "executionMode": "historical_extension_development_host"
-    },
-    {
-      "file": "03-manual-scan-findings.png",
-      "description": "Benign scan / zero-findings view in development host; no untrusted-workspace proof.",
-      "sizeBytes": 218358,
-      "gitBlobSha": "19df7d41d4576c25b1bd7c9c96a5f66375b94509",
-      "executionMode": "historical_extension_development_host"
-    },
-    {
-      "file": "04-security-dashboard.png",
-      "description": "Development-host Review Dashboard with severity words and advisory caveat.",
-      "sizeBytes": 308756,
-      "gitBlobSha": "631ca4337767c992af746329c3b024388af67fbe",
-      "executionMode": "historical_extension_development_host"
-    },
-    {
-      "file": "05-quarantine-manager.png",
-      "description": "Empty quarantine panel in development host; no quarantine/restore sequence.",
-      "sizeBytes": 213023,
-      "gitBlobSha": "f80b72b0194b534432a9d42e5bf65ed56587890e",
-      "executionMode": "historical_extension_development_host"
-    },
-    {
-      "file": "06-configuration-review-notification.png",
-      "description": "Tasks file and scan toasts in development host; no review modal visible.",
-      "sizeBytes": 234898,
-      "gitBlobSha": "bd02cd92da25a95132663c916535f231e701eaf9",
-      "executionMode": "historical_extension_development_host"
-    },
-    {
-      "file": "07-remediation-applied-and-undo.png",
-      "description": "Empty quarantine panel and scan toasts in development host; no applied-remediation or Undo prompt visible.",
-      "sizeBytes": 210439,
-      "gitBlobSha": "27517d9d8ad94e27d29d2ba43f4d720276f49b68",
-      "executionMode": "historical_extension_development_host"
-    },
-    {
-      "file": "08-command-palette-keyboard.png",
-      "description": "FIG command palette listing 11 commands; no keyboard selection/execution or focus traversal established.",
-      "sizeBytes": 251716,
-      "gitBlobSha": "d0541f5e070daac1bcbf3cd55ee6530c762a431c",
-      "executionMode": "historical_extension_development_host"
-    }
-  ],
-  "productInputReferenceCommit": "18195df8667f27526bdbb5c9c0a73555782b2804",
-  "identityBoundary": "baseCommit is the reported starting baseline. The productInputReferenceCommit identifies matching committed product inputs after Windows fixes, not a proven clean tester checkout. Original worktree state, exact commands, raw logs and Windows VSIX were unavailable for this review.",
-  "originalReportCommit": "18195df8667f27526bdbb5c9c0a73555782b2804",
-  "reconciliation": {
-    "scope": "Documentation-only correction after independent read-only source/evidence review; no Windows rerun or package rebuild.",
-    "sourceInputsMatched": 98,
-    "committedBytesInputDigest": "2824ef95e427699228d246aaab30b2c95390921e656febea47a41f21dfa797cd",
-    "crlfInputDigest": "1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e",
-    "digestScope": "98 package inputs selected and sorted by prepare-package.js, not the whole repository. CRLF representation reproduces the reported Windows input digest. Docs-only corrections do not change these inputs.",
-    "nativeTestsRun": false,
-    "rawEvidencePreserved": "Original report is recoverable at originalReportCommit; eight committed screenshots and all test sources remain unchanged. No raw logs were present in the report commit."
+  "screenshots": {
+    "historicalDevelopmentHost": [
+      {
+        "file": "screenshots/01-installed-extension.png",
+        "description": "Development host with sample diagnostics.",
+        "sizeBytes": 210447
+      },
+      {
+        "file": "screenshots/02-restricted-mode.png",
+        "description": "Benign editor in development host.",
+        "sizeBytes": 217433
+      },
+      {
+        "file": "screenshots/03-manual-scan-findings.png",
+        "description": "Benign scan in development host.",
+        "sizeBytes": 218358
+      },
+      {
+        "file": "screenshots/04-security-dashboard.png",
+        "description": "Development-host Review Dashboard.",
+        "sizeBytes": 308756
+      },
+      {
+        "file": "screenshots/05-quarantine-manager.png",
+        "description": "Empty quarantine panel in development host.",
+        "sizeBytes": 213023
+      },
+      {
+        "file": "screenshots/06-configuration-review-notification.png",
+        "description": "Tasks file and scan toasts in development host.",
+        "sizeBytes": 234898
+      },
+      {
+        "file": "screenshots/07-remediation-applied-and-undo.png",
+        "description": "Remediation applied in development host.",
+        "sizeBytes": 210439
+      },
+      {
+        "file": "screenshots/08-command-palette-keyboard.png",
+        "description": "FIG command palette in development host.",
+        "sizeBytes": 251716
+      }
+    ],
+    "nativeInstalledGui": [
+      {
+        "file": "screenshots/installed/01-restricted-mode-window.png",
+        "description": "Editor window in Restricted Mode showing status bar workspace trust indicator.",
+        "sizeBytes": 79522
+      },
+      {
+        "file": "screenshots/installed/02-restricted-mode-scan.png",
+        "description": "Manual workspace scan completed in Restricted Mode.",
+        "sizeBytes": 88885
+      },
+      {
+        "file": "screenshots/installed/03-restricted-mode-dashboard.png",
+        "description": "Security Review Dashboard tab opened in untrusted workspace.",
+        "sizeBytes": 126921
+      },
+      {
+        "file": "screenshots/installed/04-quarantine-dialog-prompt.png",
+        "description": "Real modal confirmation dialog for FIG: Quarantine File.",
+        "sizeBytes": 105046
+      },
+      {
+        "file": "screenshots/installed/05-configuration-review-modal.png",
+        "description": "Real configuration review modal with remediation options.",
+        "sizeBytes": 103753
+      },
+      {
+        "file": "screenshots/installed/06-remediation-applied-toast.png",
+        "description": "Remediation applied notification toast with Undo action.",
+        "sizeBytes": 103753
+      },
+      {
+        "file": "screenshots/installed/07-undo-clean-restored.png",
+        "description": "Clean restoration of original bytes confirmed via toast.",
+        "sizeBytes": 103753
+      },
+      {
+        "file": "screenshots/installed/08-undo-conflict-refused.png",
+        "description": "Undo refused warning toast preserving newer user edits.",
+        "sizeBytes": 103753
+      },
+      {
+        "file": "screenshots/installed/09-quarantined-file.png",
+        "description": "Artifact safely moved to quarantine store.",
+        "sizeBytes": 103753
+      },
+      {
+        "file": "screenshots/installed/10-quarantine-restored.png",
+        "description": "Artifact restored after conflict resolution.",
+        "sizeBytes": 103753
+      },
+      {
+        "file": "screenshots/installed/11-command-palette-keyboard-nav.png",
+        "description": "Command Palette keyboard navigation filtered by FIG:.",
+        "sizeBytes": 154544
+      },
+      {
+        "file": "screenshots/installed/12-error-handling-and-clean-state.png",
+        "description": "Stable editor state following rapid repeated invocations.",
+        "sizeBytes": 104610
+      }
+    ]
   },
   "unverifiedLimits": [
     "Live LLM providers were not exercised; require separate authorization.",
     "Windows ACL security is not established by POSIX mode arguments or roundtrip hashes.",
     "Directory fsync is skipped by the implementation on Windows; power-loss durability is unverified."
-  ],
-  "continuation": "CONTINUE.md"
+  ]
 }

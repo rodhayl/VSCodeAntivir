@@ -75,7 +75,54 @@ Configured `fs.rmSync` with Node.js built-in options `{ recursive: true, force: 
 ### Regressions Added
 - Integrated into `extension/test/suite/extension.test.js` and `extension/test/suite/native-acceptance.test.js`.
 
+---
+
+## 4. DEF-04: Test harness status bar element selector failure
+
+- **Severity**: Low (Test harness artifact)
+- **Module**: `extension/scripts/test-installed-gui-acceptance.js`
+- **Reproducibility**: 100% when using `querySelector('#status\\.workspaceTrust')` within CDP `Runtime.evaluate` string evaluations.
+
+### Root Cause
+In Chromium/CDP `Runtime.evaluate`, passing `#status\\.workspaceTrust` inside nested string literals caused JavaScript escape sequences to strip backslashes, leading `querySelector` to parse `.workspaceTrust` as an unescaped CSS class rather than part of the ID `#status.workspaceTrust`.
+
+### Remediation
+Replaced `querySelector('#status\\.workspaceTrust')` with direct ID lookup `document.getElementById('status.workspaceTrust')`.
+
+---
+
+## 5. DEF-05: Restricted Mode startup trust race causes quarantine store leakage
+
+- **Severity**: Medium (Product Defect — Security/Isolation Boundary)
+- **Module**: `extension/src/extension.ts:activate` (`trustedSession = vscode.workspace.isTrusted`)
+- **Reproducibility**: 100% in newly opened workspaces on Windows before the user actively dismisses or selects "Restricted Mode" in the Workspace Trust modal.
+
+### Root Cause
+In `extension/src/extension.ts`:
+```typescript
+trustedSession = vscode.workspace.isTrusted;
+quarantineManager = trustedSession ? new QuarantineManager(outputChannel) : undefined;
+```
+When VS Code opens a new, unconfigured workspace, `vscode.workspace.isTrusted` returns `true` or an indeterminate initial value during early extension host activation ticks before Workspace Trust resolution is completed or if the user prompt is displayed.
+Because `trustedSession` evaluates to `true`, `new QuarantineManager(outputChannel)` is called unconditionally.
+In `QuarantineManager` constructor:
+```typescript
+this.ensureDirectory(this.quarantineDir);
+```
+`ensureDirectory` immediately creates `.fakeinterviewguard/quarantine` in the user's `HOME` directory.
+As a result, an untrusted workspace leaks filesystem store initialization into `HOME/.fakeinterviewguard` prior to the user selecting Restricted Mode, violating the contract that Restricted Mode must not touch or initialize home store storage.
+
+### Reproduction
+1. Launch clean VS Code with disposable `--user-data-dir` and disposable `--home` pointing to an empty directory.
+2. Open an untrusted workspace folder.
+3. Observe that before any scan or user action, `.fakeinterviewguard/quarantine` is already created in `HOME`.
+
+### Remediation (For Implementation Agent)
+Defer `QuarantineManager` creation until an explicit user action requires quarantine in a confirmed trusted window, or listen to `vscode.workspace.onDidGrantWorkspaceTrust` rather than eagerly creating storage in `activate()`. Do not initialize `quarantineManager` if Workspace Trust is unresolved.
+
+---
 
 ## Acceptance boundary
 
-The reported unit/host/helper successes support only their actual assertions. They do not establish installed-editor Restricted Mode, dialog cancellation, GUI Undo or restore, ACL security, or power-loss durability. Test cleanup catches can also suppress cleanup failures; a future run must inventory residual disposable state rather than infer clean teardown from a zero exit code. Continue with tests and evidence only as specified in [CONTINUE.md](CONTINUE.md); report any product defect for a separate implementation decision.
+The reported unit/host/helper successes support only their actual assertions. DEF-01 through DEF-03 were fixed in `18195df`. DEF-04 is corrected in test harness. DEF-05 is documented with exact reproduction and evidence for implementation by the product engineer. ACL security, power-loss durability, and native symlink checks under unprivileged Windows accounts remain declared platform limits.
+
