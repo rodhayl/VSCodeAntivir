@@ -1,16 +1,18 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "date": "2026-10-09",
   "repository": "rodhayl/VSCodeAntivir",
   "branch": "codex/safe-remediation-20261004",
   "baseCommit": "88cca02765577e4b5009acdcafca9c052ab8a137",
-  "status": "NATIVE_ACCEPTANCE_PASSED",
+  "status": "PARTIAL_INSTALLED_GUI_ACCEPTANCE_PENDING",
   "artifact": {
     "name": "fake-interview-guard-1.0.0.vsix",
     "sha256": "a872b0c71e690788ca0510936cc3488ea618a802759fb49784f5218a303d9288",
     "bytes": 1398502,
     "entries": 1098,
-    "packagedInputDigest": "1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e"
+    "packagedInputDigest": "1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e",
+    "provenance": "TESTER_REPORTED; VSIX bytes not independently recovered or hashed",
+    "independentlyVerified": false
   },
   "environment": {
     "platform": "win32",
@@ -19,22 +21,25 @@
     "node": "v24.21.0",
     "npm": "11.19.0",
     "vscode": "1.141.0",
-    "vscodeCommit": "2a59476c9bfcb90b3ddc372c36762471b7dfad1c"
+    "vscodeCommit": "2a59476c9bfcb90b3ddc372c36762471b7dfad1c",
+    "provenance": "TESTER_REPORTED; not a new observed native session"
   },
   "verification": {
-    "npmCi": "PASS_NODE_24_21_0_IGNORE_SCRIPTS",
-    "typecheck": "PASS_ZERO_DIAGNOSTICS",
-    "lint": "PASS_ZERO_WARNINGS",
+    "npmCi": "REPORTED_PASS_NODE_24_21_0_IGNORE_SCRIPTS",
+    "typecheck": "REPORTED_PASS_ZERO_DIAGNOSTICS",
+    "lint": "REPORTED_PASS_ZERO_WARNINGS",
     "unit": {
       "total": 382,
       "passed": 376,
       "pending": 6,
       "failures": 0,
-      "pendingNote": "Six POSIX symlink probes cleanly skipped on Windows per platform contract."
+      "pendingNote": "Six symlink-related probes reportedly skipped on Windows; Windows symlink behavior is not thereby validated.",
+      "status": "REPORTED_PASS_WITH_SKIPS"
     },
     "audit": {
       "production": 0,
-      "allDependencies": 0
+      "allDependencies": 0,
+      "status": "REPORTED_ZERO; not a current audit rerun"
     },
     "benchmark": {
       "corpusSha256": "905dced11d6791a18eb44dac13cc4fa423f6b5d8b32496f85ad85a65bb1e4bba",
@@ -53,49 +58,102 @@
         "p50Ms": 2.2536,
         "p95Ms": 3.997,
         "maxMs": 8.2145
-      }
+      },
+      "status": "REPORTED_RESULTS",
+      "scope": "Author-built 20-case characterization, warmed scanner calls only; not detection efficacy or end-to-end latency."
     },
     "packageSmoke": {
-      "status": "PASSED",
+      "status": "REPORTED_PASS",
       "runtimeDependencies": [
         "jsonc-parser",
         "minimatch",
         "openai",
         "semver"
       ],
-      "rulesLoaded": 53
+      "rulesLoaded": 53,
+      "scope": "Extracted package import/scanner smoke; not installed-editor GUI acceptance."
     },
     "extensionHost": {
-      "status": "PASSED",
+      "status": "REPORTED_PASS",
       "total": 34,
       "passed": 34,
       "failures": 0,
       "durationSec": 58,
       "runner": "@vscode/test-electron 3.0.0",
-      "vscodeBuild": "vscode-win32-x64-archive-1.141.0"
+      "vscodeBuild": "vscode-win32-x64-archive-1.141.0",
+      "launchMode": "extensionDevelopmentPath with --disable-extensions; development host, not installed VSIX",
+      "boundary": "ID/version checks do not identify active VSIX bytes; no trust=false assertion; cancellation test invokes scanFile; helper modules handle remediation/restore; screenshots do not assert full flows."
     },
     "installedNativeAcceptance": {
-      "status": "PASSED",
-      "disposableProfile": true,
-      "isolatedWorkspace": true,
+      "status": "PARTIAL",
+      "guiAcceptance": "NOT_RUN_FOR_REQUIRED_FLOWS",
+      "disposableProfile": "REPORTED_FOR_CLI_AND_DEVELOPMENT_HOST",
+      "isolatedWorkspace": "REPORTED",
       "checks": [
-        "VSIX Installation in disposable extensions-dir",
-        "Uninstall and Reinstall lifecycle without stale remnants",
-        "Installed package integrity and input digest matching",
-        "Restricted Mode static scan and zero-mutation guarantee",
-        "Restricted Mode store isolation (no quarantine folder created in HOME)",
-        "Configuration inspection and review dismissal exact byte equality",
-        "Configuration remediation application and backup creation",
-        "Clean undo restoration byte-for-byte matching original",
-        "Undo conflict refusal upon newer user edits (work preserved)",
-        "Quarantine isolation and removal of source to private store",
-        "Restore destination conflict refusal upon external file recreation (new work preserved)",
-        "Restore clean execution after resolving conflict with SHA-256 validation",
-        "Security Dashboard webview script-free rendering",
-        "Quarantine view explorer tree rendering",
-        "Keyboard command palette execution",
-        "Sequential click idempotence and scanner state integrity"
+        {
+          "id": "installed_identity_lifecycle",
+          "status": "PARTIAL",
+          "boundary": "CLI lifecycle reported; active installed GUI path, hash linkage, activation/reload and stale-copy checks pending."
+        },
+        {
+          "id": "restricted_mode_manual_scans_dashboard",
+          "status": "NOT_RUN",
+          "boundary": "No workspace.isTrusted=false assertion or installed untrusted GUI demonstrated."
+        },
+        {
+          "id": "restricted_mode_side_effects_settings",
+          "status": "NOT_RUN",
+          "boundary": "Store/model/watcher/workspace and settings-bypass guarantees are not established by direct Scanner imports."
+        },
+        {
+          "id": "review_quarantine_cancel",
+          "status": "NOT_RUN",
+          "boundary": "No real review or quarantine dialog cancellation observed; no-action inspection is insufficient."
+        },
+        {
+          "id": "gui_review_apply_undo_conflict",
+          "status": "PARTIAL",
+          "boundary": "Direct-module byte/backup/conflict checks reported; GUI Apply and Undo not established."
+        },
+        {
+          "id": "gui_quarantine_reload_restore_conflict",
+          "status": "PARTIAL",
+          "boundary": "Direct-module hash roundtrip/conflict checks reported; installed GUI and reload persistence/permissions not established."
+        },
+        {
+          "id": "dashboard_quarantine_visuals",
+          "status": "PARTIAL",
+          "boundary": "Development-host dashboard and empty quarantine panel only."
+        },
+        {
+          "id": "repeat_close_busy_corrupt_interrupted",
+          "status": "NOT_RUN",
+          "boundary": "Repeated reloadRules and isActive do not establish repeated-click safety or recovery UI."
+        },
+        {
+          "id": "keyboard_focus_feedback",
+          "status": "PARTIAL",
+          "boundary": "Palette screenshot lists 11 commands; no keyboard selection/execution/focus or dialog readability sequence."
+        },
+        {
+          "id": "windows_symlink_junction",
+          "status": "NOT_RUN",
+          "boundary": "Six reported skipped probes; disclosed limit, not a new required acceptance gate. Optional checks only where relevant to an existing case and allowed by current permissions."
+        }
       ]
+    },
+    "provenance": "All original Windows execution results below are tester-reported. No raw logs with exact commands/exit codes were available to corroborate them; no Windows execution by this reconciliation.",
+    "installedCliAndModuleChecks": {
+      "status": "REPORTED_PASS",
+      "script": "extension/scripts/test-installed-vsix-acceptance.js",
+      "scope": [
+        "CLI install, uninstall and reinstall into disposable directories",
+        "Package metadata presence and input count equals 98; digest printed but not compared",
+        "Direct Node Scanner import and read-only benign scan",
+        "Direct TaskInterceptor apply, clean restoration and newer-edit refusal",
+        "Direct QuarantineManager hash roundtrip and recreated-destination refusal"
+      ],
+      "boundary": "The script does not activate an installed editor window, set/assert untrusted workspace state, open/dismiss review dialogs or execute GUI actions. Its labels overstate those checks."
     }
   },
   "defects": [
@@ -103,64 +161,98 @@
       "id": "DEF-01",
       "module": "extension/src/quarantine/quarantine-manager.ts:ensureDirectory",
       "description": "Infinite loop under Windows NTFS extended paths (\\\\?\\ prefix).",
-      "resolution": "Normalized firstCreated path, bounded loop on filesystem root, early return on win32.",
-      "status": "VERIFIED_FIXED"
+      "resolution": "Normalized firstCreated path, bounded loop on filesystem root, early return on win32. Windows directory fsync is skipped by the implementation; this does not establish that flushing is unnecessary or verify power-loss durability.",
+      "status": "IMPLEMENTED_REPORTED_WINDOWS_VERIFIED_NOT_INDEPENDENTLY_RERUN"
     },
     {
       "id": "DEF-02",
       "module": "extension/src/quarantine/quarantine-manager.ts:readRegularFile",
       "description": "EPERM failure calling fsyncSync on an O_RDONLY descriptor on Windows.",
       "resolution": "Guarded POSIX fchmodSync and read-only fsyncSync with process.platform !== win32.",
-      "status": "VERIFIED_FIXED"
+      "status": "IMPLEMENTED_REPORTED_WINDOWS_VERIFIED_NOT_INDEPENDENTLY_RERUN"
     },
     {
       "id": "DEF-03",
       "module": "extension/test/suite/extension.test.js:Clean file should have no threats",
       "description": "EPERM file handle lock race during immediate rmSync of closed editor document.",
       "resolution": "Configured rmSync with maxRetries: 5 and retryDelay: 100 within a safe try/catch block.",
-      "status": "VERIFIED_FIXED"
+      "status": "IMPLEMENTED_REPORTED_WINDOWS_VERIFIED_NOT_INDEPENDENTLY_RERUN"
     }
   ],
   "screenshots": [
     {
       "file": "01-installed-extension.png",
-      "description": "VS Code workbench with FakeInterviewGuard extension activated from isolated profile.",
-      "sizeBytes": 210067
+      "description": "Development host with sample diagnostics; does not identify an installed VSIX.",
+      "sizeBytes": 210447,
+      "gitBlobSha": "e274d8a752bac1de64f1deff3dd66298683027be",
+      "executionMode": "historical_extension_development_host"
     },
     {
       "file": "02-restricted-mode.png",
-      "description": "Editor opened in Restricted Mode with read-only inspection active.",
-      "sizeBytes": 217034
+      "description": "Benign editor in development host; no visible Restricted Mode/trust-state proof.",
+      "sizeBytes": 217433,
+      "gitBlobSha": "7b8bb0d12171e91591cfcc8a913c00bad26856a5",
+      "executionMode": "historical_extension_development_host"
     },
     {
       "file": "03-manual-scan-findings.png",
-      "description": "Manual file and workspace scan execution with diagnostics reported.",
-      "sizeBytes": 218444
+      "description": "Benign scan / zero-findings view in development host; no untrusted-workspace proof.",
+      "sizeBytes": 218358,
+      "gitBlobSha": "19df7d41d4576c25b1bd7c9c96a5f66375b94509",
+      "executionMode": "historical_extension_development_host"
     },
     {
       "file": "04-security-dashboard.png",
-      "description": "Security Dashboard webview panel displaying findings breakdown.",
-      "sizeBytes": 308756
+      "description": "Development-host Review Dashboard with severity words and advisory caveat.",
+      "sizeBytes": 308756,
+      "gitBlobSha": "631ca4337767c992af746329c3b024388af67fbe",
+      "executionMode": "historical_extension_development_host"
     },
     {
       "file": "05-quarantine-manager.png",
-      "description": "Quarantine Manager view and activity bar controls.",
-      "sizeBytes": 213023
+      "description": "Empty quarantine panel in development host; no quarantine/restore sequence.",
+      "sizeBytes": 213023,
+      "gitBlobSha": "f80b72b0194b534432a9d42e5bf65ed56587890e",
+      "executionMode": "historical_extension_development_host"
     },
     {
       "file": "06-configuration-review-notification.png",
-      "description": "Configuration review notification prompt offering explicit user choices.",
-      "sizeBytes": 234960
+      "description": "Tasks file and scan toasts in development host; no review modal visible.",
+      "sizeBytes": 234898,
+      "gitBlobSha": "bd02cd92da25a95132663c916535f231e701eaf9",
+      "executionMode": "historical_extension_development_host"
     },
     {
       "file": "07-remediation-applied-and-undo.png",
-      "description": "Applied remediation notification with Undo this change prompt.",
-      "sizeBytes": 210439
+      "description": "Empty quarantine panel and scan toasts in development host; no applied-remediation or Undo prompt visible.",
+      "sizeBytes": 210439,
+      "gitBlobSha": "27517d9d8ad94e27d29d2ba43f4d720276f49b68",
+      "executionMode": "historical_extension_development_host"
     },
     {
       "file": "08-command-palette-keyboard.png",
-      "description": "Command Palette filtered by FIG: showing all registered commands.",
-      "sizeBytes": 251716
+      "description": "FIG command palette listing 11 commands; no keyboard selection/execution or focus traversal established.",
+      "sizeBytes": 251716,
+      "gitBlobSha": "d0541f5e070daac1bcbf3cd55ee6530c762a431c",
+      "executionMode": "historical_extension_development_host"
     }
-  ]
+  ],
+  "productInputReferenceCommit": "18195df8667f27526bdbb5c9c0a73555782b2804",
+  "identityBoundary": "baseCommit is the reported starting baseline. The productInputReferenceCommit identifies matching committed product inputs after Windows fixes, not a proven clean tester checkout. Original worktree state, exact commands, raw logs and Windows VSIX were unavailable for this review.",
+  "originalReportCommit": "18195df8667f27526bdbb5c9c0a73555782b2804",
+  "reconciliation": {
+    "scope": "Documentation-only correction after independent read-only source/evidence review; no Windows rerun or package rebuild.",
+    "sourceInputsMatched": 98,
+    "committedBytesInputDigest": "2824ef95e427699228d246aaab30b2c95390921e656febea47a41f21dfa797cd",
+    "crlfInputDigest": "1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e",
+    "digestScope": "98 package inputs selected and sorted by prepare-package.js, not the whole repository. CRLF representation reproduces the reported Windows input digest. Docs-only corrections do not change these inputs.",
+    "nativeTestsRun": false,
+    "rawEvidencePreserved": "Original report is recoverable at originalReportCommit; eight committed screenshots and all test sources remain unchanged. No raw logs were present in the report commit."
+  },
+  "unverifiedLimits": [
+    "Live LLM providers were not exercised; require separate authorization.",
+    "Windows ACL security is not established by POSIX mode arguments or roundtrip hashes.",
+    "Directory fsync is skipped by the implementation on Windows; power-loss durability is unverified."
+  ],
+  "continuation": "CONTINUE.md"
 }

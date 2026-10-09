@@ -1,6 +1,6 @@
-# Defects Identified, Fixed, and Verified
+# Reported Windows defects and implemented fixes
 
-This document records the defects encountered during native Windows Extension Host and installed VSIX acceptance of candidate commit `88cca02765577e4b5009acdcafca9c052ab8a137` on branch `codex/safe-remediation-20261004`, along with their root causes, fixes, and regression test suites.
+This document preserves the tester-reported Windows findings starting from baseline `88cca02765577e4b5009acdcafca9c052ab8a137` on `codex/safe-remediation-20261004`. The fixes and regression sources were committed in `18195df8667f27526bdbb5c9c0a73555782b2804`. Independent review inspected the source but did not reproduce these Windows failures or rerun the reported results. Reproducibility, severities and causes below are the original engineering report, not a new native execution. The package-input mapping and remaining GUI acceptance gaps are recorded in [REPORT.md](REPORT.md).
 
 ---
 
@@ -21,12 +21,12 @@ while (current !== existingParent) {
   current = path.dirname(current);
 }
 ```
-compared `current` (which starts with `C:\`) against `existingParent` (which starts with `\\?\C:\`). Because the string paths never matched, `current` climbed up directory ancestors until it reached the drive root `C:\`. Since `path.dirname('C:\\')` returns `'C:\\'`, the loop never terminated and spun at 100% CPU. Furthermore, POSIX directory fsyncing is a no-op on Windows (`syncDirectory` already returns early on `win32`).
+compared `current` (which starts with `C:\`) against `existingParent` (which starts with `\\?\C:\`). Because the string paths never matched, `current` climbed up directory ancestors until it reached the drive root `C:\`. Since `path.dirname('C:\\')` returns `'C:\\'`, the loop never terminated and spun at 100% CPU. The implementation already skips directory fsync on Windows (`syncDirectory` returns early on `win32`). This describes the code path, not a Windows durability guarantee.
 
 ### Remediation
 1. Strip the `\\?\` prefix when normalizing `firstCreated`.
 2. Add a boundary check `if (parent === current) break;` to ensure any while traversal terminates unconditionally upon reaching filesystem root.
-3. Return early on `process.platform === 'win32'` once the directory is verified, since directory fsync is not supported or needed on Windows.
+3. Return early on `process.platform === 'win32'` once the directory is verified, consistent with the existing Windows skip in `syncDirectory`. Windows directory-flush behavior, ACL protection and power-loss durability remain unverified; the skip must not be described as evidence that flushing is unnecessary.
 
 ### Regressions Added
 - `Cross-platform and Windows quarantine regressions` -> `nested store directory initialization handles extended-path prefix without looping` in `extension/test/unit/quarantine-safety.test.js`.
@@ -74,3 +74,8 @@ Configured `fs.rmSync` with Node.js built-in options `{ recursive: true, force: 
 
 ### Regressions Added
 - Integrated into `extension/test/suite/extension.test.js` and `extension/test/suite/native-acceptance.test.js`.
+
+
+## Acceptance boundary
+
+The reported unit/host/helper successes support only their actual assertions. They do not establish installed-editor Restricted Mode, dialog cancellation, GUI Undo or restore, ACL security, or power-loss durability. Test cleanup catches can also suppress cleanup failures; a future run must inventory residual disposable state rather than infer clean teardown from a zero exit code. Continue with tests and evidence only as specified in [CONTINUE.md](CONTINUE.md); report any product defect for a separate implementation decision.
