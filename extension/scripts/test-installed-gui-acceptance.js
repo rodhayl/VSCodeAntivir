@@ -147,6 +147,7 @@ class CdpClient {
     recorder.screenshot(id, Buffer.from(shot.data, 'base64'), state);
   }
   async command(title) {
+    await this.evaluate(`(() => { (document.querySelector('.native-edit-context') || document.querySelector('.monaco-workbench'))?.focus(); })()`);
     await this.key('F1', 'F1', 112);
     await until(() => this.evaluate(`Array.from(document.querySelectorAll('.quick-input-widget input')).some(el => (${visibleScript})(el))`), 'Command Palette input');
     await this.key('a', 'KeyA', 65, 2); await this.insert(`> ${title}`);
@@ -156,6 +157,7 @@ class CdpClient {
     await until(() => this.evaluate(`!Array.from(document.querySelectorAll('.quick-input-widget')).some(${visibleScript})`), `command palette dismissed after ${title}`);
   }
   async openFile(file) {
+    await this.evaluate(`(() => { (document.querySelector('.native-edit-context') || document.querySelector('.monaco-workbench'))?.focus(); })()`);
     await this.key('p', 'KeyP', 80, 2);
     await until(() => this.evaluate(`Array.from(document.querySelectorAll('.quick-input-widget input')).some(${visibleScript})`), 'Quick Open');
     await this.key('a', 'KeyA', 65, 2); await this.insert(file);
@@ -394,6 +396,7 @@ async function runInstalledGuiAcceptance(options = {}) {
     recorder.check('quarantine_restore', hash(fs.readFileSync(artifactFile)) === artifactHash && fs.statSync(artifactFile).mode === artifactMode && !entries().some(value => value.id === entry.id), { restored, restoredHash: hash(fs.readFileSync(artifactFile)), artifactMode });
     await cdp.screenshot(recorder, '12-restored', { restored });
 
+    await cdp.evaluate(`(() => { (document.querySelector('.native-edit-context') || document.querySelector('.monaco-workbench'))?.focus(); })()`);
     await cdp.key('F1', 'F1', 112); await cdp.insert('FIG:');
     const focusedBefore = await until(() => cdp.evaluate(`document.querySelector('.quick-input-widget input')?.getAttribute('aria-activedescendant')`), 'keyboard-focused palette row');
     await cdp.key('ArrowDown', 'ArrowDown', 40);
