@@ -253,16 +253,38 @@ export class QuarantineManager {
       this.checkPath(entry.originalPath, true);
       const destinationDirectory = path.dirname(entry.originalPath);
       this.ensureDirectory(destinationDirectory);
-      // Exclusive creation refuses an existing file or symlink, even after an earlier check.
-      const fd = fs.openSync(entry.originalPath, 'wx', entry.originalMode ?? 0o600);
+      // Stage all bytes before publishing a destination. A failed write cannot leave a partial original.
+      const temporary = path.join(destinationDirectory, `.fig-${crypto.randomUUID()}.tmp`);
+      let published: fs.Stats;
       try {
-        fs.writeFileSync(fd, content);
-        fs.fchmodSync(fd, entry.originalMode ?? 0o600);
-        fs.fsyncSync(fd);
-      } finally { fs.closeSync(fd); }
-      this.syncDirectory(path.dirname(entry.originalPath));
+        const fd = fs.openSync(temporary, 'wx', 0o600);
+        try {
+          fs.writeFileSync(fd, content);
+          fs.fchmodSync(fd, entry.originalMode ?? 0o600);
+          fs.fsyncSync(fd);
+        } finally { fs.closeSync(fd); }
+        this.checkPath(entry.originalPath, true);
+        fs.linkSync(temporary, entry.originalPath);
+        published = fs.statSync(temporary);
+        this.syncDirectory(destinationDirectory);
+      } finally {
+        if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+      }
+      const verifyDestination = () => {
+        const restored = this.readRegularFile(entry.originalPath);
+        if (restored.stat.dev !== published.dev || restored.stat.ino !== published.ino ||
+            !restored.content.equals(content)) throw new Error('Restored destination changed; recovery payload retained');
+      };
+      verifyDestination();
       manifest.files = manifest.files.filter(f => f.id !== id);
       this.saveManifest(manifest);
+      try { verifyDestination(); } catch (error) {
+        manifest.files.push(entry);
+        try { this.saveManifest(manifest); } catch {
+          throw new Error(`Restored destination changed and metadata recovery failed; preserve the payload at ${payload}`);
+        }
+        throw error;
+      }
       this.checkPath(payload);
       fs.unlinkSync(payload);
       fs.rmdirSync(path.dirname(payload));

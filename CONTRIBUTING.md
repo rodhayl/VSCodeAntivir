@@ -1,137 +1,48 @@
 # Contributing to FakeInterviewGuard
 
-Thank you for your interest in contributing! FakeInterviewGuard is a security tool, and we take code quality and accuracy seriously.
+The canonical repository is [rodhayl/VSCodeAntivir](https://github.com/rodhayl/VSCodeAntivir). Keep the `FakeInterviewGuard` display name, `fakeinterviewguard.fake-interview-guard` extension ID and `fig.*` command/configuration IDs stable.
 
-## Development Setup
+## Build and test
 
-```bash
-git clone https://github.com/rulf-ra/VSCodeAntivir.git
+```sh
+git clone https://github.com/rodhayl/VSCodeAntivir.git
 cd VSCodeAntivir/extension
-npm install
-npm run compile
+npm ci --ignore-scripts
+npm run typecheck
+npm run lint
+npm test
+npm run benchmark
+npm run package
+npm run verify:package
 ```
 
-### VS Code Debug
+Use Node 22.13+ and VS Code 1.125+. `npm test` runs offline units and an isolated real Extension Host; Linux needs a display or `xvfb-run -a npm run test:integration`. Do not disable sandbox/security controls to make a host launch succeed. Report infrastructure blocks separately. See [verification](docs/VERIFICATION.md) for installed-VSIX acceptance.
 
-Open the `extension/` folder in VS Code and press `F5`. This launches an Extension Development Host window with FakeInterviewGuard loaded.
+For interactive development, compile then launch VS Code with `--extensionDevelopmentPath` pointing to the absolute `extension/` directory, using a disposable profile and benign workspace. The repository does not assume a particular OS, local model or running provider.
 
-```
-Tasks -> Run Task -> npm: watch    # Auto-rebuild on changes
-```
+## Contracts
 
-## Project Conventions
+- Strict TypeScript, CommonJS output, no runtime native dependencies
+- Changes require focused regressions and the complete applicable checks on the final source
+- Scanner text is data: never execute sample code, package scripts, tasks, hooks or suspicious commands
+- Restricted Mode stays read-only; no model client, custom rules, remediation, quarantine storage or automatic scanning
+- Trusted remediation checks consent, snapshots and backups; preserve originals/newer work on failure
+- Standard tests use stubbed model transport. Live experiments require deliberate authorization of provider, input and possible costs
+- Keep logs, generated package documents, binaries, caches and recovery artifacts out of source control
+- Do not claim malware efficacy, attribution, prevention or latency from synthetic fixture success
 
-### Code Style
-- TypeScript strict mode — no `any` without justification
-- CommonJS output for VS Code compatibility
-- Minimal comments — only when something non-obvious needs clarification
-- Surgical changes — modify only what's needed for the feature/fix
-- 2-space indentation, LF line endings
+## Detection rules
 
-### Testing (Mandatory)
-- Every feature must have passing tests
-- Unit tests: plain Node.js (no VS Code required) — test scanner core, analyzers, LLM components
-- Integration tests: `@vscode/test-electron` — test extension activation, commands, diagnostics
-- Always test with the actual fake samples in `samples/`
-- LLM tests: use small snippets, keep prompts <500 tokens input
+Add a JSON file to `extension/rules/<category>/` with `id`, `name`, `severity`, `matchers`, `condition` and `appliesTo`. Supported matchers are `string`, `string-any`, `regex` and `entropy`. Legacy `ast` is regex-based; `file-structure` is unsupported. The loader reports invalid rules. Never add a matcher as a silent no-op.
 
-### Adding Detection Rules
+For each rule, include an inert positive and a legitimate negative/challenge, references for factual indicators, the evidence date and a description of uncertainty. Package declarations are not installed-package evidence. Do not add attacker family names merely to increase coverage counts. Extending the corpus requires documenting labels and retaining false positives in evaluation outputs.
 
-1. Create a `.json` file in `extension/rules/<category>/`
-2. Follow the rule schema:
-   ```json
-   {
-     "id": "unique-rule-id",
-     "name": "Human Readable Name",
-     "version": "1.0.0",
-     "severity": "critical|high|medium|low|info",
-     "confidence": "high|medium|low",
-     "description": "What this rule detects",
-     "category": "campaign-category",
-     "mitre": {
-       "tactic": "MITRE Tactic Name",
-       "technique": "T####.##",
-       "name": "MITRE Technique Name"
-     },
-     "appliesTo": {
-       "languages": ["javascript"],
-       "filePatterns": ["**/*.js"]
-     },
-     "matchers": [
-       { "id": "m1", "type": "regex", "pattern": "your\\.regex\\.here" }
-     ],
-     "condition": { "type": "any", "of": ["m1"] },
-     "remediation": {
-       "message": "How to fix it",
-       "actions": ["neutralize", "quarantine"]
-     }
-   }
-   ```
-3. Matcher types: `string`, `string-any`, `regex`, `entropy`, `ast`, `file-structure`
-4. Test with a sample file that should trigger the rule
-5. Test with a clean file that should NOT trigger the rule
+## Model prompts
 
-### Adding LLM Prompt Templates
+Prompt templates live under `extension/prompts/` and use `.prompt.md`, frontmatter (`name`, `max_tokens`, `temperature`), `## System` and `## User` sections. Supported variables include `{{code}}`, `{{filename}}` and `{{language}}`. Treat generated rules and model judgments as untrusted suggestions; they must be reviewed and tested before enabling.
 
-Create a `.prompt.md` file in `extension/prompts/<category>/`:
+## Pull requests
 
-```markdown
----
-name: Template Name
-max_tokens: 1024
-temperature: 0.1
----
+Use a focused branch and conventional commit message. Describe observed behavior, intended behavior, failing/passing regressions, final source identity and any blocked checks. Do not remove apparently unused code based on grep alone: inspect imports, dynamic registrations, tests, package entrypoints and compatibility. Do not force-push main or commit private data.
 
-## System
-Your system prompt here. Specify JSON output format.
-
-## User
-Your user prompt here. Use {{code}}, {{filename}}, {{language}} variables.
-```
-
-### Commit Guidelines
-- Use conventional commits: `feat:`, `fix:`, `docs:`, `test:`, `chore:`
-- Scope when applicable: `feat(scanner): add new heuristic for...`
-- No force pushes to main
-- No secret commits — verify `.gitignore` before committing
-
-## Development Workflow
-
-1. Fork and create a feature branch from `main`
-2. Implement the feature with accompanying tests
-3. Run `npm run compile` and `npm test` — everything must pass
-4. Run `npm run lint` — no ESLint errors
-5. Squash related commits and push
-6. Open a pull request with the template
-
-## Architecture Overview
-
-```
-File Content → Signature Engine → Heuristic Engine → npm Audit Engine
-              → VS Code Task Engine → LLM Analysis Engine (async)
-```
-
-Key modules:
-- `scanner/` — core pipeline and engines
-- `rules/` — rule loader and execution engine
-- `analyzers/` — entropy, string, URL, typosquat analyzers
-- `providers/` — VS Code UI (diagnostics, tree, dashboard, status bar)
-- `llm/` — client, cache, prompt builder, response parser
-- `interceptors/` — task, npm, git config security interceptors
-- `quarantine/` — file isolation, restore, manifest management
-
-## Code of Conduct
-
-This project follows the spirit of the VS Code Community Code of Conduct:
-- Be respectful and constructive
-- Assume good faith
-- Prioritize what is best for the community
-- No harassment, trolling, or discriminatory behavior
-
-## Reporting Security Issues
-
-If you discover a security vulnerability, especially false negatives (undetectable malware patterns), please follow the [SECURITY.md](SECURITY.md) guidelines. Do NOT open a public issue for security vulnerabilities.
-
-## License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
+Report sensitive extension vulnerabilities through [SECURITY.md](SECURITY.md), not a public payload. Be respectful and constructive. Contributions use the project's MIT license.

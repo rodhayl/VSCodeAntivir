@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as semver from 'semver';
 import { Threat, ThreatLocation } from '../models/threat';
 import { Severity } from '../models/severity';
 import { checkTyposquat } from '../analyzers/typosquat-analyzer';
@@ -39,8 +40,7 @@ const KNOWN_BAD_PACKAGES: KnownBadPackage[] = [
     versions: ['1.14.1', '0.30.4'],
     severity: 'critical',
     campaign: 'BlueNoroff/UNC1069',
-    description: 'Compromised versions install plain-crypto-js backdoor. Affects 100M+ downloads.',
-    cve: 'CVE-2026-XXXX'
+    description: 'Bundled indicator associates these versions with a plain-crypto-js backdoor. Verify current advisories and the resolved version.'
   },
   // TeamPCP Campaign - Typosquatted packages
   {
@@ -186,9 +186,34 @@ const KNOWN_BAD_PACKAGES: KnownBadPackage[] = [
   },
 ];
 
-function matchesVersion(installedVersion: string, badVersions: string[]): boolean {
-  const cleanVersion = installedVersion.replace(/[\^~>=<]/g, '').trim();
-  return badVersions.some(v => cleanVersion === v || cleanVersion.startsWith(v + '.'));
+export function parsePackageManifest(content: string): Record<string, Record<string, string>> {
+  const pkg: unknown = JSON.parse(content);
+  if (!pkg || typeof pkg !== 'object' || Array.isArray(pkg)) throw new Error('package.json must contain an object');
+  const result = pkg as Record<string, Record<string, string>>;
+  for (const field of ['scripts', 'dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
+    const entries = result[field];
+    if (entries === undefined) continue;
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries) || Object.values(entries).some(value => typeof value !== 'string')) {
+      throw new Error(`package.json ${field} must map names to strings`);
+    }
+  }
+  return result;
+}
+
+function dependencyTarget(name: string, spec: string): { name: string; spec: string } {
+  if (!spec.startsWith('npm:')) return { name, spec };
+  const alias = spec.slice(4);
+  const separator = alias.lastIndexOf('@');
+  return separator > 0 ? { name: alias.slice(0, separator), spec: alias.slice(separator + 1) } : { name: alias, spec: '*' };
+}
+
+function matchedIndicator(spec: string, versions: string[]): { kind: 'exact' | 'range'; versions: string[] } | undefined {
+  const exact = semver.valid(spec);
+  if (exact) return versions.includes(exact) ? { kind: 'exact', versions: [exact] } : undefined;
+  const range = semver.validRange(spec);
+  if (!range) return undefined;
+  const matches = versions.filter(version => semver.satisfies(version, range));
+  return matches.length ? { kind: 'range', versions: matches } : undefined;
 }
 
 export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
@@ -196,39 +221,40 @@ export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
   const fileName = path.basename(filePath);
   if (fileName !== 'package.json') return threats;
 
-  let pkg: any;
+  let pkg: ReturnType<typeof parsePackageManifest>;
   try {
-    pkg = JSON.parse(content);
+    pkg = parsePackageManifest(content);
   } catch {
     return threats;
   }
 
   const scripts = pkg.scripts || {};
-  const allDeps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+  const allDeps = { ...(pkg.peerDependencies || {}), ...(pkg.devDependencies || {}), ...(pkg.dependencies || {}), ...(pkg.optionalDependencies || {}) };
 
-  // 1. Check for known-bad packages (CRITICAL - blocks active attacks)
+  // 1. Local manifest indicators; no registry query, installation resolution or execution blocking.
   for (const [depName, depVersion] of Object.entries(allDeps) as [string, string][]) {
-    const badPkg = KNOWN_BAD_PACKAGES.find(p => p.name === depName.toLowerCase());
+    const target = dependencyTarget(depName, depVersion);
+    const badPkg = KNOWN_BAD_PACKAGES.find(p => p.name === target.name.toLowerCase());
     if (badPkg) {
-      const isVulnerable = badPkg.allVersions || 
-        (badPkg.versions && matchesVersion(depVersion, badPkg.versions));
+      const match = badPkg.versions ? matchedIndicator(target.spec, badPkg.versions) : undefined;
+      const isVulnerable = badPkg.allVersions || match;
       
       if (isVulnerable) {
         const line = findLineOfKey(content, depName);
         threats.push({
           id: `npm-known-bad-${depName}-${Date.now()}`,
           ruleId: 'npm-known-bad-package',
-          ruleName: `Known Malicious Package: ${depName}`,
-          severity: badPkg.severity === 'critical' ? Severity.CRITICAL : Severity.HIGH,
-          confidence: 'high',
-          message: `⚠️ BLOCKED: "${depName}@${depVersion}" is a known malicious package. ` +
-            `Campaign: ${badPkg.campaign}. ${badPkg.description}`,
+          ruleName: `Dependency Indicator: ${depName}`,
+          severity: match?.kind === 'range' ? Severity.HIGH : badPkg.severity === 'critical' ? Severity.CRITICAL : Severity.HIGH,
+          confidence: match?.kind === 'range' ? 'medium' : 'high',
+          message: `Review "${depName}@${depVersion}": ${match?.kind === 'range' ? `declared range may include listed version(s) ${match.versions.join(', ')}` : 'declaration matches a bundled known malicious package indicator'}. ` +
+            `No installation or execution was blocked; installed contents were not verified. ${badPkg.campaign}: ${badPkg.description}`,
           filePath,
           location: loc(line, 0, depVersion.length + depName.length),
           mitre: { tactic: 'Initial Access', technique: 'T1195.002', name: 'Supply Chain Compromise' },
           matchedStrings: [depName, depVersion],
           remediation: {
-            message: `IMMEDIATELY remove "${depName}" from package.json and run npm uninstall ${depName}`,
+            message: `Review the declaration, lockfile and current upstream advisories for "${depName}" in isolation. Do not run package-manager commands in an untrusted repository.`,
             actions: ['remove-dependency', 'quarantine'],
           },
           tags: ['supply-chain', 'known-malware', badPkg.campaign.toLowerCase().replace(/\s+/g, '-')],
@@ -255,9 +281,9 @@ export function runNpmAuditEngine(content: string, filePath: string): Threat[] {
       threats.push({
         id: `npm-suspicious-script-${scriptName}-${Date.now()}`,
         ruleId: 'npm-suspicious-script',
-        ruleName: `Suspicious ${scriptName} Script`,
+        ruleName: `Lifecycle Script Needs Review: ${scriptName}`,
         severity: Severity.HIGH,
-        confidence: 'high',
+        confidence: 'medium',
         message: `package.json has a suspicious "${scriptName}" script: "${scriptVal.substring(0, 80)}"`,
         filePath,
         location: loc(line, 0, scriptVal.length),

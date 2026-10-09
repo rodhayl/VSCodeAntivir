@@ -1,11 +1,13 @@
 .vscode-test/
-node_modules/
 src/
 test/
+scripts/
 **/*.ts
 **/*.map
 !out/**/*.js
+!out/build-metadata.json
 out/src/
 tsconfig.json
-.eslintrc*
 eslint.config.js
+package-lock.json
+benchmark.json

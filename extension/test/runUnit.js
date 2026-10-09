@@ -1,5 +1,7 @@
 const path = require('path');
-const Mocha = require('mocha');
+// Mocha 12 is ESM: Node 22.13 returns its default in a namespace.
+const mochaModule = require('mocha');
+const Mocha = typeof mochaModule === 'function' ? mochaModule : mochaModule.default;
 
 function findTestFiles(dir) {
   const results = [];

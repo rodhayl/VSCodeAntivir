@@ -1,120 +1,31 @@
-# AGENTS.md — FakeInterviewGuard Project Preferences & Agent Instructions
+# FakeInterviewGuard project instructions
 
-## Project Overview
-FakeInterviewGuard is a VS Code extension that detects malware patterns from the
-"Contagious Interview" (DPRK/Lazarus) campaign and related supply-chain attacks.
-It uses a multi-engine scanning pipeline: JSON-based signature rules, heuristic
-analysis, npm audit, VS Code task analysis, and (planned) LLM-powered deep analysis.
+## Scope and identity
 
-## User Preferences
+FakeInterviewGuard is the VS Code workspace-inspection extension in `rodhayl/VSCodeAntivir`. Its extension ID is `fakeinterviewguard.fake-interview-guard`; retain existing `fig.*` command/configuration identifiers. It is not an antivirus, sandbox or universal pre-execution interceptor.
 
-### Development Philosophy
-- **Effort & reasoning**: Always set to ultra-high. Think deeply before acting.
-- **Test-driven**: Every feature must have passing tests (unit + integration).
-  Verify in VS Code directly — don't just trust compilation.
-- **Incremental delivery**: Build → test → verify → iterate. Never ship untested code.
-- **Short POC for slow operations**: LLM inference is slow (~20-30s per call on
-  local 4B models). POC tests should use small snippets and minimal round-trips.
+## Working agreements
 
-### Technology Choices
-- **Universal libraries over provider-specific ones**: Prefer a single library
-  that supports LM Studio, Ollama, Unsloth Studio, and cloud providers seamlessly.
-  The `openai` npm package (with `baseURL` override) is the agreed universal
-  connector — all local providers expose OpenAI-compatible APIs.
-- **JSON-based extensibility**: Detection rules, prompt templates, and LLM analysis
-  profiles should all be JSON/Markdown files that anyone can add without modifying
-  TypeScript code.
-- **No native dependencies**: The extension must be a pure-JS VSIX that works
-  cross-platform (Windows, macOS, Linux) without compilation steps.
-- **CommonJS output**: VS Code extensions require CJS modules as of 2026.
+- Use ultra-high reasoning for implementation/review. Read complete affected modules and callers before editing.
+- Preserve unrelated work. Make focused, reversible changes and test normal, interrupted and repeated flows.
+- Strict TypeScript, CommonJS extension output, pure JavaScript runtime dependencies. Prefer the existing OpenAI-compatible client over provider-specific SDKs.
+- Treat all samples as text to inspect, never code to execute. Do not run their npm scripts, hooks, tasks, workflows or network endpoints.
+- Standard tests must not call a live model. Do not assume LM Studio, Ollama, any specific model, Windows or VS Code is installed/running on the current machine.
+- Restricted Mode supports manual bundled-rule scans only. It must not initialize quarantine storage/model clients, load custom rules, modify files or create automatic scanning watchers.
+- File changes require explicit review. Preserve changed originals, conflicts, hashes, private recovery records and backup ownership. Do not clear recovery artifacts automatically.
+- Model settings are application/User scope. Preserve endpoint/input consent, cancellation, generation checks and cache invalidation.
+- Remove obsolete code only after checking imports, command registrations, dynamic loads, tests and public contracts. Keep historical claims marked as historical, not as current evidence.
 
-### Code Style
-- Minimal comments — only when something needs clarification.
-- TypeScript strict mode.
-- Surgical changes — don't modify unrelated code.
-- Clean up temp files after tasks.
+## Layout
 
-### Testing Preferences
-- Use `@vscode/test-electron` for integration tests inside VS Code.
-- Use plain Node.js `require()` for unit tests of scanner core (no VS Code needed).
-- Always test with the actual fake samples in `samples/`.
-- For LLM tests: use `qwen3.5-4b` on LM Studio (localhost:1234) — it's installed
-  and running. Keep LLM test prompts short (< 500 tokens input).
+`extension/src/extension.ts` registers the editor lifecycle and commands. `scanner/` runs local signatures, heuristics, package-manifest and task checks. `rules/` loads declarative rules. `interceptors/` contains historical names for read-only configuration inspection plus explicit remediation. `safety/` and `quarantine/` handle file preservation. `providers/` renders findings; `llm/` handles optional model input/output.
 
-### Environment
-- **OS**: Windows 11
-- **IDE**: VS Code (installed, used for direct testing)
-- **LM Studio**: Running on `http://localhost:1234` with models:
-  - `qwen3.5-4b` (primary test model)
-  - `qwen/qwen3.5-9b` (available, larger)
-  - `text-embedding-qwen3-embedding-0.6b` (embeddings)
-  - `text-embedding-nomic-embed-text-v1.5` (embeddings)
-- **Ollama**: Not currently running (may be installed later)
-- **Node.js**: Available, npm for package management
+JSON rules live in `extension/rules/`, prompts in `extension/prompts/`, automated tests in `extension/test/`, and inspection samples in top-level `samples/`. The `ast` matcher is a legacy regex alias, not AST analysis. Unsupported `file-structure` matchers must fail loading visibly.
 
-## Architecture Decisions (Established)
+## Verification
 
-### Extension Structure
-```
-extension/
-├── src/
-│   ├── extension.ts          # Main entry point
-│   ├── scanner/              # Core scanning pipeline
-│   │   ├── models/           # Severity, Threat, Rule, ScanResult interfaces
-│   │   ├── analyzers/        # Entropy, string, URL, typosquat analyzers
-│   │   └── engines/          # Signature, heuristic, npm-audit, vscode-task
-│   ├── rules/                # Rule loader + rule engine
-│   ├── providers/            # VS Code UI: diagnostics, code actions, tree, dashboard
-│   └── llm/                  # LLM client, cache, prompts, parser
-├── rules/                    # JSON detection rule files
-│   ├── contagious-interview/ # Campaign-specific rules (7 files)
-│   └── general/              # General security rules (2 files)
-├── prompts/                  # LLM prompt templates (.prompt.md)
-│   ├── default/              # General analysis prompts (3 files)
-│   └── contagious-interview/ # Campaign-specific prompts (1 file)
-└── test/                     # Integration tests
-```
+Run from `extension/`: `npm ci --ignore-scripts`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run benchmark`, `npm run package`, `npm run verify:package`. Node 22.13+ is required. Real integration uses `@vscode/test-electron`; headless Linux needs a supported display/Xvfb environment. Do not bypass OS/security restrictions to launch it.
 
-### Scanner Pipeline
-```
-File Content → Signature Engine (JSON rules, <10ms)
-            → Heuristic Engine (pattern density, entropy)
-            → npm Audit Engine (package.json analysis)
-            → VS Code Task Engine (tasks.json analysis)
-            → LLM Analysis Engine (async, on-demand, ~5-30s)
-```
+The unit runner must execute its tests and propagate failures. Read fixtures, never execute them. Benchmark results are author-built characterization with explicit false positives, corpus identity and timing scope. They do not establish detection effectiveness.
 
-### LLM Integration (Implemented)
-- **Library**: `openai` npm package — universal connector via OpenAI-compatible API
-- **Provider support**: LM Studio, Ollama, Unsloth Studio, cloud OpenAI, Azure,
-  any endpoint that speaks `/v1/chat/completions`
-- **Mode**: Async, on-demand (NOT real-time — too slow for on-save scanning)
-- **Output**: Structured JSON parsed into Threat objects
-- **Caching**: Content-hash-based (SHA-256) to avoid re-analyzing identical code
-- **Commands**: `fig.llmAnalyze`, `fig.llmExplain`, `fig.llmSuggestRule`, `fig.llmStatus`
-- **Prompt templates**: `.prompt.md` files with YAML frontmatter + Markdown body
-
-## Adding New Detection Patterns
-
-### JSON Rules (fast, rule-based)
-Add a `.json` file to `extension/rules/<category>/` following the schema:
-```json
-{
-  "id": "unique-id",
-  "name": "Human Name",
-  "severity": "critical|high|medium|low|info",
-  "matchers": [
-    { "id": "m1", "type": "string|regex|string-any|entropy", "pattern": "..." }
-  ],
-  "condition": { "type": "all|any|threshold", "of": ["m1"], "minimum": 1 },
-  "appliesTo": { "filePatterns": ["**/*.js"] }
-}
-```
-
-### LLM Prompt Templates (deep analysis)
-Add a `.prompt.md` file to `extension/prompts/<category>/` with YAML frontmatter
-and markdown body.
-
-## Key Contacts
-- Publisher: fakeinterviewguard
-- Extension ID: fakeinterviewguard.fake-interview-guard
+Follow `docs/VERIFICATION.md` for exact package identity and installed-editor acceptance. A blocked native check stays blocked; compilation or mocked tests cannot replace it. `scripts/prepare-package.js` generates packaged documents/metadata from canonical sources. Do not commit generated documents, VSIX files, out/, node_modules/, logs or caches. Use `docs/RECOVERY.md` for interrupted operations.

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Threat } from '../scanner/models/threat';
 import { Severity, severityToString } from '../scanner/models/severity';
+import { getTacticIcon, extractFileName } from './provider-utils';
 
 interface ThreatGroup {
   tactic: string;
@@ -89,11 +90,11 @@ export class ThreatTreeProvider implements vscode.TreeDataProvider<ThreatTreeIte
     if (!element) {
       // Root: show groups
       if (this.groups.length === 0) {
-        return [new ThreatTreeItem('✅ No threats detected', vscode.TreeItemCollapsibleState.None)];
+        return [new ThreatTreeItem('No reported findings', vscode.TreeItemCollapsibleState.None)];
       }
       return this.groups.map(g =>
         new ThreatTreeItem(
-          this.getTacticIcon(g.tactic) + ' ' + g.tactic,
+          getTacticIcon(g.tactic) + ' ' + g.tactic,
           vscode.TreeItemCollapsibleState.Expanded,
           undefined,
           true,
@@ -108,7 +109,7 @@ export class ThreatTreeProvider implements vscode.TreeDataProvider<ThreatTreeIte
       const group = this.groups.find(g => g.tactic === tacticName);
       if (!group) return [];
       return group.threats.map(t => {
-        const fileName = t.filePath.split(/[/\\]/).pop() || t.filePath;
+        const fileName = extractFileName(t.filePath);
         return new ThreatTreeItem(
           `${t.ruleName}: ${fileName}`,
           vscode.TreeItemCollapsibleState.None,
@@ -120,19 +121,4 @@ export class ThreatTreeProvider implements vscode.TreeDataProvider<ThreatTreeIte
     return [];
   }
 
-  private getTacticIcon(tactic: string): string {
-    const icons: Record<string, string> = {
-      'Initial Access': '🔓',
-      'Execution': '⚡',
-      'Persistence': '📌',
-      'Defense Evasion': '🛡️',
-      'Credential Access': '🔑',
-      'Discovery': '🔍',
-      'Collection': '📦',
-      'Exfiltration': '📤',
-      'Command and Control': '📡',
-      'Other': '❓',
-    };
-    return icons[tactic] || '❓';
-  }
 }

@@ -7,7 +7,7 @@ import { severityToString } from './models/severity';
 import { RuleLoader } from '../rules/rule-loader';
 import { runSignatureEngine } from './engines/signature-engine';
 import { runHeuristicEngine } from './engines/heuristic-engine';
-import { runNpmAuditEngine } from './engines/npm-audit-engine';
+import { runNpmAuditEngine, parsePackageManifest } from './engines/npm-audit-engine';
 import { runVscodeTaskEngine } from './engines/vscode-task-engine';
 import { minimatch } from 'minimatch';
 import { parse, ParseError } from 'jsonc-parser';
@@ -91,8 +91,9 @@ export class Scanner {
         if (path.basename(filePath) === 'tasks.json') {
           const errors: ParseError[] = [];
           const tasks = parse(fileContent, errors, { allowTrailingComma: true });
-          if (errors.length || !tasks || !Array.isArray(tasks.tasks ?? [])) throw new Error('Invalid task configuration');
-        } else { JSON.parse(fileContent); }
+          if (errors.length || !tasks || typeof tasks !== 'object' || Array.isArray(tasks) ||
+          (tasks.tasks !== undefined && (!Array.isArray(tasks.tasks) || tasks.tasks.some((task: unknown) => !task || typeof task !== 'object' || Array.isArray(task))))) throw new Error('Invalid task configuration');
+        } else { parsePackageManifest(fileContent); }
       } catch (error) {
         return { filePath, threats: [], scanDurationMs: Date.now() - start, status: 'error', detail: `Configuration parse failed: ${String(error)}` };
       }

@@ -1,5 +1,3 @@
-import { Severity } from '../scanner/models/severity';
-
 export interface LlmConfig {
   enabled: boolean;
   provider: string;
@@ -49,20 +47,21 @@ export const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; apiKey: string
   custom: { baseUrl: '', apiKey: '' },
 };
 
-export function readLlmConfig(getConfig: (key: string) => any): LlmConfig {
+export function readLlmConfig(getConfig: (key: string) => unknown): LlmConfig {
   const maxTokens = getConfig('fig.llm.maxTokens') ?? 1024;
   const temperature = getConfig('fig.llm.temperature') ?? 0.1;
   const timeout = getConfig('fig.llm.timeout') ?? 60000;
+  const text = (key: string, fallback: string): string => { const value = getConfig(key); return typeof value === 'string' ? value : fallback; };
   return {
-    enabled: getConfig('fig.llm.enabled') ?? false,
-    provider: getConfig('fig.llm.provider') ?? 'lmstudio',
-    baseUrl: getConfig('fig.llm.baseUrl') ?? '',
-    model: getConfig('fig.llm.model') ?? 'qwen3.5-4b',
-    apiKey: getConfig('fig.llm.apiKey') ?? '',
-    maxTokens: typeof maxTokens === 'number' && maxTokens > 0 ? maxTokens : 1024,
+    enabled: getConfig('fig.llm.enabled') === true,
+    provider: text('fig.llm.provider', 'lmstudio'),
+    baseUrl: text('fig.llm.baseUrl', ''),
+    model: text('fig.llm.model', 'qwen3.5-4b'),
+    apiKey: text('fig.llm.apiKey', ''),
+    maxTokens: typeof maxTokens === 'number' && Number.isFinite(maxTokens) && maxTokens > 0 ? maxTokens : 1024,
     temperature: typeof temperature === 'number' && temperature >= 0 && temperature <= 2 ? temperature : 0.1,
-    autoAnalyze: getConfig('fig.llm.autoAnalyze') ?? false,
-    timeout: typeof timeout === 'number' && timeout > 0 ? timeout : 60000,
-    promptProfile: getConfig('fig.llm.promptProfile') ?? 'default',
+    autoAnalyze: getConfig('fig.llm.autoAnalyze') === true,
+    timeout: typeof timeout === 'number' && Number.isFinite(timeout) && timeout > 0 ? timeout : 60000,
+    promptProfile: text('fig.llm.promptProfile', 'Security Analysis'),
   };
 }

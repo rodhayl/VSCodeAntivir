@@ -79,7 +79,7 @@ function runMatcher(matcher: Matcher, content: string, _filePath: string): Match
     }
 
     case 'ast': {
-      // Simplified AST matching via regex patterns for common dangerous calls
+      // Legacy compatibility alias: regex patterns, not AST analysis
       const astPatterns: Record<string, RegExp> = {
         'eval_call': /\beval\s*\(/g,
         'require_child_process': /require\s*\(\s*['"]child_process['"]\s*\)/g,
@@ -111,12 +111,7 @@ function runMatcher(matcher: Matcher, content: string, _filePath: string): Match
         } catch { /* ignore */ }
       }
       break;
-    }
-
-    case 'file-structure': {
-      // Handled at scanner level, not here
-      break;
-    }
+    }
   }
 
   return result;

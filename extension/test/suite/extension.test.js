@@ -5,9 +5,7 @@ const fs = require('fs');
 
 async function scanFixture(relativeParts) {
   const samplePath = path.join(__dirname, '..', '..', '..', 'samples', ...relativeParts);
-  if (!fs.existsSync(samplePath)) {
-    return null;
-  }
+  assert(fs.existsSync(samplePath), `Required fixture is missing: ${samplePath}`);
 
   const doc = await vscode.workspace.openTextDocument(samplePath);
   await vscode.window.showTextDocument(doc);
@@ -46,7 +44,7 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
       'fig.scanFile', 'fig.scanWorkspace', 'fig.showDashboard',
       'fig.reloadRules', 'fig.llmAnalyze', 'fig.llmExplain', 
       'fig.llmSuggestRule', 'fig.llmStatus',
-      'fig.showQuarantine', 'fig.quarantineFile'
+      'fig.showQuarantine', 'fig.quarantineFile', 'fig.reviewConfiguration'
     ];
     for (const cmd of expected) {
       assert.ok(commands.includes(cmd), `Command ${cmd} not found`);
@@ -56,7 +54,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect threats in OtterCookie sample', async function () {
     this.timeout(15000);
     const result = await scanFixture(['stage2-backdoors', 'ottercookie', 'ottercookie-v1.js']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.ok(diagnostics.length > 0, `Expected threats in ottercookie-v1.js, got ${diagnostics.length}`);
     console.log(`  Found ${diagnostics.length} diagnostics in ottercookie-v1.js`);
@@ -65,7 +62,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect threats in malicious tasks.json', async function () {
     this.timeout(15000);
     const result = await scanFixture(['stage1-initial-access', 'fake-vscode-repo', '.vscode', 'tasks.json']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.ok(diagnostics.length > 0, `Expected threats in tasks.json, got ${diagnostics.length}`);
     console.log(`  Found ${diagnostics.length} diagnostics in tasks.json`);
@@ -74,11 +70,17 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Clean file should have no threats', async function () {
     this.timeout(15000);
     const cleanContent = 'const x = 1;\nconsole.log("hello world");\n';
-    const doc = await vscode.workspace.openTextDocument({ language: 'javascript', content: cleanContent });
-    await vscode.window.showTextDocument(doc);
-    await new Promise(r => setTimeout(r, 3000));
-    const diagnostics = vscode.languages.getDiagnostics(doc.uri);
-    assert.strictEqual(diagnostics.length, 0, `Expected no threats, got ${diagnostics.length}`);
+    const os = require('os');
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-clean-integration-'));
+    const file = path.join(root, 'clean.js'); fs.writeFileSync(file, cleanContent);
+    try {
+      const doc = await vscode.workspace.openTextDocument(file);
+      await vscode.window.showTextDocument(doc);
+      await vscode.commands.executeCommand('fig.scanFile');
+      const diagnostics = vscode.languages.getDiagnostics(doc.uri).filter(d=>d.source==='FakeInterviewGuard');
+      assert.strictEqual(diagnostics.length, 0, `Expected no findings, got ${diagnostics.length}`);
+    } finally { await vscode.commands.executeCommand('workbench.action.closeActiveEditor'); fs.rmSync(root,{recursive:true,force:true}); }
+
   });
 
   test('LLM status command should work', async function () {
@@ -128,7 +130,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect known malicious packages', async function () {
     this.timeout(15000);
     const result = await scanFixture(['malicious-deps', 'package.json']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     // Should detect axios@1.14.1 and plain-crypto-js as known-bad
     assert.ok(diagnostics.length >= 2, `Expected at least 2 known-bad package threats, got ${diagnostics.length}`);
@@ -140,7 +141,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect recent malicious package scenarios', async function () {
     this.timeout(15000);
     const result = await scanFixture(['stage1-initial-access', 'recent-malicious-deps', 'package.json']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.ok(diagnostics.length >= 2, `Expected multiple threats in recent malicious dependency sample, got ${diagnostics.length}`);
     const messages = diagnostics.map(d => d.message).join('\n');
@@ -150,7 +150,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect malicious GitHub Actions workflow', async function () {
     this.timeout(15000);
     const result = await scanFixture(['stage1-initial-access', 'github-actions-malicious', '.github', 'workflows', 'review.yml']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.ok(diagnostics.length > 0, `Expected threats in malicious workflow, got ${diagnostics.length}`);
   });
@@ -158,7 +157,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect hidden extension installer sample', async function () {
     this.timeout(15000);
     const result = await scanFixture(['stage1-initial-access', 'glassworm-v2-loader', 'extension.js']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.ok(diagnostics.length > 0, `Expected threats in hidden installer sample, got ${diagnostics.length}`);
   });
@@ -166,7 +164,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect fake AI assistant exfiltration sample', async function () {
     this.timeout(15000);
     const result = await scanFixture(['stage3-data-collection', 'fake-ai-assistant', 'extension.js']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.ok(diagnostics.length > 0, `Expected threats in fake AI assistant sample, got ${diagnostics.length}`);
   });
@@ -174,7 +171,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect blockchain dead-drop sample', async function () {
     this.timeout(15000);
     const result = await scanFixture(['stage2-backdoors', 'blockchain-deaddrop', 'extension.js']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.ok(diagnostics.length > 0, `Expected threats in blockchain dead-drop sample, got ${diagnostics.length}`);
   });
@@ -182,7 +178,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Should detect Unicode obfuscation sample', async function () {
     this.timeout(15000);
     const result = await scanFixture(['stage2-backdoors', 'unicode-obfuscation', 'extension.js']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.ok(diagnostics.length > 0, `Expected threats in Unicode obfuscation sample, got ${diagnostics.length}`);
   });
@@ -190,7 +185,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Clean workflow should have no threats', async function () {
     this.timeout(15000);
     const result = await scanFixture(['benign', 'clean-workflow', '.github', 'workflows', 'ci.yml']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.strictEqual(diagnostics.length, 0, `Expected no threats in clean workflow, got ${diagnostics.length}`);
   });
@@ -198,7 +192,6 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
   test('Clean extension sample should have no threats', async function () {
     this.timeout(15000);
     const result = await scanFixture(['benign', 'clean-extension', 'extension.js']);
-    if (!result) { this.skip(); return; }
     const { diagnostics } = result;
     assert.strictEqual(diagnostics.length, 0, `Expected no threats in clean extension, got ${diagnostics.length}`);
   });
@@ -243,8 +236,12 @@ suite('FakeInterviewGuard Extension Test Suite', () => {
       fs.writeFileSync(tmpFile, maliciousContent, 'utf-8');
       const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(tmpFile));
       await vscode.window.showTextDocument(doc);
-      // Save the document to trigger scan-on-save
-      await doc.save();
+      // Make an actual edit so save, rather than open alone, exercises the event.
+      const edit = new vscode.WorkspaceEdit();
+      edit.insert(doc.uri, new vscode.Position(0, 0), '// benign save-event fixture\n');
+      assert(await vscode.workspace.applyEdit(edit));
+      assert(doc.isDirty);
+      assert(await doc.save());
       await new Promise(r => setTimeout(r, 3000));
       const diagnostics = vscode.languages
         .getDiagnostics(doc.uri)

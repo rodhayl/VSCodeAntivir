@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 
-# Build output (committed via VSIX, not raw JS)
+# Generated build output (not committed)
 extension/out/
 
 # VS Code test runner
@@ -33,3 +33,8 @@ npm-debug.log*
 *.fig-backup
 .fig-*.tmp
 .fig-*.undo
+
+# Generated package documents / local characterization
+extension/README.md
+extension/CHANGELOG.md
+extension/benchmark.json

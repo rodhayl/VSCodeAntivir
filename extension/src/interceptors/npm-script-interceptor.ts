@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { parsePackageManifest } from '../scanner/engines/npm-audit-engine';
 import { FileChange, readForReview } from '../safety/file-change';
 
 export interface NpmScriptThreat {
@@ -82,9 +83,9 @@ export class NpmScriptInterceptor {
       return result;
     }
 
-    let pkg: any;
+    let pkg: ReturnType<typeof parsePackageManifest>;
     try {
-      pkg = JSON.parse(content);
+      pkg = parsePackageManifest(content);
     } catch (error) {
       result.error = String(error);
       return result;

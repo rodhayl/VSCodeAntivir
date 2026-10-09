@@ -1,19 +1,20 @@
 {
   "name": "fake-interview-guard",
   "displayName": "FakeInterviewGuard",
-  "description": "Detect Contagious Interview malware patterns in your workspace \u2014 npm supply-chain attacks, VS Code task abuse, backdoor signatures, and more.",
+  "description": "Review suspicious workspace patterns with local rules, explicit configuration remediation and optional consent-based LLM analysis.",
   "version": "1.0.0",
   "publisher": "fakeinterviewguard",
   "icon": "icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rulf-ra/VSCodeAntivir"
+    "url": "https://github.com/rodhayl/VSCodeAntivir"
   },
   "bugs": {
-    "url": "https://github.com/rulf-ra/VSCodeAntivir/issues"
+    "url": "https://github.com/rodhayl/VSCodeAntivir/issues"
   },
   "engines": {
-    "vscode": "^1.125.0"
+    "vscode": "^1.125.0",
+    "node": ">=22.13.0"
   },
   "categories": [
     "Linters",
@@ -37,7 +38,8 @@
     "onCommand:fig.llmAnalyze",
     "onCommand:fig.llmExplain",
     "onCommand:fig.llmSuggestRule",
-    "onCommand:fig.llmStatus"
+    "onCommand:fig.llmStatus",
+    "onCommand:fig.reviewConfiguration"
   ],
   "contributes": {
     "commands": [
@@ -87,6 +89,10 @@
       {
         "command": "fig.llmStatus",
         "title": "FIG: Check LLM Connection"
+      },
+      {
+        "command": "fig.reviewConfiguration",
+        "title": "FIG: Review Workspace Configuration"
       }
     ],
     "views": {
@@ -272,38 +278,53 @@
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\"",
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && node ./scripts/prepare-package.js",
     "compile": "npm run clean && tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
     "test:unit": "npm run compile && node ./test/runUnit.js",
     "test:integration": "npm run compile && node ./test/runTest.js",
     "test": "npm run test:unit && npm run test:integration",
-    "package": "vsce package"
+    "package": "vsce package",
+    "typecheck": "tsc -p ./ --noEmit",
+    "benchmark": "npm run compile && node ./test/benchmark.js",
+    "verify:package": "node ./scripts/verify-package.js"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.0",
     "@types/node": "^26.1.1",
+    "@types/semver": "^7.8.0",
     "@types/vscode": "^1.125.0",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
     "@typescript-eslint/parser": "^8.64.0",
     "@vscode/test-electron": "^3.0.0",
-    "@vscode/vsce": "^3.9.2",
+    "@vscode/vsce": "4.0.0",
     "eslint": "^10.7.0",
-    "mocha": "^11.7.6",
-    "typescript": "^5.9.3"
+    "mocha": "12.0.3",
+    "typescript": "^5.9.3",
+    "yauzl": "3.4.0"
   },
   "dependencies": {
-    "acorn": "^8.17.0",
-    "acorn-walk": "^8.3.0",
     "jsonc-parser": "^3.3.1",
     "minimatch": "^10.2.5",
-    "openai": "^6.46.0"
+    "openai": "^6.46.0",
+    "semver": "7.7.4"
   },
   "capabilities": {
     "untrustedWorkspaces": {
-      "supported": false,
-      "description": "Read-only inspection and explicit file/LLM actions require an enabled trusted workspace. Startup inspection never applies changes automatically."
+      "supported": "limited",
+      "description": "Restricted Mode supports manual static scanning with bundled rules. Configuration changes, quarantine, automatic scanning and model requests stay disabled until a trusted window is reloaded.",
+      "restrictedConfigurations": [
+        "fig.customRulesPath",
+        "fig.enabledRuleSets",
+        "fig.excludedPaths",
+        "fig.minimumSeverity",
+        "fig.maxFileSizeKB",
+        "fig.scanOnSave",
+        "fig.scanOnOpen",
+        "fig.realTimeWatching"
+      ]
     }
-  }
+  },
+  "license": "MIT"
 }

@@ -55,8 +55,8 @@ export class LlmClient {
         }
       }
       return { ok: true, models: modelsArray };
-    } catch (e: any) {
-      return { ok: false, models: [], error: e.message };
+    } catch (e: unknown) {
+      return { ok: false, models: [], error: e instanceof Error ? e.message : String(e) };
     }
   }
 

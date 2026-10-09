@@ -20,11 +20,12 @@ export function runVscodeTaskEngine(content: string, filePath: string): Threat[]
   const fileName = path.basename(filePath);
   if (fileName !== 'tasks.json') return threats;
 
-  let tasks: any;
+  let tasks: { tasks?: { label?: string; command?: unknown; args?: unknown[]; runOptions?: { runOn?: string } }[] };
   try {
     const errors: ParseError[] = [];
     tasks = parse(content, errors, { allowTrailingComma: true });
-    if (errors.length || !tasks || !Array.isArray(tasks.tasks ?? [])) return threats;
+    if (errors.length || !tasks || typeof tasks !== 'object' || Array.isArray(tasks) ||
+          (tasks.tasks !== undefined && (!Array.isArray(tasks.tasks) || tasks.tasks.some((task: unknown) => !task || typeof task !== 'object' || Array.isArray(task))))) return threats;
   } catch {
     return threats;
   }

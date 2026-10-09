@@ -270,3 +270,45 @@ suite('Quarantine safety', () => {
   }));
 
 });
+
+suite('Staged restore regressions', () => {
+  async function fixture(run) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-staged-'));
+    const store = path.join(root, 'store'), source = path.join(root, 'benign.txt');
+    fs.writeFileSync(source, 'complete original bytes');
+    const manager = new QuarantineManager({appendLine() {}}, store);
+    const entry = await manager.quarantine(source, []);
+    assert(entry);
+    try { await run({root, store, source, manager, entry}); }
+    finally { fs.rmSync(root, {recursive:true,force:true}); }
+  }
+  test('partial write fails before a destination is published and restart can retry', () => fixture(async ({store, source, manager, entry}) => {
+    const write = fs.writeFileSync;
+    fs.writeFileSync = (fd, ...args) => { if (typeof fd === 'number') { write(fd, 'partial'); throw new Error('Synthetic disk full'); } return write(fd, ...args); };
+    try { assert.strictEqual(await manager.restore(entry.id), false); } finally { fs.writeFileSync = write; }
+    assert(!fs.existsSync(source)); assert(fs.existsSync(entry.quarantinePath));
+    const restarted = new QuarantineManager({appendLine() {}}, store);
+    assert(await restarted.restore(entry.id)); assert.strictEqual(fs.readFileSync(source, 'utf8'), 'complete original bytes');
+  }));
+  test('writer after destination publication preserves its work and the recovery record', () => fixture(async ({source, manager, entry}) => {
+    const link = fs.linkSync;
+    fs.linkSync = (from, to) => { link(from, to); if (to === source) fs.writeFileSync(source, 'newer work'); };
+    try { assert.strictEqual(await manager.restore(entry.id), false); } finally { fs.linkSync = link; }
+    assert.strictEqual(fs.readFileSync(source, 'utf8'), 'newer work');
+    assert.strictEqual(fs.readFileSync(entry.quarantinePath, 'utf8'), 'complete original bytes'); assert.strictEqual(manager.getCount(), 1);
+  }));
+  test('writer during final metadata commit retains payload and restores the record', () => fixture(async ({store, source, manager, entry}) => {
+    const rename = fs.renameSync; let committed = false;
+    fs.renameSync = (from, to) => { rename(from, to); if (!committed && to === path.join(store, 'manifest.json')) { committed = true; fs.writeFileSync(source, 'new work after commit'); } };
+    try { assert.strictEqual(await manager.restore(entry.id), false); } finally { fs.renameSync = rename; }
+    assert.strictEqual(fs.readFileSync(source, 'utf8'), 'new work after commit');
+    assert.strictEqual(fs.readFileSync(entry.quarantinePath, 'utf8'), 'complete original bytes');
+    assert.strictEqual(new QuarantineManager({appendLine() {}}, store).getCount(), 1);
+  }));
+  test('atomic publication refuses a last-moment conflicting destination', () => fixture(async ({source, manager, entry}) => {
+    const link = fs.linkSync;
+    fs.linkSync = (from, to) => { if (to === source) fs.writeFileSync(source, 'another writer'); return link(from, to); };
+    try { assert.strictEqual(await manager.restore(entry.id), false); } finally { fs.linkSync = link; }
+    assert.strictEqual(fs.readFileSync(source, 'utf8'), 'another writer'); assert(fs.existsSync(entry.quarantinePath)); assert.strictEqual(manager.getCount(), 1);
+  }));
+});

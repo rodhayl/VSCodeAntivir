@@ -1,6 +1,11 @@
-import { LlmAnalysisResult, LlmFinding } from './models';
+import { LlmAnalysisResult } from './models';
 import { Threat, ThreatLocation } from '../scanner/models/threat';
 import { stringToSeverity } from '../scanner/models/severity';
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+function text(value: unknown, fallback = ''): string { return typeof value === 'string' ? value : fallback; }
 
 export class ResponseParser {
 
@@ -11,18 +16,18 @@ export class ResponseParser {
     }
 
     return {
-      malicious: !!json.malicious,
-      confidence: typeof json.confidence === 'number' ? json.confidence : 50,
-      threats: Array.isArray(json.threats) ? (json.threats as any[]).map((t) => ({
-        type: t.type || 'Unknown Threat',
-        severity: t.severity || 'medium',
-        evidence: t.evidence || '',
-        line: typeof t.line === 'number' ? t.line : null,
-        recommendation: t.recommendation || '',
+      malicious: json.malicious === true,
+      confidence: typeof json.confidence === 'number' && Number.isFinite(json.confidence) ? Math.max(0, Math.min(100, json.confidence)) : 50,
+      threats: Array.isArray(json.threats) ? json.threats.map(record).filter((value): value is Record<string, unknown> => value !== null).map((t) => ({
+        type: text(t.type, 'Unknown Threat'),
+        severity: text(t.severity, 'medium'),
+        evidence: text(t.evidence),
+        line: typeof t.line === 'number' && Number.isSafeInteger(t.line) && t.line > 0 ? t.line : null,
+        recommendation: text(t.recommendation),
       })) : [],
-      summary: json.summary || '',
-      campaignMatch: json.campaign_match,
-      malwareFamily: json.malware_family,
+      summary: text(json.summary),
+      campaignMatch: text(json.campaign_match) || undefined,
+      malwareFamily: text(json.malware_family) || undefined,
       rawResponse: raw,
       model,
       durationMs,
@@ -30,21 +35,21 @@ export class ResponseParser {
     };
   }
 
-  private extractJson(text: string): any | null {
+  private extractJson(text: string): Record<string, unknown> | null {
     // Try 1: Direct parse
-    try { return JSON.parse(text.trim()); } catch {}
+    try { return record(JSON.parse(text.trim())); } catch {}
 
     // Try 2: Markdown code fence
     const fenceMatch = text.match(/```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```/);
     if (fenceMatch) {
-      try { return JSON.parse(fenceMatch[1].trim()); } catch {}
+      try { return record(JSON.parse(fenceMatch[1].trim())); } catch {}
     }
 
     // Try 3: First { ... } block
     const braceStart = text.indexOf('{');
     const braceEnd = text.lastIndexOf('}');
     if (braceStart !== -1 && braceEnd > braceStart) {
-      try { return JSON.parse(text.substring(braceStart, braceEnd + 1)); } catch {}
+      try { return record(JSON.parse(text.substring(braceStart, braceEnd + 1))); } catch {}
     }
 
     return null;

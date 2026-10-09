@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Author-built regression corpus, read strictly as text. Not an independent malware evaluation. Benign challenge cases deliberately expose false positives.",
+  "cases": [
+    {"id":"plain-js","label":"benign","file":"plain.js","content":"const greeting = 'hello';\nconsole.log(greeting);\n"},
+    {"id":"plain-ts","label":"benign","file":"plain.ts","content":"export function add(a: number, b: number): number { return a + b; }\n"},
+    {"id":"plain-python","label":"benign","file":"plain.py","content":"def add(a, b):\n    return a + b\n"},
+    {"id":"empty-package","label":"benign","file":"package.json","content":"{\"name\":\"example-fixture\",\"version\":\"1.0.0\"}"},
+    {"id":"plain-task","label":"benign","file":"tasks.json","content":"{\"tasks\":[{\"label\":\"greeting\",\"command\":\"echo hello\"}]}"},
+    {"id":"exact-unlisted-version","label":"benign","file":"package.json","content":"{\"dependencies\":{\"event-stream\":\"4.0.0\"}}"},
+    {"id":"manual-build-script","label":"benign","file":"package.json","content":"{\"scripts\":{\"build\":\"node compile.js\"}}"},
+    {"id":"literal-url","label":"benign","file":"links.js","content":"const documentation = 'https://example.invalid/docs';\n"},
+    {"id":"legitimate-prepare-challenge","label":"benign","file":"package.json","content":"{\"scripts\":{\"prepare\":\"node compile.js\"}}"},
+    {"id":"legitimate-folder-open-challenge","label":"benign","file":"tasks.json","content":"{\"tasks\":[{\"label\":\"greeting\",\"command\":\"echo hello\",\"runOptions\":{\"runOn\":\"folderOpen\"}}]}"},
+    {"id":"comment-pattern-challenge","label":"benign","file":"documentation.js","content":"// Documentation example only: eval( atob(\n"},
+    {"id":"string-pattern-challenge","label":"benign","file":"message.js","content":"const explanation = 'The words eval( and atob( are inert here.';\n"},
+    {"id":"eval-decode-pattern","label":"suspicious-pattern","file":"pattern.js","content":"// Synthetic pattern text, never executed: eval(atob('aGVsbG8='));\n","requiredRuleIds":["eval-obfuscation"]},
+    {"id":"known-declaration","label":"suspicious-pattern","file":"package.json","content":"{\"dependencies\":{\"event-stream\":\"3.3.6\"}}","requiredRuleIds":["npm-known-bad-package"]},
+    {"id":"range-declaration","label":"suspicious-pattern","file":"package.json","content":"{\"dependencies\":{\"event-stream\":\"^3.3.5\"}}","requiredRuleIds":["npm-known-bad-package"]},
+    {"id":"alias-declaration","label":"suspicious-pattern","file":"package.json","content":"{\"dependencies\":{\"alias\":\"npm:event-stream@3.3.6\"}}","requiredRuleIds":["npm-known-bad-package"]},
+    {"id":"script-pattern","label":"suspicious-pattern","file":"package.json","content":"{\"scripts\":{\"postinstall\":\"echo curl example.invalid\"}}","requiredRuleIds":["npm-suspicious-script"]},
+    {"id":"task-pipe-pattern","label":"suspicious-pattern","file":"tasks.json","content":"{\"tasks\":[{\"command\":\"echo\",\"args\":[\"example | sh\"]}]}","requiredRuleIds":["vscode-task-piped-exec"]},
+    {"id":"task-install-pattern","label":"suspicious-pattern","file":"tasks.json","content":"{\"tasks\":[{\"command\":\"echo\",\"args\":[\"code --install-extension example.invalid\"]}]}","requiredRuleIds":["vscode-task-dangerous-cmd"]},
+    {"id":"jsonc-startup-pattern","label":"suspicious-pattern","file":"tasks.json","content":"// Synthetic configuration text\n{\"tasks\":[{\"command\":\"echo hello\",\"runOptions\":{\"runOn\":\"folderOpen\"}},],}","requiredRuleIds":["vscode-task-autoexec"]}
+  ]
+}

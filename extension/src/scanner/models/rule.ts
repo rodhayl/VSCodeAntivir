@@ -35,18 +35,12 @@ export interface AstMatcher extends MatcherBase {
   language?: string;
 }
 
-export interface FileStructureMatcher extends MatcherBase {
-  type: 'file-structure';
-  requiredFiles: string[];
-}
-
 export type Matcher =
   | StringMatcher
   | StringAnyMatcher
   | RegexMatcher
   | EntropyMatcher
-  | AstMatcher
-  | FileStructureMatcher;
+  | AstMatcher;
 
 export interface ConditionAll {
   type: 'all';

@@ -16,8 +16,8 @@ export class RuleLoader {
         if (this.validateRule(rule, file)) {
           this.rules.push(rule);
         }
-      } catch (e: any) {
-        this.errors.push(`Failed to load rule from ${file}: ${e.message}`);
+      } catch (e: unknown) {
+        this.errors.push(`Failed to load rule from ${file}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
   }
@@ -41,7 +41,7 @@ export class RuleLoader {
     return results;
   }
 
-  private validateRule(rule: any, filePath: string): boolean {
+  private validateRule(rule: DetectionRule, filePath: string): boolean {
     if (!rule.id || typeof rule.id !== 'string') {
       this.errors.push(`Rule in ${filePath} missing 'id'`);
       return false;
@@ -59,7 +59,7 @@ export class RuleLoader {
       return false;
     }
     // Validate each matcher has required fields
-    const validMatcherTypes = ['string', 'string-any', 'regex', 'entropy', 'ast', 'file-structure'];
+    const validMatcherTypes = ['string', 'string-any', 'regex', 'entropy', 'ast'];
     for (const matcher of rule.matchers) {
       if (!matcher.id || typeof matcher.id !== 'string') {
         this.errors.push(`Rule ${rule.id} matcher missing 'id'`);
@@ -69,17 +69,20 @@ export class RuleLoader {
         this.errors.push(`Rule ${rule.id} matcher ${matcher.id} has invalid type: ${matcher.type}`);
         return false;
       }
-      if (matcher.type === 'string' && !matcher.pattern) {
+      if ((matcher.type === 'string' || matcher.type === 'ast') && (typeof matcher.pattern !== 'string' || !matcher.pattern)) {
         this.errors.push(`Rule ${rule.id} string matcher ${matcher.id} missing 'pattern'`);
         return false;
       }
-      if (matcher.type === 'string-any' && (!matcher.patterns || !Array.isArray(matcher.patterns))) {
+      if (matcher.type === 'string-any' && (!Array.isArray(matcher.patterns) || !matcher.patterns.length || matcher.patterns.some((pattern: unknown) => typeof pattern !== 'string' || !pattern))) {
         this.errors.push(`Rule ${rule.id} string-any matcher ${matcher.id} missing 'patterns' array`);
         return false;
       }
-      if (matcher.type === 'regex' && !matcher.pattern) {
+      if (matcher.type === 'regex' && (typeof matcher.pattern !== 'string' || !matcher.pattern)) {
         this.errors.push(`Rule ${rule.id} regex matcher ${matcher.id} missing 'pattern'`);
         return false;
+      }
+      if (matcher.type === 'regex') {
+        try { new RegExp(matcher.pattern, matcher.flags || 'i'); } catch { this.errors.push(`Rule ${rule.id} has an invalid regular expression`); return false; }
       }
       if (matcher.type === 'entropy' && (matcher.threshold === undefined || matcher.minLength === undefined)) {
         this.errors.push(`Rule ${rule.id} entropy matcher ${matcher.id} missing 'threshold' or 'minLength'`);
@@ -95,7 +98,7 @@ export class RuleLoader {
       this.errors.push(`Rule ${rule.id} condition missing 'of' array`);
       return false;
     }
-    const matcherIds = new Set(rule.matchers.map((m: any) => m.id));
+    const matcherIds = new Set(rule.matchers.map(m => m.id));
     for (const ref of rule.condition.of) {
       if (!matcherIds.has(ref)) {
         this.errors.push(`Rule ${rule.id} condition.of references unknown matcher: "${ref}"`);

@@ -1,6 +1,6 @@
 const assert = require('assert');
 
-const { escapeHtml, getSecurityScore, getTacticIcon, defangUrl, extractFileName } = require('../../out/providers/provider-utils');
+const { escapeHtml, summarizeFindings, getTacticIcon, extractFileName } = require('../../out/providers/provider-utils');
 
 suite('Provider Utils - escapeHtml', () => {
   test('empty string returns empty', () => {
@@ -28,7 +28,7 @@ suite('Provider Utils - escapeHtml', () => {
   });
 });
 
-suite('Provider Utils - getSecurityScore', () => {
+suite('Provider Utils - summarizeFindings', () => {
   function makeThreat(severity) {
     return {
       ruleId: 'test',
@@ -40,10 +40,10 @@ suite('Provider Utils - getSecurityScore', () => {
     };
   }
 
-  test('empty threat map gives score 100', () => {
+  test('empty map reports zero findings, not a safety score', () => {
     const map = new Map();
-    const { score, bySeverity } = getSecurityScore(map);
-    assert.strictEqual(score, 100);
+    const { count, bySeverity } = summarizeFindings(map);
+    assert.strictEqual(count, 0);
     assert.strictEqual(bySeverity.critical, 0);
     assert.strictEqual(bySeverity.high, 0);
     assert.strictEqual(bySeverity.medium, 0);
@@ -51,42 +51,42 @@ suite('Provider Utils - getSecurityScore', () => {
     assert.strictEqual(bySeverity.info, 0);
   });
 
-  test('one critical threat reduces score by 25', () => {
+  test('critical finding is counted', () => {
     const map = new Map([['file.js', [makeThreat(0)]]]);
-    const { score, bySeverity } = getSecurityScore(map);
-    assert.strictEqual(score, 75);
+    const { count, bySeverity } = summarizeFindings(map);
+    assert.strictEqual(count, 1);
     assert.strictEqual(bySeverity.critical, 1);
   });
 
-  test('one high threat reduces score by 15', () => {
+  test('high finding is counted', () => {
     const map = new Map([['file.js', [makeThreat(1)]]]);
-    const { score } = getSecurityScore(map);
-    assert.strictEqual(score, 85);
+    const { count } = summarizeFindings(map);
+    assert.strictEqual(count, 1);
   });
 
-  test('one medium threat reduces score by 8', () => {
+  test('medium finding is counted', () => {
     const map = new Map([['file.js', [makeThreat(2)]]]);
-    const { score } = getSecurityScore(map);
-    assert.strictEqual(score, 92);
+    const { count } = summarizeFindings(map);
+    assert.strictEqual(count, 1);
   });
 
-  test('one low threat reduces score by 3', () => {
+  test('low finding is counted', () => {
     const map = new Map([['file.js', [makeThreat(3)]]]);
-    const { score } = getSecurityScore(map);
-    assert.strictEqual(score, 97);
+    const { count } = summarizeFindings(map);
+    assert.strictEqual(count, 1);
   });
 
-  test('one info threat reduces score by 1', () => {
+  test('info finding is counted', () => {
     const map = new Map([['file.js', [makeThreat(4)]]]);
-    const { score } = getSecurityScore(map);
-    assert.strictEqual(score, 99);
+    const { count } = summarizeFindings(map);
+    assert.strictEqual(count, 1);
   });
 
-  test('score floors at 0', () => {
+  test('count retains all ten findings', () => {
     const threats = Array(10).fill(makeThreat(0));
     const map = new Map([['file.js', threats]]);
-    const { score } = getSecurityScore(map);
-    assert.strictEqual(score, 0);
+    const { count } = summarizeFindings(map);
+    assert.strictEqual(count, 10);
   });
 
   test('multiple files aggregated', () => {
@@ -94,8 +94,8 @@ suite('Provider Utils - getSecurityScore', () => {
       ['a.js', [makeThreat(0)]],
       ['b.js', [makeThreat(1)]],
     ]);
-    const { score, bySeverity } = getSecurityScore(map);
-    assert.strictEqual(score, 60); // 100 - 25 - 15
+    const { count, bySeverity } = summarizeFindings(map);
+    assert.strictEqual(count, 2);
     assert.strictEqual(bySeverity.critical, 1);
     assert.strictEqual(bySeverity.high, 1);
   });
@@ -144,32 +144,6 @@ suite('Provider Utils - getTacticIcon', () => {
 
   test('unknown tactic returns default icon', () => {
     assert.strictEqual(getTacticIcon('SomeNewTactic'), '❓');
-  });
-});
-
-suite('Provider Utils - defangUrl', () => {
-  test('defangs http to hxxp', () => {
-    assert.strictEqual(defangUrl('http://evil.com'), 'hxxp://evil[.]com');
-  });
-
-  test('defangs https to hxxps', () => {
-    assert.strictEqual(defangUrl('https://evil.com/payload'), 'hxxps://evil[.]com/payload');
-  });
-
-  test('defangs all dots', () => {
-    assert.strictEqual(defangUrl('http://a.b.c.d'), 'hxxp://a[.]b[.]c[.]d');
-  });
-
-  test('no URL returns text with dots defanged', () => {
-    assert.strictEqual(defangUrl('no url here'), 'no url here');
-  });
-
-  test('multiple URLs defanged', () => {
-    const input = 'visit http://a.com or https://b.org';
-    const result = defangUrl(input);
-    assert(result.includes('hxxp'));
-    assert(!result.includes('http://'));
-    assert(!result.includes('https://'));
   });
 });
 

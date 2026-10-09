@@ -157,3 +157,66 @@ suite('Extension scan and consent safety',()=>{
     assert.strictEqual(fs.readFileSync(manager.getQuarantinedFiles()[0].quarantinePath,'utf8'),'{"example":true}');
   }));
 });
+
+suite('Restricted Mode read-only inspection', () => {
+  test('manual scan works without filesystem changes, client initialization or watchers', () => fixture(async(h,root,write) => {
+    const content='{"scripts":{"prepare":"node benign-build.js"}}'; const file=write('workspace/package.json',content);
+    h.vscode.workspace.workspaceFolders=[{name:'fixture',uri:h.uri(path.join(root,'workspace'))}];
+    h.activate(); await tick();
+    assert.strictEqual(h.watchers.length,0); assert.strictEqual(h.clients.length,0); assert.strictEqual(h.modelCalls.length,0);
+    assert(!fs.existsSync(path.join(root,'home'))); assert(!h.messages.some(m=>m.text.includes('scripts need review')));
+    await h.commands.get('fig.scanFile')(h.uri(file)); assert(h.diagnostics.get(file)?.length>0);
+    await h.commands.get('fig.scanWorkspace')(); assert(h.diagnostics.get(file)?.length>0);
+    assert.strictEqual(fs.readFileSync(file,'utf8'),content); assert(!fs.existsSync(path.join(root,'home')));
+  },{trusted:false,user:llmUser}));
+  test('workspace scan overrides cannot suppress findings or load custom rules', () => fixture(async(h,root,write) => {
+    const file=write('package.json','{"scripts":{"prepare":"node benign-build.js"}}');
+    h.workspace['fig.customRulesPath']=path.join(root,'custom');
+    write('custom/custom.json',JSON.stringify({id:'injected',name:'Injected',severity:'critical',matchers:[{id:'x',type:'string',pattern:'prepare'}],condition:{type:'all',of:['x']},appliesTo:{filePatterns:['**/*']}}));
+    h.activate(); await tick(); await h.commands.get('fig.scanFile')(h.uri(file));
+    assert(h.diagnostics.get(file)?.length>0); assert(!h.diagnostics.get(file).some(d=>d.code==='injected'));
+  },{trusted:false,workspace:{'fig.excludedPaths':['**/*'],'fig.minimumSeverity':'critical','fig.maxFileSizeKB':0.001}}));
+  test('all mutation/model command routes stay disabled including after trust changes without reload', () => fixture(async(h,root,write) => {
+    const content='const greeting="hello";'; const file=write('example.js',content);
+    h.activate(); await tick(); await h.vscode.window.showTextDocument(h.makeDocument(file,content));
+    for (const trusted of [false,true]) {
+      h.vscode.workspace.isTrusted=trusted;
+      h.fire('config',{affectsConfiguration:()=>true});
+      for(const command of ['fig.reviewConfiguration','fig.quarantineFile','fig.showQuarantine','fig.llmAnalyze','fig.llmExplain','fig.llmSuggestRule','fig.llmStatus']) await h.commands.get(command)(h.uri(file));
+    }
+    assert.strictEqual(h.clients.length,0); assert.strictEqual(h.modelCalls.length,0); assert(!fs.existsSync(path.join(root,'home')));
+    assert.strictEqual(fs.readFileSync(file,'utf8'),content);
+  },{trusted:false,user:llmUser}));
+  test('quick fixes expose review commands, never unverified line edits', () => fixture(async(h,_root,write) => {
+    h.vscode.CodeAction=class {constructor(title,kind){this.title=title;this.kind=kind;}};
+    const file=write('example.js','eval("harmless");');const doc=h.makeDocument(file,'eval("harmless");');
+    const {CodeActionProvider}=h.load('providers/code-action-provider');
+    const diagnostic={source:'FakeInterviewGuard',code:'eval',message:'eval finding',range:{start:{line:0}}};
+    for (const trusted of [false,true]) {
+      h.vscode.workspace.isTrusted=trusted;
+      const actions=new CodeActionProvider().provideCodeActions(doc,{}, {diagnostics:[diagnostic]}, {});
+      assert(actions.length>0);assert(actions.every(action=>!action.edit));
+      if(!trusted)assert(actions.every(action=>action.command.command==='fig.showThreatDetails'));
+    }
+  }));
+});
+
+suite('Untrusted model data validation', () => {
+  test('malformed model fields cannot crash mapping or invent enabled configuration', () => fixture(async(h) => {
+    const {ResponseParser}=h.load('llm/response-parser');const parser=new ResponseParser();
+    const result=parser.parseAnalysisResponse(JSON.stringify({malicious:true,confidence:999,threats:[null,42,{type:42,severity:{},evidence:[],line:-1,recommendation:false}],summary:{}}),'stub',1);
+    assert.strictEqual(result.confidence,100);assert.strictEqual(result.threats.length,1);assert.strictEqual(result.threats[0].type,'Unknown Threat');assert.strictEqual(result.summary,'');
+    assert.doesNotThrow(()=>parser.mapToThreats(result,'fixture.js','const x = 1;'));
+    for(const value of ['null','[]','42'])assert.strictEqual(parser.parseAnalysisResponse(value,'stub',1).confidence,0);
+    const {readLlmConfig}=h.load('llm/models');const config=readLlmConfig(()=>({malformed:true}));
+    assert.strictEqual(config.enabled,false);assert.strictEqual(config.autoAnalyze,false);assert.strictEqual(config.provider,'lmstudio');
+  }));
+  test('dashboard is script-free and never represents absent findings as a security score', () => fixture(async(h) => {
+    let options; const panel={webview:{html:''},onDidDispose(){},dispose(){}};
+    h.vscode.window.createWebviewPanel=(_type,_title,_column,value)=>{options=value;return panel;};
+    const {DashboardPanel}=h.load('providers/dashboard-panel');const dashboard=DashboardPanel.createOrShow(h.context.extensionUri);
+    dashboard.update(new Map());assert.strictEqual(options.enableScripts,false);
+    assert(panel.webview.html.includes('not a safety verdict'));assert(!panel.webview.html.includes('Security Score'));assert(!panel.webview.html.includes('100/100'));
+    dashboard.dispose();
+  }));
+});

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-09",
+  "repository": "rodhayl/VSCodeAntivir",
+  "branch": "codex/safe-remediation-20261004",
+  "baseCommit": "4d8b6cac776fb8ff423622f0f569b607f666333c",
+  "status": "NATIVE_ACCEPTANCE_INCOMPLETE",
+  "artifact": {
+    "name": "fake-interview-guard-1.0.0.vsix",
+    "sha256": "4ccae739b2b8ec483234ee2d8ac36f18aae6fc36aec265e522c9a646b392bb0e",
+    "bytes": 1398322,
+    "entries": 1098,
+    "packagedInputDigest": "968fd7a49a26471eab5b526a565c2b2593c0ed678d74da14c19530168af81583"
+  },
+  "testedSourceSnapshot": {
+    "sha256": "5a8e28f229d5d67a4d4f7b0041d671eea6204d87909084eb94145fb616ed7db0",
+    "files": 158,
+    "scope": "Repository source excluding docs/reports/portfolio-20261009, node_modules, out, .vscode-test, .git, generated extension README/CHANGELOG/benchmark output, VSIX and log files. Digest is SHA256 of a path-keyed JSON object sorted by key with compact separators; each value has blob (Git SHA1), sha256 and bytes."
+  },
+  "inputs": {
+    "extension/package.json": "ed52744d3aac88164cdde05b64a1199da46c257e468c2e12fa5dadebe8f456d4",
+    "extension/package-lock.json": "adb9b1ac961441ef2b81b37949414f2f2d6736d6651e59d144bb552ad808b69b",
+    "extension/test/runUnit.js": "9ef81705390e05678d1009d6c11f2d9387a4cd5dfeb98913fa05a802187b996f",
+    "extension/test/suite/index.js": "3db9e188ae8d6c03eb45bab0cb86c4f541637a1d0a482e062c937fed6d064132",
+    "extension/test/unit/runner-and-scan-safety.test.js": "b196ceea5b97a38d2acf9614ba64f1991d9dc319acfc0db72a9f551e86e66deb"
+  },
+  "verification": {
+    "npmCi": "PASS_NODE_24_19_0_IGNORE_SCRIPTS",
+    "typecheck": [
+      "PASS_NODE_24_19_0",
+      "PASS_NODE_22_13_0"
+    ],
+    "lintWarnings": 0,
+    "unit": {
+      "initialPassed": 376,
+      "finalPassedEach": 380,
+      "nodes": [
+        "24.19.0",
+        "22.13.0"
+      ]
+    },
+    "audit": {
+      "production": 0,
+      "allDependencies": 0
+    },
+    "packageSmoke": [
+      "PASS_NODE_24_19_0",
+      "PASS_NODE_22_13_0"
+    ],
+    "extensionHost": {
+      "status": "BLOCKED_BEFORE_TESTS",
+      "vscodeVersion": "1.141.0",
+      "build": "07b4ff1883f94da91f6d698744fc7c3638b59720",
+      "reason": "SIGTRAP; missing display/X server and socket restrictions; no supported Xvfb available"
+    },
+    "installedNativeAcceptance": "NOT_RUN"
+  },
+  "benchmark": {
+    "scope": "Author-built synthetic text corpus; positive means an expected suspicious pattern, not confirmed malware. Benign challenges intentionally measure false positives. Timings exclude startup, rule loading, disk traversal, UI and LLMs. Not an independent detection or editor-responsiveness evaluation.",
+    "identity": {
+      "packageVersion": "1.0.0",
+      "corpusSha256": "73ac21ed84ae68b3990222cb7f9f53a84865320dbb74468decaba1b0a74ad4ce",
+      "rulesSha256": "45860b5405ecd4720cf9800f4a70e324ea0d226aeccd871282941d900c24b9c0",
+      "sourceSha256": "540a97ee637137db7dfe9b8dfc5a627c98a616132505561d9baa3fb9d104b1d4",
+      "lockfileSha256": "adb9b1ac961441ef2b81b37949414f2f2d6736d6651e59d144bb552ad808b69b"
+    },
+    "cases": 20,
+    "iterations": 20,
+    "matrix": {
+      "truePositive": 8,
+      "falsePositive": 4,
+      "trueNegative": 8,
+      "falseNegative": 0,
+      "errors": 0
+    }
+  },
+  "minimumNodeProbe": {
+    "version": "22.13.0",
+    "officialArchiveSha256": "3ff0d57063c33313d73d0bdcebc4c778ad6be948234584694a042c6fe57164f6",
+    "before": "require(mocha) namespace was not a constructor",
+    "after": "Both runner module shapes pass; full 380 tests pass"
+  },
+  "independentReviewScope": {
+    "initialSelectedTests": 136,
+    "initialSourceFilesVerified": 158,
+    "packagedInputFilesVerified": 98,
+    "runtimeJsFilesMatchedToCompiler": 37,
+    "subsequentScope": "Narrow dependency/runner delta and final source/package linkage; not native acceptance"
+  }
+}

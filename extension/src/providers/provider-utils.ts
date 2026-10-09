@@ -1,11 +1,11 @@
-import { Severity, severityToString } from '../scanner/models/severity';
+import { severityToString } from '../scanner/models/severity';
 import { Threat } from '../scanner/models/threat';
 
 export function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-export function getSecurityScore(threatMap: Map<string, Threat[]>): { score: number; bySeverity: Record<string, number> } {
+export function summarizeFindings(threatMap: Map<string, Threat[]>): { count: number; bySeverity: Record<string, number> } {
   const allThreats: Threat[] = [];
   for (const threats of threatMap.values()) {
     allThreats.push(...threats);
@@ -16,10 +16,7 @@ export function getSecurityScore(threatMap: Map<string, Threat[]>): { score: num
     bySeverity[severityToString(t.severity)]++;
   }
 
-  const totalWeight = bySeverity.critical * 25 + bySeverity.high * 15 + bySeverity.medium * 8 + bySeverity.low * 3 + bySeverity.info * 1;
-  const score = Math.max(0, 100 - totalWeight);
-
-  return { score, bySeverity };
+  return { count: allThreats.length, bySeverity };
 }
 
 const TACTIC_ICONS: Record<string, string> = {
@@ -37,12 +34,6 @@ const TACTIC_ICONS: Record<string, string> = {
 
 export function getTacticIcon(tactic: string): string {
   return TACTIC_ICONS[tactic] || '❓';
-}
-
-export function defangUrl(text: string): string {
-  return text
-    .replace(/https?:\/\//g, (m) => m.replace('http', 'hxxp'))
-    .replace(/\./g, '[.]');
 }
 
 export function extractFileName(filePath: string): string {

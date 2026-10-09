@@ -30,8 +30,9 @@ let outputChannel: vscode.OutputChannel;
 let taskInterceptor: TaskInterceptor;
 let npmInterceptor: NpmScriptInterceptor;
 let gitInterceptor: GitConfigInterceptor;
-let quarantineManager: QuarantineManager;
-let quarantineTreeProvider: QuarantineTreeProvider;
+let quarantineManager: QuarantineManager | undefined;
+let quarantineTreeProvider: QuarantineTreeProvider | undefined;
+let trustedSession = false;
 let notificationService: BlockingNotificationService;
 
 // LLM components (initialized lazily when enabled)
@@ -42,6 +43,12 @@ let llmEngine: LlmAnalysisEngine | null = null;
 const activeAnalyses = new Map<string, AbortController>();
 let llmGeneration = 0;
 let automaticConsent = '';
+function scanSetting<T>(key: string, fallback: T): T {
+  const config = vscode.workspace.getConfiguration('fig');
+  if (trustedSession && vscode.workspace.isTrusted) return config.get<T>(key, fallback);
+  const setting = config.inspect<T>(key);
+  return setting?.globalValue ?? setting?.defaultValue ?? fallback;
+}
 function userLlmConfig() {
   return readLlmConfig(key => {
     const setting = vscode.workspace.getConfiguration().inspect(key);
@@ -88,11 +95,8 @@ function contentStillCurrent(filePath: string, content: string): boolean {
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('FakeInterviewGuard');
   outputChannel.appendLine('FakeInterviewGuard activating...');
-  if (!vscode.workspace.isTrusted) {
-    outputChannel.appendLine('Disabled in Restricted Mode; no file changes or model requests were made.');
-    context.subscriptions.push(outputChannel);
-    return;
-  }
+  trustedSession = vscode.workspace.isTrusted;
+  if (!trustedSession) outputChannel.appendLine('Restricted Mode: manual static inspection only. Remediation, quarantine and model requests are disabled until a trusted window is reloaded.');
 
   // Initialize core components
   scanner = new Scanner();
@@ -104,10 +108,10 @@ export function activate(context: vscode.ExtensionContext) {
   taskInterceptor = new TaskInterceptor(outputChannel);
   npmInterceptor = new NpmScriptInterceptor(outputChannel);
   gitInterceptor = new GitConfigInterceptor(outputChannel);
-  quarantineManager = new QuarantineManager(outputChannel);
-  quarantineTreeProvider = new QuarantineTreeProvider(quarantineManager);
+  quarantineManager = trustedSession ? new QuarantineManager(outputChannel) : undefined;
+  quarantineTreeProvider = quarantineManager ? new QuarantineTreeProvider(quarantineManager) : undefined;
   notificationService = new BlockingNotificationService(outputChannel);
-  notificationService.setQuarantineManager(quarantineManager);
+  if (quarantineManager) notificationService.setQuarantineManager(quarantineManager);
   notificationService.setTaskInterceptor(taskInterceptor);
   notificationService.setNpmInterceptor(npmInterceptor);
   notificationService.setGitInterceptor(gitInterceptor);
@@ -132,7 +136,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Inspect workspace on activation; changes require an explicit review action.
-  void interceptWorkspaceOnOpen().catch(error => outputChannel.appendLine(`Workspace inspection failed: ${String(error)}`));
+  if (trustedSession) void interceptWorkspaceOnOpen().catch(error => outputChannel.appendLine(`Workspace inspection failed: ${String(error)}`));
 
   // Load rules
   const rulesDir = path.join(context.extensionPath, 'rules');
@@ -153,10 +157,10 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Register Quarantine TreeView
-  const quarantineTreeView = vscode.window.createTreeView('fig.quarantine', {
-    treeDataProvider: quarantineTreeProvider,
-    showCollapseAll: true,
-  });
+  if (quarantineTreeProvider) {
+    const quarantineTreeView = vscode.window.createTreeView('fig.quarantine', { treeDataProvider: quarantineTreeProvider, showCollapseAll: true });
+    context.subscriptions.push(quarantineTreeProvider, quarantineTreeView);
+  }
 
   // Register CodeActionProvider for all relevant languages
   const codeActionProvider = new CodeActionProvider();
@@ -171,6 +175,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register commands
   context.subscriptions.push(
+    vscode.commands.registerCommand('fig.reviewConfiguration', async () => {
+      if (!trustedSession || !vscode.workspace.isTrusted) { vscode.window.showWarningMessage('FIG: Configuration changes require a trusted window. Read-only scans remain available.'); return; }
+      await interceptWorkspaceOnOpen();
+    }),
     vscode.commands.registerCommand('fig.scanWorkspace', () => scanWorkspace(context)),
     vscode.commands.registerCommand('fig.scanFile', (uri?: vscode.Uri) => scanSingleFile(uri)),
     vscode.commands.registerCommand('fig.showDashboard', () => showDashboard(context)),
@@ -199,9 +207,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register event handlers
-  const config = vscode.workspace.getConfiguration('fig');
-
-  if (config.get<boolean>('scanOnSave', true)) {
+  if (trustedSession && scanSetting<boolean>('scanOnSave', true)) {
     context.subscriptions.push(
       vscode.workspace.onDidSaveTextDocument(doc => {
         scanDocument(doc);
@@ -209,7 +215,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
   }
 
-  if (config.get<boolean>('scanOnOpen', true)) {
+  if (trustedSession && scanSetting<boolean>('scanOnOpen', true)) {
     context.subscriptions.push(
       vscode.workspace.onDidOpenTextDocument(doc => {
         scanDocument(doc);
@@ -218,7 +224,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   // File watcher for real-time monitoring
-  if (config.get<boolean>('realTimeWatching', true)) {
+  if (trustedSession && scanSetting<boolean>('realTimeWatching', true)) {
     const watcher = vscode.workspace.createFileSystemWatcher('**/*.{js,mjs,ts,py,json,ps1,sh,yml,yaml,go,mod}');
     const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'];
 
@@ -231,8 +237,8 @@ export function activate(context: vscode.ExtensionContext) {
         const result = scanner.scanFile(uri.fsPath, undefined, vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath);
         diagnosticsProvider.updateFileResults(result);
         updateUI();
-      } catch (e: any) {
-        outputChannel.appendLine(`File watcher error scanning ${uri.fsPath}: ${e.message}`);
+      } catch (e: unknown) {
+        outputChannel.appendLine(`File watcher error scanning ${uri.fsPath}: ${e instanceof Error ? e.message : String(e)}`);
       }
     };
 
@@ -254,15 +260,15 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register disposables
-  context.subscriptions.push(diagnosticsProvider, statusBar, treeView, quarantineTreeView, outputChannel);
+  context.subscriptions.push(diagnosticsProvider, statusBar, treeView, outputChannel);
 
   // Initial scan of open documents
-  for (const doc of vscode.workspace.textDocuments) {
+  if (trustedSession) for (const doc of vscode.workspace.textDocuments) {
     scanDocument(doc);
   }
 
   const ruleCount = scanner.getRules().length;
-  const quarantineCount = quarantineManager.getCount();
+  const quarantineCount = quarantineManager?.getCount() ?? 0;
   outputChannel.appendLine(`FakeInterviewGuard activated. ${ruleCount} rules loaded, ${quarantineCount} files in quarantine.`);
   vscode.window.showInformationMessage(`FakeInterviewGuard activated — ${ruleCount} detection rules loaded`);
 }
@@ -300,13 +306,13 @@ function initializeLlm(): void {
   llmClient = null;
   llmEngine = null;
 
-  if (config.enabled && vscode.workspace.isTrusted) {
+  if (config.enabled && trustedSession && vscode.workspace.isTrusted) {
     try {
       llmClient = new LlmClient(config);
       llmEngine = new LlmAnalysisEngine(llmClient, llmCache, promptBuilder, config.promptProfile);
       outputChannel.appendLine(`LLM initialized: ${config.provider} / ${config.model}`);
-    } catch (e: any) {
-      outputChannel.appendLine(`LLM init failed: ${e.message}`);
+    } catch (e: unknown) {
+      outputChannel.appendLine(`LLM init failed: ${e instanceof Error ? e.message : String(e)}`);
       llmClient = null;
       llmEngine = null;
     }
@@ -316,9 +322,8 @@ function initializeLlm(): void {
 }
 
 function loadRules(rulesDir: string): void {
-  const config = vscode.workspace.getConfiguration('fig');
-  const customPath = config.get<string>('customRulesPath', '');
-  const rawRuleSets = config.get<string | string[]>('enabledRuleSets', []);
+  const customPath = trustedSession && vscode.workspace.isTrusted ? scanSetting<string>('customRulesPath', '') : '';
+  const rawRuleSets = scanSetting<string | string[]>('enabledRuleSets', []);
   const enabledRuleSets = Array.isArray(rawRuleSets) ? rawRuleSets : [rawRuleSets];
   const result = scanner.loadRules(rulesDir, customPath || undefined, enabledRuleSets);
   outputChannel.appendLine(`Loaded ${result.count} rules`);
@@ -326,10 +331,10 @@ function loadRules(rulesDir: string): void {
     outputChannel.appendLine(`Rule loading errors:\n${result.errors.join('\n')}`);
   }
 
-  const excluded = config.get<string[]>('excludedPaths', ['**/node_modules/**', '**/.git/**']);
+  const excluded = scanSetting<string[]>('excludedPaths', ['**/node_modules/**', '**/.git/**']);
   scanner.setExcludedPatterns(excluded);
-  scanner.setMaxFileSizeKB(config.get<number>('maxFileSizeKB', 512));
-  diagnosticsProvider.setMinimumSeverity(config.get<string>('minimumSeverity', 'low'));
+  scanner.setMaxFileSizeKB(scanSetting<number>('maxFileSizeKB', 512));
+  diagnosticsProvider.setMinimumSeverity(scanSetting<string>('minimumSeverity', 'low'));
 }
 
 function scanDocument(doc: vscode.TextDocument): void {
@@ -355,8 +360,8 @@ function scanDocument(doc: vscode.TextDocument): void {
         }
       }
     }
-  } catch (e: any) {
-    outputChannel.appendLine(`Error scanning ${filePath}: ${e.message}`);
+  } catch (e: unknown) {
+    outputChannel.appendLine(`Error scanning ${filePath}: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -489,12 +494,12 @@ async function llmAnalyzeCurrentFile(context: vscode.ExtensionContext): Promise<
           }
         });
 
-       } catch (e: any) {
-        if (controller.signal.aborted || e.name === 'AbortError') {
+       } catch (e: unknown) {
+        if (controller.signal.aborted || (e instanceof Error && e.name === 'AbortError')) {
           vscode.window.showInformationMessage('LLM analysis cancelled');
         } else {
-          outputChannel.appendLine(`[LLM] Error: ${e.message}`);
-          vscode.window.showErrorMessage(`LLM analysis failed: ${e.message}`);
+          outputChannel.appendLine(`[LLM] Error: ${e instanceof Error ? e.message : String(e)}`);
+          vscode.window.showErrorMessage(`LLM analysis failed: ${e instanceof Error ? e.message : String(e)}`);
         }
       } finally {
         cancelDisposable?.dispose();
@@ -546,8 +551,8 @@ async function llmExplainThreat(
         outputChannel.appendLine(`\n--- LLM Threat Explanation ---\n${explanation}`);
         outputChannel.show();
         vscode.window.showInformationMessage('Explanation written to Output channel');
-      } catch (e: any) {
-        if (!controller.signal.aborted) vscode.window.showErrorMessage(`LLM explain failed: ${e.message}`);
+      } catch (e: unknown) {
+        if (!controller.signal.aborted) vscode.window.showErrorMessage(`LLM explain failed: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         cancelDisposable.dispose();
         if (activeAnalyses.get(filePath!) === controller) activeAnalyses.delete(filePath!);
@@ -586,8 +591,8 @@ async function llmSuggestRule(): Promise<void> {
         const doc = await vscode.workspace.openTextDocument({ content: ruleJson, language: 'json' });
         await vscode.window.showTextDocument(doc);
         vscode.window.showInformationMessage('LLM-suggested rule opened. Save to extension/rules/ to activate.');
-      } catch (e: any) {
-        if (!controller.signal.aborted) vscode.window.showErrorMessage(`LLM rule suggestion failed: ${e.message}`);
+      } catch (e: unknown) {
+        if (!controller.signal.aborted) vscode.window.showErrorMessage(`LLM rule suggestion failed: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         cancelDisposable.dispose();
         if (activeAnalyses.get(filePath) === controller) activeAnalyses.delete(filePath);
@@ -612,6 +617,7 @@ function showDashboard(context: vscode.ExtensionContext): void {
 }
 
 function showQuarantine(context: vscode.ExtensionContext): void {
+  if (!trustedSession || !vscode.workspace.isTrusted || !quarantineManager) { vscode.window.showWarningMessage('FIG: Quarantine is disabled in this read-only session.'); return; }
   QuarantinePanel.createOrShow(context.extensionUri, quarantineManager);
 }
 
@@ -623,7 +629,7 @@ async function quarantineFile(uri?: vscode.Uri): Promise<void> {
   }
 
   const filePath = targetUri.fsPath;
-  if (!vscode.workspace.isTrusted || vscode.workspace.textDocuments.some(d => d.uri.fsPath === filePath && d.isDirty)) {
+  if (!trustedSession || !quarantineManager || !vscode.workspace.isTrusted || vscode.workspace.textDocuments.some(d => d.uri.fsPath === filePath && d.isDirty)) {
     vscode.window.showWarningMessage('FIG: Quarantine requires a trusted workspace and no unsaved edits in the selected file.');
     return;
   }

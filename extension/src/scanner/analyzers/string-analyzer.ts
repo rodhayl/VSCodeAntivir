@@ -1,16 +1,4 @@
-/** Extract string literals from JavaScript/TypeScript content. For AST analysis future use. */
-export function extractStringLiterals(content: string): Array<{ value: string; index: number }> {
-  const results: Array<{ value: string; index: number }> = [];
-  const pattern = /(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)')/g;
-  let match;
-  while ((match = pattern.exec(content)) !== null) {
-    const value = match[1] ?? match[2] ?? '';
-    if (value.length > 0) {
-      results.push({ value, index: match.index });
-    }
-  }
-  return results;
-}
+
 
 export function countHexStrings(content: string, minLen: number = 40): number {
   const hexPattern = /(?:0x)?[0-9a-fA-F]{40,}/g;

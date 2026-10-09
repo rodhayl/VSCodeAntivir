@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Portfolio and review hardening
+- Add manual bundled-rule scanning in Restricted Mode, with model, remediation, quarantine and automatic-scanning gates.
+- Stage restored bytes before exclusive destination publication; preserve recovery payloads on write failure, conflicts and detected concurrent changes.
+- Distinguish package declarations/ranges/aliases without claiming execution blocking; reject malformed package fields.
+- Replace destructive line-based quick fixes with explicit review/details, remove the uncalibrated dashboard security score, and consolidate shared presentation helpers.
+- Add a hashed synthetic corpus/benchmark, deterministic package provenance, zero-warning lint and precise recovery/verification guides.
+- Remove unused direct parser dependencies and the obsolete legacy ESLint configuration; retain source compatibility where justified.
+
+Historical entries below record earlier project descriptions, not verified release/publication or current capability claims. In particular, “blocks before execution” and family/count claims from older entries are superseded by the current README's scope.
+
+
 ### Safety and correctness
 - Make startup configuration inspection read-only and require explicit review before remediation; preserve verified backups and refuse changed, dirty or symlink targets.
 - Make quarantine conflict-safe, private and recoverable across metadata failures and independent windows; refuse corrupt/escaping entries, snapshot destructive selections and confirm actions in the extension host.

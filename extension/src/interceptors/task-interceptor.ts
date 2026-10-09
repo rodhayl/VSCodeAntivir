@@ -74,11 +74,12 @@ export class TaskInterceptor {
       return result;
     }
 
-    let tasks: any;
+    let tasks: { tasks?: { label?: string; command?: unknown; args?: unknown[]; runOptions?: { runOn?: string } }[] };
     try {
       const errors: ParseError[] = [];
       tasks = parse(content, errors, { allowTrailingComma: true });
-      if (errors.length || !tasks || !Array.isArray(tasks.tasks ?? [])) throw new Error('Invalid task configuration');
+      if (errors.length || !tasks || typeof tasks !== 'object' || Array.isArray(tasks) ||
+          (tasks.tasks !== undefined && (!Array.isArray(tasks.tasks) || tasks.tasks.some((task: unknown) => !task || typeof task !== 'object' || Array.isArray(task))))) throw new Error('Invalid task configuration');
     } catch (error) {
       result.error = String(error);
       return result;
