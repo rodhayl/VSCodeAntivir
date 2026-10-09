@@ -268,6 +268,8 @@ async function runInstalledGuiAcceptance(options = {}) {
         'workbench.startupEditor': 'none', 'security.workspace.trust.enabled': true,
         'security.workspace.trust.emptyWindow': false, 'security.workspace.trust.startupPrompt': 'always',
         'security.workspace.trust.banner': 'always', 'task.allowAutomaticTasks': 'off',
+        'git.openRepositoryInParentFolders': 'never', 'git.enabled': false,
+        'window.dialogStyle': 'custom',
         'fig.scanOnOpen': false, 'fig.scanOnSave': false, 'fig.realTimeWatching': false,
       }, null, 2));
       const launchEnv = { ...process.env, HOME: home, USERPROFILE: home }; delete launchEnv.ELECTRON_RUN_AS_NODE;
