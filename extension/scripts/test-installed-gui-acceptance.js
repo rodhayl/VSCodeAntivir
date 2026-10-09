@@ -194,7 +194,7 @@ class CdpClient {
         await this.call('Runtime.enable', {}, sessionId); this.attachedTargets.add(target.targetId);
       }
       const expression = `(() => { if (!document.querySelector('h1')?.textContent.includes('Quarantine Manager')) return false; const rows = Array.from(document.querySelectorAll('tr[data-id]')).filter(el => el.getAttribute('data-id') === ${JSON.stringify(id)}); if (rows.length !== 1) return false; if (${JSON.stringify(buttonClass === undefined)}) return { id: rows[0].getAttribute('data-id'), text: rows[0].textContent.trim() }; const button = rows[0].querySelector(${JSON.stringify('button.' + buttonClass)}); if (!button || button.disabled) return false; button.click(); return true; })()`;
-      for (const context of this.contexts.values()) {
+      for (const context of Array.from(this.contexts.values()).reverse()) {
         try { const observed = await this.evaluate(expression, context); if (observed) return observed; }
         catch (error) { if (!/context|frame|target/i.test(error.message)) throw error; }
       }
@@ -415,6 +415,8 @@ async function runInstalledGuiAcceptance(options = {}) {
     await cdp.webviewAction(entry.id, 'restore'); const restoreRefusal = await cdp.toast('restore destination already exists');
     recorder.check('quarantine_conflict', fs.readFileSync(artifactFile, 'utf8') === newWork && entries().some(value => value.id === entry.id), { restoreRefusal, entryId: entry.id });
     await cdp.screenshot(recorder, '11-restore-conflict', { restoreRefusal });
+    await cdp.command('Notifications: Clear All Notifications');
+    await sleep(500);
     // Preserve the synthetic conflict as evidence, freeing only its disposable destination.
     fs.renameSync(artifactFile, path.join(trusted.workspace, 'retained-conflict.txt'));
     await cdp.webviewAction(entry.id, 'restore'); dialog = await until(() => cdp.dialog(), 'restore confirmation'); requireDialog(dialog, 'Restore this quarantined file?', 'Restore file');
