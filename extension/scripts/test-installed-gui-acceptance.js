@@ -428,7 +428,8 @@ async function runInstalledGuiAcceptance(options = {}) {
     await cdp.key('F1', 'F1', 112);
     await until(() => cdp.evaluate(`Array.from(document.querySelectorAll('.quick-input-widget input')).some(el => (${visibleScript})(el))`), 'Command Palette input');
     await cdp.evaluate(`(() => { const el = Array.from(document.querySelectorAll('.quick-input-widget input')).find(${visibleScript}); if (el) { el.focus(); el.select(); } })()`);
-    await cdp.insert('FIG:');
+    await cdp.insert('> FIG:');
+    await until(() => cdp.evaluate(`Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).filter(${visibleScript}).length >= 2`), 'at least 2 FIG palette rows');
     const focusedBefore = await until(() => cdp.evaluate(`document.querySelector('.quick-input-widget input')?.getAttribute('aria-activedescendant')`), 'keyboard-focused palette row');
     await cdp.key('ArrowDown', 'ArrowDown', 40);
     const focusedAfter = await until(async () => { const value = await cdp.evaluate(`document.querySelector('.quick-input-widget input')?.getAttribute('aria-activedescendant')`); return value && value !== focusedBefore ? value : null; }, 'keyboard focus moved to a different palette row');
