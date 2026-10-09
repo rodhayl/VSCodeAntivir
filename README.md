@@ -6,7 +6,7 @@ Static workspace review for VS Code. This is the extension developed in the publ
 
 FakeInterviewGuard reads source and configuration files, highlights suspicious patterns, and helps you review selected configuration changes. The engineering focus is consent, incomplete scan reporting, conflict-safe recovery and failure-path testing.
 
-**Status: source-build review candidate.** The package version is 1.0.0; it does not prove a Marketplace release or installed-product acceptance. Check the actual commit and its CI results before using a build. No scan certifies a repository as safe. This extension is not an antivirus, sandbox, live threat-intelligence feed or general barrier before commands execute.
+**Status: bounded CV/portfolio demonstration verified.** The [installed Windows GUI report](docs/reports/native-portfolio-20261009/REPORT.md) records 17 passing automated checks and 13 distinct captures for its exact candidate/VSIX, with explicit limits. The package version is 1.0.0; this is not a Marketplace release or full release acceptance. Check the actual commit and its CI results before using a build. No scan certifies a repository as safe. This extension is not an antivirus, sandbox, live threat-intelligence feed or general barrier before commands execute.
 
 ## Try it without running repository code
 

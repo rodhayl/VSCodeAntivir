@@ -4,6 +4,7 @@
   "repository": "rodhayl/VSCodeAntivir",
   "branch": "codex/safe-remediation-20261004",
   "status": "AUTOMATED_SUBSET_PASSED_WITH_DECLARED_LIMITS",
+  "portfolioConclusion": "Bounded CV/portfolio demonstration verified; not full release acceptance or malware-efficacy evidence.",
   "supersedesCommit": "866190a9130a986cb3846c1e38465f967337e409",
   "scope": "Tests, harness and evidence-documentation verification only. Product source, rules, dependencies and configuration contracts are unchanged.",
   "historicalClaims": "historical/EVIDENCE-866190a.json",
@@ -16,8 +17,11 @@
     "status": "AUTOMATED_SUBSET_PASSED_WITH_DECLARED_LIMITS",
     "artifactSha256": "2a23e32328cc5c3464e78de1e98585fea4ce406f68c6a3c39536a7aa53a73ba9",
     "rebuiltArtifactSha256": "ffa154b35b5ddd86c1a61c95ea22072e75acfaf276f0cb2656ba5e030dfcf920",
+    "rebuiltArtifactStatus": "OPERATOR_REPORTED_REPACKAGE_NOT_NATIVE_TESTED_HERE",
     "sourceTreeSha256": "1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e",
     "candidateCommit": "35f4de018943709ecfacce5f31810ea7f95158f0",
+    "evidencePublicationCommit": "5b754c65d9c24b16f4c528e1c664a15d0f059298",
+    "sourceIdentityScope": "98 packaged build inputs, not the whole Git tree. Product source, rules and dependency manifests are unchanged between the native candidate and the evidence publication; subsequent clarification is documentation only.",
     "editorVersion": "1.141.0 (2a59476c9bfcb90b3ddc372c36762471b7dfad1c, x64)",
     "checksPassed": 17,
     "checksTotal": 17,
@@ -27,7 +31,8 @@
     "verifiedScreenshotsDir": "screenshots/verified"
   },
   "lmStudio": {
-    "status": "PASS",
+    "status": "OPERATOR_REPORTED_ENDPOINT_SMOKE_ONLY",
+    "evidenceBoundary": "Separate reported health/chat smoke; raw response/log is not included in the archived native result. The GUI driver explicitly records live providers NOT RUN. Extension-mediated consent, rejection with zero requests, approved transmission, cancellation and late-result suppression are not established by this smoke.",
     "endpoint": "http://127.0.0.1:1234/v1",
     "model": "slm-production-evaluation",
     "healthCheck": "200_OK",
@@ -41,8 +46,8 @@
   },
   "def05": {
     "status": "UNPROVEN_CAUSAL_CLAIM",
-    "observation": "Not reproduced. Storage is absent in Restricted Mode; created eagerly in trusted mode upon activation. No product fix included.",
-    "knownFalseActivation": "Host-stub baseline already prevents storage, model-client and watcher initialization",
+    "observation": "Not reproduced. The native run observed absent quarantine storage and unchanged fixture bytes in Restricted Mode. It did not independently instrument model-client creation/traffic, automatic watchers or custom-rule suppression. No product fix included.",
+    "knownFalseActivation": "Separate host-stub baseline already prevents storage, model-client and watcher initialization; this is not native instrumentation of those gates",
     "knownTrueActivation": "Eager storage initialization exists in the unchanged product",
     "productFixIncluded": false
   },
@@ -62,9 +67,14 @@
     { "id": "13-keyboard-focus", "file": "screenshots/verified/13-keyboard-focus.png", "sha256": "b8945dcfc65f13f15417a14719e0175996bd38cd36ed475e621d3e4ae8aab4c8" }
   ],
   "unverifiedLimits": [
+    "The native driver does not independently prove absent model-client creation/traffic or automatic watchers, or restricted custom-rule suppression",
+    "The GUI driver records live LLM providers NOT RUN; separate operator-reported endpoint smoke does not verify extension consent, rejection, approved transmission, cancellation or late-result suppression",
     "No Windows ACL security against local administrators",
     "No power-loss or OS crash durability claim",
     "Benchmark is synthetic characterization only, not malware detection efficacy",
-    "Accessibility is keyboard palette navigation subset only"
+    "Accessibility is keyboard palette navigation subset only; broad accessibility and interrupted-operation GUI coverage remain unverified",
+    "Dashboard check observes its tab opening, not asserted dashboard content or rendering",
+    "Standard command results are operator-reported without complete archived logs; 34 is the integration-test count, not the unit or full-suite total",
+    "The rebuilt VSIX digest has no installed-native result here"
   ]
 }

@@ -1,4 +1,6 @@
-# One native continuation: tests and evidence only
+# Historical native continuation plan: tests and evidence only
+
+**Superseded for the bounded CV/portfolio demonstration.** The [current report](REPORT.md) and [preserved native result](RESULT-VERIFIED.json) establish the completed 17-check automated subset with declared limits. The plan below is retained as the historical request that preceded that run, not an instruction to repeat it or an assertion that its broader checks all passed. Additional release, model, accessibility or resilience acceptance is outside this closure and requires a separately authorized task.
 
 Continue FakeInterviewGuard validation in `rodhayl/VSCodeAntivir`, branch `codex/safe-remediation-20261004`. Your scope is tests, harness and evidence documentation only. Do not change product code, rules, dependencies, persistent user settings or project visibility; do not merge or publish. Preserve all historical reports/screenshots. Read the corrected REPORT.md and EVIDENCE.json first: the previous GUI acceptance claims and DEF-05 trust-race attribution are not established.
 

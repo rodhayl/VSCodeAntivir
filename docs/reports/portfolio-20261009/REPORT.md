@@ -1,5 +1,7 @@
 # Portfolio verification report — 2026-10-09
 
+**Historical checkpoint.** The results and blocker below describe this report's original candidate and environment. A [later installed Windows GUI campaign](../native-portfolio-20261009/REPORT.md) established a bounded 17-check subset on candidate `35f4de018943709ecfacce5f31810ea7f95158f0` and its separately identified VSIX. It supports CV/portfolio closure with declared limits; it does not retroactively turn this earlier blocked run into a pass or establish full release acceptance.
+
 **Status: source/package verification passed; native acceptance remains blocked.** This report describes a candidate, not a release or proof that a workspace is safe.
 
 ## Identity and scope
