@@ -280,7 +280,9 @@ async function runInstalledGuiAcceptance(options = {}) {
       requireDialog(startup, 'trust', "No, I don't trust the authors");
       await cdp.click('.monaco-dialog-box button,.monaco-dialog-box .monaco-button', "No, I don't trust the authors");
       await until(async () => !await cdp.dialog(), 'startup dialog dismissal');
-      const state = await cdp.trust(); assert.equal(classifyTrust(state), 'restricted', 'Known Restricted Mode must be established explicitly');
+      const state = await cdp.trust();
+      recorder.observe('debug-trust-state', state);
+      assert.equal(classifyTrust(state), 'restricted', 'Known Restricted Mode must be established explicitly');
       return { workspace, workspaceName, home, profile, port, launchEnv, launchArgs, state };
     }
     const restricted = await launch('restricted-workspace', 9231);
