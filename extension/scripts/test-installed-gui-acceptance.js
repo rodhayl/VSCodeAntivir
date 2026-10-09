@@ -150,6 +150,7 @@ class CdpClient {
     await this.evaluate(`(() => { (document.querySelector('.native-edit-context') || document.querySelector('.monaco-workbench'))?.focus(); })()`);
     await this.key('F1', 'F1', 112);
     await until(() => this.evaluate(`Array.from(document.querySelectorAll('.quick-input-widget input')).some(el => (${visibleScript})(el))`), 'Command Palette input');
+    await this.evaluate(`(() => { const el = Array.from(document.querySelectorAll('.quick-input-widget input')).find(${visibleScript}); if (el) { el.focus(); el.select(); } })()`);
     await this.key('a', 'KeyA', 65, 2); await this.insert(`> ${title}`);
     await until(() => this.evaluate(`Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).filter(${visibleScript}).some(el => (el.querySelector('.label-name')?.textContent || el.textContent).trim() === ${JSON.stringify(title)})`), `exact command ${title}`);
     const selected = await this.evaluate(`(() => { const rows = Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).filter(${visibleScript}); const row = rows.find(el => (el.querySelector('.label-name')?.textContent || el.textContent).trim() === ${JSON.stringify(title)}); if (!row) return false; row.click(); return true; })()`);
@@ -184,20 +185,21 @@ class CdpClient {
   }
   async webviewAction(id, buttonClass) {
     // Attach only frame targets belonging to this disposable editor. Never run product code.
-    const { targetInfos } = await this.call('Target.getTargets');
-    const frames = targetInfos.filter(target => target.type === 'iframe' && /vscode-webview:/.test(target.url));
-    for (const target of frames) {
-      if (this.attachedTargets.has(target.targetId)) continue;
-      const { sessionId } = await this.call('Target.attachToTarget', { targetId: target.targetId, flatten: true });
-      await this.call('Runtime.enable', {}, sessionId); this.attachedTargets.add(target.targetId);
-    }
-    await sleep(200);
-    const expression = `(() => { if (!document.querySelector('h1')?.textContent.includes('Quarantine Manager')) return false; const rows = Array.from(document.querySelectorAll('tr[data-id]')).filter(el => el.getAttribute('data-id') === ${JSON.stringify(id)}); if (rows.length !== 1) return false; if (${JSON.stringify(buttonClass === undefined)}) return { id: rows[0].getAttribute('data-id'), text: rows[0].textContent.trim() }; const button = rows[0].querySelector(${JSON.stringify('button.' + buttonClass)}); if (!button || button.disabled) return false; button.click(); return true; })()`;
-    for (const context of this.contexts.values()) {
-      try { const observed = await this.evaluate(expression, context); if (observed) return observed; }
-      catch (error) { if (!/context|frame|target/i.test(error.message)) throw error; }
-    }
-    throw new Error('Quarantine webview action not observable; requires native operator validation, never direct manager fallback');
+    return until(async () => {
+      const { targetInfos } = await this.call('Target.getTargets');
+      const frames = targetInfos.filter(target => target.type === 'iframe' && /vscode-webview:/.test(target.url));
+      for (const target of frames) {
+        if (this.attachedTargets.has(target.targetId)) continue;
+        const { sessionId } = await this.call('Target.attachToTarget', { targetId: target.targetId, flatten: true });
+        await this.call('Runtime.enable', {}, sessionId); this.attachedTargets.add(target.targetId);
+      }
+      const expression = `(() => { if (!document.querySelector('h1')?.textContent.includes('Quarantine Manager')) return false; const rows = Array.from(document.querySelectorAll('tr[data-id]')).filter(el => el.getAttribute('data-id') === ${JSON.stringify(id)}); if (rows.length !== 1) return false; if (${JSON.stringify(buttonClass === undefined)}) return { id: rows[0].getAttribute('data-id'), text: rows[0].textContent.trim() }; const button = rows[0].querySelector(${JSON.stringify('button.' + buttonClass)}); if (!button || button.disabled) return false; button.click(); return true; })()`;
+      for (const context of this.contexts.values()) {
+        try { const observed = await this.evaluate(expression, context); if (observed) return observed; }
+        catch (error) { if (!/context|frame|target/i.test(error.message)) throw error; }
+      }
+      return null;
+    }, `quarantine webview action for ${id}${buttonClass ? ' (' + buttonClass + ')' : ''}`, 15000);
   }
   close() { this.rejectPending('CDP closed by driver'); this.ws?.close(); }
 }
@@ -323,6 +325,11 @@ async function runInstalledGuiAcceptance(options = {}) {
     try { child = spawn(codeExe, trusted.launchArgs, { env: trusted.launchEnv, stdio: ['ignore', log, log] }); }
     finally { fs.closeSync(log); }
     let page = await getPage(trusted.port, trusted.workspaceName); cdp = new CdpClient(page.webSocketDebuggerUrl); await cdp.connect();
+    const reloadTrustDialog = await until(() => cdp.dialog(), 'trust reload startup dialog', 5000).catch(() => null);
+    if (reloadTrustDialog && reloadTrustDialog.buttons.includes('Yes, I trust the authors')) {
+      await cdp.click('.monaco-dialog-box button,.monaco-dialog-box .monaco-button', 'Yes, I trust the authors');
+      await until(async () => !await cdp.dialog(), 'trust startup dialog dismissal');
+    }
     const reloadedTrust = await cdp.trust(); recorder.check('trusted_state_after_reload', classifyTrust(reloadedTrust) === 'trusted', reloadedTrust);
     await cdp.screenshot(recorder, '04-trusted-after-reload', reloadedTrust);
 
@@ -382,8 +389,21 @@ async function runInstalledGuiAcceptance(options = {}) {
     try { child = spawn(codeExe, trusted.launchArgs, { env: trusted.launchEnv, stdio: ['ignore', reloadLog, reloadLog] }); }
     finally { fs.closeSync(reloadLog); }
     page = await getPage(trusted.port, trusted.workspaceName); cdp = new CdpClient(page.webSocketDebuggerUrl); await cdp.connect();
-    // Startup review may appear from the intentionally retained task: observe and cancel it.
-    const startupReview = await cdp.dialog(); if (startupReview) { requireDialog(startupReview, 'Task configuration needs review', 'Disable flagged tasks'); await cdp.key('Escape', 'Escape', 27); }
+    // Dismiss any startup dialogs (trust prompt or startup task review)
+    for (let i = 0; i < 3; i++) {
+      const dialog = await until(() => cdp.dialog(), 'startup dialog', 3000).catch(() => null);
+      if (!dialog) break;
+      if (dialog.buttons.includes('Yes, I trust the authors')) {
+        await cdp.click('.monaco-dialog-box button,.monaco-dialog-box .monaco-button', 'Yes, I trust the authors');
+        await until(async () => !await cdp.dialog(), 'trust startup dialog dismissal');
+      } else if (dialog.message.includes('Task configuration needs review')) {
+        requireDialog(dialog, 'Task configuration needs review', 'Disable flagged tasks');
+        await cdp.key('Escape', 'Escape', 27);
+        await until(async () => !await cdp.dialog(), 'startup task review dismissal');
+      } else {
+        break;
+      }
+    }
     const trustAfterRestart = await cdp.trust(); assert.equal(classifyTrust(trustAfterRestart), 'trusted');
     await cdp.command(title('fig.showQuarantine'));
     const reloadedRow = await cdp.webviewAction(entry.id);
