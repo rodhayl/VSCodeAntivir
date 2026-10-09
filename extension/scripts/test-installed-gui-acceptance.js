@@ -164,6 +164,7 @@ class CdpClient {
     await until(() => this.evaluate(`Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).filter(${visibleScript}).some(el => el.textContent.includes(${JSON.stringify(path.basename(file))}))`), 'target file in Quick Open');
     await this.key('Enter', 'Enter', 13);
     await until(() => this.evaluate(`Array.from(document.querySelectorAll('.tab.active')).some(el => el.textContent.includes(${JSON.stringify(path.basename(file))}))`), 'selected file active in editor');
+    await sleep(500);
   }
   async dialog() {
     return this.evaluate(`(() => { const box = Array.from(document.querySelectorAll('.monaco-dialog-box')).find(${visibleScript}); return box ? { message: box.textContent.trim(), buttons: Array.from(box.querySelectorAll('button,.monaco-button')).filter(${visibleScript}).map(el => el.textContent.trim()) } : null; })()`);
@@ -399,7 +400,9 @@ async function runInstalledGuiAcceptance(options = {}) {
     await cdp.screenshot(recorder, '12-restored', { restored });
 
     await cdp.evaluate(`(() => { (document.querySelector('.native-edit-context') || document.querySelector('.monaco-workbench'))?.focus(); })()`);
-    await cdp.key('F1', 'F1', 112); await cdp.insert('FIG:');
+    await cdp.key('F1', 'F1', 112);
+    await until(() => cdp.evaluate(`Array.from(document.querySelectorAll('.quick-input-widget input')).some(el => (${visibleScript})(el))`), 'Command Palette input');
+    await cdp.insert('FIG:');
     const focusedBefore = await until(() => cdp.evaluate(`document.querySelector('.quick-input-widget input')?.getAttribute('aria-activedescendant')`), 'keyboard-focused palette row');
     await cdp.key('ArrowDown', 'ArrowDown', 40);
     const focusedAfter = await until(async () => { const value = await cdp.evaluate(`document.querySelector('.quick-input-widget input')?.getAttribute('aria-activedescendant')`); return value && value !== focusedBefore ? value : null; }, 'keyboard focus moved to a different palette row');
