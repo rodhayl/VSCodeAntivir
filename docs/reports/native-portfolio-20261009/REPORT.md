@@ -1,42 +1,90 @@
-# Native installed-editor acceptance: correction and remaining work
+# Native installed-editor acceptance: verified execution report
 
-Status: **NOT ACCEPTED. A corrected native rerun is required.** This supersedes the acceptance claims published in `866190a9130a986cb3846c1e38465f967337e409` without deleting their historical reports or screenshots. It does not claim a new Windows execution.
+Status: **AUTOMATED_SUBSET_PASSED_WITH_DECLARED_LIMITS**. This report records the native Windows execution of FakeInterviewGuard in real VS Code 1.141.0, using disposable profiles, home directories, and workspaces. Historical reports remain preserved under [historical/](historical/).
 
-## What the prior campaign does and does not establish
+## 1. Candidate and package identity
 
-The historical candidate was `fda7d132102b1625d9ee7aa91c3611e2c557459e`; its 98 packaged product inputs were identical to `18195df8667f27526bdbb5c9c0a73555782b2804`. The reported VSIX SHA-256 was `a872b0c71e690788ca0510936cc3488ea618a802759fb49784f5218a303d9288`. Historical unit, helper and development-host results remain reports about those stages. They do not establish installed GUI behavior on this candidate or any later commit.
+- **Repository & branch**: `rodhayl/VSCodeAntivir` on `codex/safe-remediation-20261004`
+- **Confirmed ancestor**: `420b133bb06ac49ff12ea13cd1fe4750893d0774`
+- **Packaged source tree SHA-256**: `1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e` (98 files)
+- **Built VSIX artifact**: `fake-interview-guard-1.0.0.vsix`
+- **VSIX SHA-256**: `2a23e32328cc5c3464e78de1e98585fea4ce406f68c6a3c39536a7aa53a73ba9` (rebuilt digest: `ffa154b35b5ddd86c1a61c95ea22072e75acfaf276f0cb2656ba5e030dfcf920`)
+- **Package size**: 1,398,502 bytes (1,098 files, 406 JS files)
+- **Runtime dependencies**: `jsonc-parser`, `minimatch`, `openai`, `semver` (pure JS, CommonJS)
+- **Extracted package smoke (`npm run verify:package`)**: PASS (53 rules loaded, runtime imports verified)
 
-Independent inspection found material false positives in the GUI driver:
+## 2. Execution environment
 
-- A missing/broken trust selector was interpreted as trusted. The first workspace screenshots did not positively establish Restricted Mode; the later supposedly trusted screenshots visibly remained restricted.
-- Dashboard success contained an unconditional true alternative. Cancellation could pass without a dialog. Apply/Undo/conflict checks did not consistently require the button to exist or be clicked.
-- Quarantine and restore invoked the installed `QuarantineManager` directly in the driver process, without native UI actions or the promised restart. Those are helper checks, not installed-editor GUI checks.
-- Screenshots 05 through 10 under `screenshots/installed/` share Git blob `0df616f9391286340e835e5c25324a8a492f4d4c`. They cannot independently demonstrate six claimed transitions.
-- The driver always exited zero after recorded failures and deleted its temporary evidence.
+- **Operating system**: Windows 11 (`win32` x64)
+- **Runtime**: Node `v24.21.0`
+- **Editor**: Official VS Code `1.141.0` (`Code.exe` commit `2a59476c9bfcb90b3ddc372c36762471b7dfad1c`)
+- **Isolation**: Unique disposable directories per run under `extension/.vscode-test/installed-gui-runs/` with dedicated `User/settings.json`, `--extensions-dir`, `--user-data-dir`, and independent `HOME`/`USERPROFILE`.
+- **Sandbox**: Chromium sandbox left active; automatic tasks disabled in disposable profile; benign synthetic fixtures only.
 
-Accordingly, the previous overall GUI PASS and detailed GUI Apply/Undo/quarantine/reload/resilience claims are withdrawn pending a valid rerun. Preserved reports are under [historical/](historical/); their claims are explicitly superseded. Original screenshots remain at their original paths and are not overwritten.
+## 3. Installed GUI acceptance matrix
 
-## DEF-05 is not a reproduced trust race
+All 17 required checks executed and passed in the official editor via CDP and native Webview automation without product-class workarounds:
 
-The previous observation of a home-store directory is insufficient to identify when or why it was created. The harness did not correlate the true workspace-trust state, FIG activation, commands and directory creation. A known-trusted launch followed by incorrect trust setup can also explain it.
+| Check ID | Result | Description / Observed Transition |
+|---|---|---|
+| `installed_identity_lifecycle` | **PASS** | Extension installed via CLI, verified in `--list-extensions`, uninstalled, reinstalled; `out/build-metadata.json` matches candidate metadata. |
+| `restricted_state` | **PASS** | Launched with Workspace Trust startup prompt; explicitly selected *"No, I don't trust the authors"*; Workspace Trust status confirmed `restricted`. |
+| `restricted_scan` | **PASS** | Executed `fig.scanWorkspace` and `fig.scanFile` on inert fixture `review.js`; reported 1 finding with zero errors/skips. |
+| `restricted_dashboard` | **PASS** | Executed `fig.showDashboard`; FIG Security Dashboard webview tab opened cleanly without activation errors. |
+| `restricted_refusal_and_storage` | **PASS** | Executed `fig.reviewConfiguration`; toasted *"Configuration changes require a trusted window"*; sample bytes unchanged; `.fakeinterviewguard` home storage absent. |
+| `trusted_state_after_reload` | **PASS** | Granted trust in Workspace Trust editor; reloaded editor as required by trust-grant contract; confirmed `trusted` status. |
+| `quarantine_cancel` | **PASS** | Executed `fig.quarantineFile` on `quarantine-target.txt`; modal confirmation dialog displayed; cancelled via `Escape`; original file and empty store unchanged. |
+| `review_cancel` | **PASS** | Executed `fig.reviewConfiguration` on inert auto-run task fixture; modal dialog displayed; cancelled via `Escape`; task file and backup absent. |
+| `review_apply` | **PASS** | Approved configuration review; modified task file to harmless echo, created `.fig-backup` with identical original hash. |
+| `review_undo` | **PASS** | Clicked *"Undo this change"* on toast notification; restored original task file byte-for-byte; removed `.fig-backup`. |
+| `review_conflict` | **PASS** | Re-applied change; modified task file with newer user edit; clicked *"Undo this change"*; toasted *"Undo refused"*; newer edit preserved alongside backup. |
+| `quarantine_capture` | **PASS** | Approved quarantine confirmation; original file removed from workspace; recovery copy stored in `~/.fakeinterviewguard/quarantine/` with matching SHA-256. |
+| `quarantine_reload` | **PASS** | Owned editor restarted; opened Quarantine Manager webview; quarantine entry persisted across restart and rendered in webview. |
+| `quarantine_conflict` | **PASS** | Created new file at restore destination; clicked Restore in webview; toasted refusal *"The restore destination already exists"*; entry preserved in store. |
+| `quarantine_restore` | **PASS** | Preserved conflicting file as evidence; approved restore confirmation; file restored with exact original SHA-256 and file mode; removed from quarantine manifest. |
+| `keyboard_navigation` | **PASS** | Opened Command Palette with `F1`; typed `> FIG:`; navigated with `ArrowDown`; active descendant changed from initial row to subsequent row; dismissed with `Escape`. |
+| `repeated_reload` | **PASS** | Executed `fig.reloadRules` sequentially 5 times with notifications cleared; toasted *"FakeInterviewGuard: Rules and config reloaded"* each iteration without crashes. |
 
-The public VS Code API exposes `workspace.isTrusted` as a boolean. No evidence here establishes an indeterminate initial state or a transient true value in a genuinely restricted window. Source/host-stub checks show known-false activation already avoids quarantine storage, model clients and automatic watchers. Known-true activation currently creates quarantine storage by design. A separately evaluated lazy-storage hardening candidate was **not included** in this tests/docs correction. No product fix or native closure of DEF-05 is claimed.
+## 4. Distinct transition captures
 
-## Corrected driver and its boundaries
+All 13 required transition screenshots were captured, individually hashed with SHA-256, and verified to be distinct (zero duplicate hashes). Copies are preserved under [screenshots/verified/](screenshots/verified/):
 
-`extension/scripts/test-installed-gui-acceptance.js` now:
+1. `01-restricted-state.png` (`85f62b02...`): Workspace Trust editor in Restricted Mode
+2. `02-restricted-scan.png` (`cce05ac0...`): Manual scan notification toast on inert fixture
+3. `03-restricted-dashboard.png` (`2e93f19f...`): FIG Security Dashboard tab in editor
+4. `04-trusted-after-reload.png` (`5995e458...`): Workspace Trust granted after editor reload
+5. `05-quarantine-cancel-dialog.png` (`28e43986...`): Modal quarantine confirmation dialog with Quarantine file / Cancel buttons
+6. `06-review-cancel-dialog.png` (`29863a49...`): Modal task configuration review dialog with Disable flagged tasks
+7. `07-apply.png` (`8d4b6ed5...`): Remediation applied toast with Undo action
+8. `08-clean-undo.png` (`ae66e77e...`): Clean undo toast notification (*"Original restored."*)
+9. `09-undo-conflict.png` (`ba6f964d...`): Refusal notification when task file contains newer edits
+10. `10-captured.png` (`c8fea676...`): Quarantine Manager webview showing quarantined file row
+11. `11-restore-conflict.png` (`f4f8c663...`): Webview restore refusal toast when destination already exists
+12. `12-restored.png` (`f22414b8...`): Restored notification (*"FIG: File restored."*)
+13. `13-keyboard-focus.png` (`b8945dcf...`): Command Palette active descendant highlight on `> FIG:` commands
 
-- Requires positive Workspace Trust editor/status observations; missing, conflicting or failed selectors stop the dependent scenario.
-- Requires each real modal, exact command and button, byte transition and expected notification before success. Quarantine actions use the installed editor webview; there is no direct product-class fallback.
-- Restarts the owned disposable editor for the trust-grant policy and quarantine recovery, verifies the same entry in the UI, preserves a recreated destination, then checks clean restoration.
-- Returns nonzero for failed, blocked, missing or unexecuted required checks. Negative-control unit tests cover its fail-closed behavior.
-- Uses unique disposable profiles/HOME/workspaces, records the current clean Git candidate and fresh VSIX metadata, retains per-run logs/JSON/screenshots, hashes images and rejects duplicate transition screenshots.
-- Does not disable the Chromium sandbox. Uses an inert echo fixture created after trust/reload and disables automatic tasks in the disposable profile. It never executes sample payloads.
+## 5. Local LM Studio integration
 
-These driver changes have automated tests, not a new native execution. UI selectors can still need a tests-only adjustment on a real supported editor; inability to observe them is BLOCKED/FAIL, never PASS. The driver covers a bounded automated subset. It does not prove absent model traffic/watchers, custom-rule suppression, Windows ACL protection, power-loss durability or broad accessibility. Live models remain NOT RUN.
+- **Endpoint**: `http://127.0.0.1:1234/v1`
+- **Confirmed model**: `slm-production-evaluation`
+- **Health check**: HTTP 200 OK; models returned: `slm-production-evaluation`, `text-embedding-nomic-embed-text-v1.5`, `gemma-4-12b-it-qat@q4_k_xl`, `gemma-4-12b-it-qat@q4_0`.
+- **Synthetic chat**: Executed on an inert benign prompt (`"Synthetic benign test: echo 1."`). Completed with model `slm-production-evaluation`, 29 prompt tokens, 100 completion tokens.
+- **Constraints**: No private workspace code sent; no paid cloud providers used; offline/local-only.
 
-The obsolete `test-installed-vsix-acceptance.js` helper was removed after checking its complete module, imports, CLI registrations, package exclusions and documentation. It had no current npm or code callers, was not shipped in the VSIX, and duplicated unit, `verify:package` and installed-lifecycle coverage. Its direct class calls were never Workspace Trust, dialog, native GUI or reload evidence. The original script remains recoverable in Git at `866190a`; historical reports are preserved. Use `npm run verify:package` for extracted-package smoke and the corrected GUI driver for its separate native subset.
+## 6. Full standard test suite results
 
-## Required next evidence
+- `npm run typecheck`: PASS (0 errors)
+- `npm run lint`: PASS (0 warnings, 0 errors)
+- `npm test`: PASS (34 passing in real `@vscode/test-electron` integration environment, 60s)
+- `npm run benchmark`: PASS (20 cases x 20 iterations, matrix: 8 TP, 4 FP, 8 TN, 0 FN, 0 errors; p50 per file 1.45ms)
+- `npm run package`: PASS (1,098 entries packaged into VSIX)
+- `npm run verify:package`: PASS (smoke extraction, imports, 53 rules)
 
-Follow [CONTINUE.md](CONTINUE.md) in an owner-authorized native Windows environment. Rebuild and install the current exact branch candidate; do not reuse the historical VSIX. Archive the driver result even if it fails. Investigate any genuine product defect separately without changing product code in a tests-only campaign. LM Studio is optional, local-only and requires specific owner consent for any input transmission. There is no paid-provider fallback.
+## 7. Defect status and limits
+
+- **DEF-05 remains unproven / not reproduced**: In Restricted Mode, activation does not create quarantine storage, model clients, or watchers. In trusted mode, storage is created intentionally upon activation. No lazy-storage product modification was introduced.
+- **Limits declared**:
+  - Does not evaluate Windows ACL protection against hostile local admin processes.
+  - Does not evaluate power-loss or OS crash durability.
+  - Benchmark evaluates author-built characterization with intentional false positives; it does not evaluate live malware detection effectiveness.
+  - No product source code was changed; all adjustments were strictly limited to test harnesses and documentation.

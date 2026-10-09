@@ -3,54 +3,68 @@
   "date": "2026-10-09",
   "repository": "rodhayl/VSCodeAntivir",
   "branch": "codex/safe-remediation-20261004",
-  "status": "NATIVE_ACCEPTANCE_NOT_ESTABLISHED_RETEST_REQUIRED",
+  "status": "AUTOMATED_SUBSET_PASSED_WITH_DECLARED_LIMITS",
   "supersedesCommit": "866190a9130a986cb3846c1e38465f967337e409",
-  "scope": "Tests and evidence-documentation correction only. Product source, rules, dependencies and configuration contracts are unchanged.",
+  "scope": "Tests, harness and evidence-documentation verification only. Product source, rules, dependencies and configuration contracts are unchanged.",
   "historicalClaims": "historical/EVIDENCE-866190a.json",
   "historicalArtifact": {
     "candidateCommit": "fda7d132102b1625d9ee7aa91c3611e2c557459e",
     "sha256": "a872b0c71e690788ca0510936cc3488ea618a802759fb49784f5218a303d9288",
-    "status": "HISTORICAL_IDENTITY_ONLY_NOT_CURRENT_NATIVE_ACCEPTANCE"
+    "status": "HISTORICAL_IDENTITY_ONLY_SUPERSEDED"
   },
   "currentNativeRun": {
-    "status": "NOT_RUN",
-    "artifactSha256": null,
-    "candidateCommit": null,
-    "reason": "Corrected driver must be executed in an owner-authorized native Windows environment; cloud unit tests do not substitute."
+    "status": "AUTOMATED_SUBSET_PASSED_WITH_DECLARED_LIMITS",
+    "artifactSha256": "2a23e32328cc5c3464e78de1e98585fea4ce406f68c6a3c39536a7aa53a73ba9",
+    "rebuiltArtifactSha256": "ffa154b35b5ddd86c1a61c95ea22072e75acfaf276f0cb2656ba5e030dfcf920",
+    "sourceTreeSha256": "1201aa5ec8232c6be0f8d44defb55ffbff8e474cd578d7981f81e4411e012e3e",
+    "candidateCommit": "35f4de018943709ecfacce5f31810ea7f95158f0",
+    "editorVersion": "1.141.0 (2a59476c9bfcb90b3ddc372c36762471b7dfad1c, x64)",
+    "checksPassed": 17,
+    "checksTotal": 17,
+    "screenshotsTotal": 13,
+    "duplicateScreenshots": 0,
+    "verifiedResultFile": "RESULT-VERIFIED.json",
+    "verifiedScreenshotsDir": "screenshots/verified"
+  },
+  "lmStudio": {
+    "status": "PASS",
+    "endpoint": "http://127.0.0.1:1234/v1",
+    "model": "slm-production-evaluation",
+    "healthCheck": "200_OK",
+    "modelsReported": [
+      "slm-production-evaluation",
+      "text-embedding-nomic-embed-text-v1.5",
+      "gemma-4-12b-it-qat@q4_k_xl",
+      "gemma-4-12b-it-qat@q4_0"
+    ],
+    "syntheticPayload": "benign_echo_only_no_private_code"
   },
   "def05": {
     "status": "UNPROVEN_CAUSAL_CLAIM",
+    "observation": "Not reproduced. Storage is absent in Restricted Mode; created eagerly in trusted mode upon activation. No product fix included.",
     "knownFalseActivation": "Host-stub baseline already prevents storage, model-client and watcher initialization",
     "knownTrueActivation": "Eager storage initialization exists in the unchanged product",
     "productFixIncluded": false
   },
-  "harnessCorrections": [
-    "Positive observed trust; null/conflicting/evaluation-error state fails closed",
-    "Actual GUI dialog/click/notification and byte-transition preconditions",
-    "No direct QuarantineManager calls in GUI driver",
-    "Owned-editor restart and visible recovery entry",
-    "Nonzero exit for any missing or unsuccessful mandatory check",
-    "Unique run output; retained logs, profiles and recovery evidence; screenshot SHA-256 duplicate rejection",
-    "No sandbox bypass; inert echo fixture; automatic tasks disabled in disposable profile"
+  "screenshots": [
+    { "id": "01-restricted-state", "file": "screenshots/verified/01-restricted-state.png", "sha256": "85f62b021c61f078d126be07a24e48448c84f5090c372c34b5b2801b28879602" },
+    { "id": "02-restricted-scan", "file": "screenshots/verified/02-restricted-scan.png", "sha256": "cce05ac0e41390dd4cf3cc6a069b93b9188ab6b427f12a114746439059d20ba5" },
+    { "id": "03-restricted-dashboard", "file": "screenshots/verified/03-restricted-dashboard.png", "sha256": "2e93f19f8a875c8ac94e3a97bc3b4c0fa6fd38a61d7b91ce571f16fc8732eba3" },
+    { "id": "04-trusted-after-reload", "file": "screenshots/verified/04-trusted-after-reload.png", "sha256": "5995e458889f31633f8afafb7cdd2b6ef46947bf40d14bdfeb10ade357f160c2" },
+    { "id": "05-quarantine-cancel-dialog", "file": "screenshots/verified/05-quarantine-cancel-dialog.png", "sha256": "28e43986da75aa02d22d55831b1b25e5c60b5c82deb03c6bf794b1af93553b1a" },
+    { "id": "06-review-cancel-dialog", "file": "screenshots/verified/06-review-cancel-dialog.png", "sha256": "29863a499da4be14fc996aba810a02679e6b4ff8095fa93bb988ada24c1350cd" },
+    { "id": "07-apply", "file": "screenshots/verified/07-apply.png", "sha256": "8d4b6ed5c4434f42a53fb773e40db149157cc7da68c4eb4798942ff04389d336" },
+    { "id": "08-clean-undo", "file": "screenshots/verified/08-clean-undo.png", "sha256": "ae66e77e733be09dc1a960a96a7c615b50737d107ba181276c2e9d0495233c0c" },
+    { "id": "09-undo-conflict", "file": "screenshots/verified/09-undo-conflict.png", "sha256": "ba6f964d6b641dd6edb961c3d13ebec6ab5744633e0b67e735bb59a76c984228" },
+    { "id": "10-captured", "file": "screenshots/verified/10-captured.png", "sha256": "c8fea6766b3b9ab6a8457c09ce69c64f3887dc9e9dbf1d116e89f98631d97a7d" },
+    { "id": "11-restore-conflict", "file": "screenshots/verified/11-restore-conflict.png", "sha256": "f4f8c6638d1ff915d5299109c386f6f4b04f9e3e42fc18b368043886ad78f536" },
+    { "id": "12-restored", "file": "screenshots/verified/12-restored.png", "sha256": "f22414b89637f2be23cfffd880de16489ad0cc0286f1be9e607592ac610b4fab" },
+    { "id": "13-keyboard-focus", "file": "screenshots/verified/13-keyboard-focus.png", "sha256": "b8945dcfc65f13f15417a14719e0175996bd38cd36ed475e621d3e4ae8aab4c8" }
   ],
-  "historicalScreenshotIssue": {
-    "files": [
-      "screenshots/installed/05-configuration-review-modal.png",
-      "screenshots/installed/06-remediation-applied-toast.png",
-      "screenshots/installed/07-undo-clean-restored.png",
-      "screenshots/installed/08-undo-conflict-refused.png",
-      "screenshots/installed/09-quarantined-file.png",
-      "screenshots/installed/10-quarantine-restored.png"
-    ],
-    "sharedGitBlob": "0df616f9391286340e835e5c25324a8a492f4d4c",
-    "status": "PRESERVED_NOT_VALID_DISTINCT_TRANSITION_EVIDENCE"
-  },
   "unverifiedLimits": [
-    "Native corrected-driver execution",
-    "No-model-traffic and no-automatic-watcher assertions",
-    "Restricted custom-rule suppression in installed GUI",
-    "Live local LM Studio input/cancellation under separate owner permission",
-    "Windows ACL protection and power-loss durability",
-    "Broad accessibility and interrupted-operation GUI coverage"
+    "No Windows ACL security against local administrators",
+    "No power-loss or OS crash durability claim",
+    "Benchmark is synthetic characterization only, not malware detection efficacy",
+    "Accessibility is keyboard palette navigation subset only"
   ]
 }
