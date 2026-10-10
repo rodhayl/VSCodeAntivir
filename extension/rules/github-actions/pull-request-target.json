@@ -22,23 +22,13 @@
     {
       "id": "m2",
       "type": "regex",
-      "pattern": "actions/checkout@.*\\n.*ref:\\s*\\$\\{\\{\\s*github\\.event\\.pull_request\\.head\\.(sha|ref)",
-      "description": "Checking out PR head in pull_request_target"
-    },
-    {
-      "id": "m3",
-      "type": "regex",
-      "pattern": "uses:\\s*actions/checkout.*\\n[^-]*with:[^-]*\\n[^-]*ref:\\s*\\$\\{\\{\\s*github\\.head_ref",
-      "description": "Using github.head_ref in checkout"
+      "pattern": "(?:actions/checkout@.*\\n.*ref:\\s*\\$\\{\\{\\s*github\\.event\\.pull_request\\.head\\.(sha|ref))|(?:uses:\\s*actions/checkout.*\\n[^-]*with:[^-]*\\n[^-]*ref:\\s*\\$\\{\\{\\s*github\\.head_ref)",
+      "description": "Checks out a PR head using github.event.pull_request.head.sha/ref or github.head_ref"
     }
   ],
   "condition": {
     "type": "all",
-    "of": ["m1"],
-    "and": {
-      "type": "any",
-      "of": ["m2", "m3"]
-    }
+    "of": ["m1", "m2"]
   },
   "appliesTo": {
     "filePatterns": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"]

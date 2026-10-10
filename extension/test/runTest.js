@@ -10,7 +10,10 @@ async function main() {
   try {
     const extensionDevelopmentPath = path.resolve(__dirname, '..');
     const extensionTestsPath = path.resolve(__dirname, 'suite', 'index');
-    const testWorkspace = path.resolve(__dirname, '..', '..', 'samples');
+    // Never open inspection samples as an executable workspace. Tests read them as text.
+    const testWorkspace = path.join(isolated, 'workspace');
+    fs.mkdirSync(path.join(testWorkspace, '.vscode'), { recursive: true });
+    fs.writeFileSync(path.join(testWorkspace, '.vscode', 'settings.json'), JSON.stringify({ 'task.allowAutomaticTasks': 'off' }));
     await runTests({
       extensionDevelopmentPath,
       extensionTestsPath,
@@ -18,7 +21,6 @@ async function main() {
       launchArgs: [
         testWorkspace,
         '--disable-extensions',
-        '--remote-debugging-port=9228',
         `--user-data-dir=${path.join(isolated, 'profile')}`,
         `--extensions-dir=${path.join(isolated, 'extensions')}`,
         '--enable-proposed-api=fakeinterviewguard.fake-interview-guard',

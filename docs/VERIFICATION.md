@@ -18,9 +18,11 @@ npm run package
 npm run verify:package
 ```
 
-Linux integration requires a display or supported `xvfb-run -a`. The test runner downloads VS Code and uses isolated HOME, profile and extension directories. Record the exact editor version/build and exit code. Launch failure, missing fixture or skipped checks are not passes. Standard checks never execute sample payloads or call live models.
+Linux integration requires a display or supported `xvfb-run -a`. The test runner downloads VS Code and uses an isolated synthetic workspace with automatic tasks disabled, plus separate HOME, profile and extension directories. Record the exact editor version/build and exit code. Launch failure, missing fixture or skipped checks are not passes. Standard checks never execute sample payloads or call live models.
 
 Unit tests cover review/cancel/apply/undo, malformed inputs, multi-root diagnostics, Restricted Mode gates, consent/cancellation, links, conflicts, hashes, failed writes/metadata and restart. Mocked editor tests are not native GUI evidence.
+
+`test/runTest.js` runs the source checkout in an Extension Development Host; it does not install the packaged VSIX. Its checks establish only their asserted host behavior, not installed-editor acceptance, real dialog cancellation or Restricted Mode isolation without observing those states. Use the separate installed-VSIX procedure below for those claims.
 
 The benchmark contains a fixed 20-case corpus, full denominators, known benign challenges and input/source/rule/lockfile hashes. Archive JSON output with the commit. Timings cover warmed scanner calls only, excluding startup, disk traversal, UI and LLMs. `FIG_BENCH_ITERATIONS` accepts 1–1000 (default 20). This is an author-built characterization, not independent malware efficacy evidence.
 

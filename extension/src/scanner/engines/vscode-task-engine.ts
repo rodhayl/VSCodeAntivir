@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { parse, ParseError } from 'jsonc-parser';
+import { parseTaskConfiguration, taskVariants, TaskConfiguration } from '../../interceptors/task-configuration';
 import { Threat, ThreatLocation } from '../models/threat';
 import { Severity } from '../models/severity';
 
@@ -20,21 +20,13 @@ export function runVscodeTaskEngine(content: string, filePath: string): Threat[]
   const fileName = path.basename(filePath);
   if (fileName !== 'tasks.json') return threats;
 
-  let tasks: { tasks?: { label?: string; command?: unknown; args?: unknown[]; runOptions?: { runOn?: string } }[] };
-  try {
-    const errors: ParseError[] = [];
-    tasks = parse(content, errors, { allowTrailingComma: true });
-    if (errors.length || !tasks || typeof tasks !== 'object' || Array.isArray(tasks) ||
-          (tasks.tasks !== undefined && (!Array.isArray(tasks.tasks) || tasks.tasks.some((task: unknown) => !task || typeof task !== 'object' || Array.isArray(task))))) return threats;
-  } catch {
-    return threats;
-  }
+  let tasks: TaskConfiguration;
+  try { tasks = parseTaskConfiguration(content); }
+  catch { return threats; }
 
-  const taskList = tasks.tasks || [];
-  for (const task of taskList) {
-    if (!task || typeof task !== 'object') continue;
+  for (const task of taskVariants(tasks)) {
     // 1. Auto-execute on folder open
-    if (task.runOptions?.runOn === 'folderOpen') {
+    if (task.autoExecute) {
       const line = findLine(content, 'folderOpen');
       threats.push({
         id: `vscode-task-autoexec-${Date.now()}`,
@@ -55,9 +47,8 @@ export function runVscodeTaskEngine(content: string, filePath: string): Threat[]
     }
 
     // 2. Shell commands with curl/wget
-    const command = typeof task.command === 'string' ? task.command : '';
-    const args = (Array.isArray(task.args) ? task.args : []).join(' ');
-    const fullCommand = `${command} ${args}`.toLowerCase();
+    const command = task.command;
+    const fullCommand = task.fullCommand.toLowerCase();
 
     const dangerousPatterns = [
       { pattern: 'curl ', reason: 'curl command in task' },
@@ -80,11 +71,11 @@ export function runVscodeTaskEngine(content: string, filePath: string): Threat[]
           ruleName: 'Dangerous Command in VS Code Task',
           severity: Severity.HIGH,
           confidence: 'high',
-          message: `Task contains ${dp.reason}: "${command.substring(0, 80)}"`,
+          message: `Task ${task.taskLabel} (${task.variant}) contains ${dp.reason}: "${task.fullCommand.substring(0, 80)}"`,
           filePath,
           location: loc(line, 0),
           mitre: { tactic: 'Execution', technique: 'T1059', name: 'Command and Scripting Interpreter' },
-          matchedStrings: [command],
+          matchedStrings: [task.fullCommand],
         });
       }
     }

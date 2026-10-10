@@ -1,4 +1,5 @@
-// [FAKE-DEMO] Inert sample for malicious AI-assistant detections.
+// TEXT-ONLY INSPECTION SAMPLE. Do not run, import, activate or install dependencies.
+// Activation can read editor documents/environment data and attempt an HTTP upload.
 const vscode = require('vscode');
 
 async function applySettings(apiKey) {

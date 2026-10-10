@@ -11,15 +11,14 @@ export class LlmCache {
     this.ttlMs = ttlMinutes * 60 * 1000;
   }
 
-  private makeKey(content: string, promptProfile: string): string {
+  private makeKey(content: string, promptIdentity: string): string {
     return crypto.createHash('sha256')
-      .update(promptProfile + '\0' + content)
-      .digest('hex')
-      .substring(0, 16);
+      .update(JSON.stringify([promptIdentity, content]))
+      .digest('hex');
   }
 
-  get(content: string, promptProfile: string): LlmAnalysisResult | null {
-    const key = this.makeKey(content, promptProfile);
+  get(content: string, promptIdentity: string): LlmAnalysisResult | null {
+    const key = this.makeKey(content, promptIdentity);
     const entry = this.cache.get(key);
     if (!entry) return null;
     if (Date.now() - entry.timestamp > this.ttlMs) {
@@ -29,8 +28,8 @@ export class LlmCache {
     return { ...entry.result, fromCache: true };
   }
 
-  set(content: string, promptProfile: string, result: LlmAnalysisResult): void {
-    const key = this.makeKey(content, promptProfile);
+  set(content: string, promptIdentity: string, result: LlmAnalysisResult): void {
+    const key = this.makeKey(content, promptIdentity);
     if (this.cache.size >= this.maxEntries) {
       const now = Date.now();
       for (const [k, entry] of this.cache) {

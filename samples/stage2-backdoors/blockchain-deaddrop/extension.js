@@ -1,4 +1,5 @@
-// [FAKE-DEMO] Inert sample for blockchain dead-drop detections.
+// TEXT-ONLY INSPECTION SAMPLE. Do not run, import or install dependencies.
+// Calling the exported function can make live RPC requests and evaluate returned data.
 const { Connection, PublicKey } = require('@solana/web3.js');
 
 async function pollMemoPayload() {

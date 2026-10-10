@@ -6,9 +6,11 @@ Static workspace review for VS Code. This is the extension developed in the publ
 
 FakeInterviewGuard reads source and configuration files, highlights suspicious patterns, and helps you review selected configuration changes. The engineering focus is consent, incomplete scan reporting, conflict-safe recovery and failure-path testing.
 
-**Status: bounded CV/portfolio demonstration verified.** The [installed Windows GUI report](docs/reports/native-portfolio-20261009/REPORT.md) records 17 passing automated checks and 13 distinct captures for its exact candidate/VSIX, with explicit limits. The package version is 1.0.0; this is not a Marketplace release or full release acceptance. Check the actual commit and its CI results before using a build. No scan certifies a repository as safe. This extension is not an antivirus, sandbox, live threat-intelligence feed or general barrier before commands execute.
+**Evidence: bounded CV/portfolio demonstration on 2026-10-09.** The [installed Windows GUI report](https://github.com/rodhayl/VSCodeAntivir/blob/main/docs/reports/native-portfolio-20261009/REPORT.md) records 17 passing automated checks and 13 distinct captures for its exact candidate/VSIX, with explicit limits. That historical run does not validate later source changes or rebuilt packages. The package version is 1.0.0; this is not a Marketplace release or full release acceptance. Check the actual commit and its CI results before using a build. No scan certifies a repository as safe. This extension is not an antivirus, sandbox, live threat-intelligence feed or general barrier before commands execute.
 
-## Try it without running repository code
+## Build the extension, then inspect without executing suspect code
+
+The commands below execute this extension's own build and test code. They do not execute the unfamiliar repository being inspected. Never run programs, tasks, workflows, hooks or package scripts from `samples/` or a suspicious repository.
 
 Prerequisites: Node.js 22.13+ (Node 24 is also supported by the build), npm and VS Code 1.125+.
 
@@ -40,6 +42,8 @@ Restricted Mode limits extension behavior; it does not make files or other appli
 - Explicit task/npm/Git configuration review with original-byte backups; quick fixes open review/details rather than deleting source lines
 - Private quarantine records with SHA-256 integrity checks, exclusive restore publication and failure-path regressions
 - Optional, separately invoked LLM review with endpoint/input consent, cancellation and stale-result rejection
+
+Task inspection includes supported command/argument strings and quoted objects, platform overrides and inherited defaults. Reviewed edits cover only supported shell/default task declarations. For command findings, the edit replaces the command and clears arguments/dependencies across all declared platform variants, and disables folder-open startup. A startup-only edit changes `runOn` while preserving commands and dependencies. Process/provider tasks, execution options, global execution defaults, platform-level task lists and unsupported shapes require manual editing; no partial remediation is applied. This is static configuration review, not a shell-safety guarantee.
 
 The historical `npm-audit-engine` filename is retained for compatibility. It does **not** invoke `npm audit`, resolve lockfiles, inspect installed package contents or query a registry. Exact declarations, semver ranges and npm aliases are distinguished; a range finding means it may include a listed version, not that the version is installed. Names and campaign labels in bundled indicators are author-maintained classifications, not verified attribution or a current advisory feed.
 
@@ -75,7 +79,7 @@ Trusted review -> target/snapshot/consent checks -> FileChange or quarantine
 Optional model command -> destination/input consent -> cancellable client -> stale-result checks
 ```
 
-Source: `extension/src/`. Rules: `extension/rules/`. Prompt templates: `extension/prompts/`. Tests and corpus: `extension/test/`. The top-level `samples/` is inspection data; never execute its programs, tasks, workflows or package scripts.
+Source: `extension/src/`. Rules: `extension/rules/`. Prompt templates: `extension/prompts/`. Tests and corpus: `extension/test/`. The top-level `samples/` is text-only inspection data. Never execute or activate its programs, tasks, workflows or package scripts, or install its dependencies. Some examples retain real network calls, clipboard/document reads, command execution or extension-installation paths. `FAKE-DEMO` labels, loopback addresses and example domains do not make those paths safe.
 
 Supported matchers are `string`, `string-any`, `regex` and `entropy`. Legacy `ast` uses predefined regular expressions, not an AST parser; it remains for compatibility and is not recommended for new rules. Unimplemented `file-structure` matchers are rejected instead of silently reporting no match. Custom rules load only in trusted sessions and can be expensive; review them first.
 

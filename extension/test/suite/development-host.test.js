@@ -9,53 +9,24 @@ function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
-const screenshotsDir = path.resolve(__dirname, '..', '..', '..', 'docs', 'reports', 'native-portfolio-20261009', 'screenshots');
-if (!fs.existsSync(screenshotsDir)) {
-  fs.mkdirSync(screenshotsDir, { recursive: true });
-}
-
-async function captureScreenshot(name) {
-  try {
-    const res = await fetch('http://127.0.0.1:9228/json');
-    const list = await res.json();
-    const page = list.find(p => p.type === 'page' && p.webSocketDebuggerUrl);
-    if (!page) return false;
-    return new Promise((resolve) => {
-      const ws = new WebSocket(page.webSocketDebuggerUrl);
-      ws.onopen = () => ws.send(JSON.stringify({ id: 1, method: 'Page.captureScreenshot' }));
-      ws.onmessage = (e) => {
-        const msg = JSON.parse(e.data);
-        if (msg.id === 1) {
-          ws.close();
-          if (msg.result?.data) {
-            fs.writeFileSync(path.join(screenshotsDir, name), Buffer.from(msg.result.data, 'base64'));
-            resolve(true);
-          } else resolve(false);
-        }
-      };
-      ws.onerror = () => resolve(false);
-    });
-  } catch {
-    return false;
-  }
-}
-
-suite('FakeInterviewGuard Native Acceptance Suite', () => {
+// Development Host checks against the source checkout, not installed-VSIX acceptance.
+// Screenshots and native dialog/trust-state evidence belong to the separate installed harness.
+suite('FakeInterviewGuard Development Host Checks', () => {
 
   suiteSetup(async function () {
     this.timeout(30000);
     const ext = vscode.extensions.getExtension('fakeinterviewguard.fake-interview-guard');
-    assert.ok(ext, 'FakeInterviewGuard extension must be installed and found by VS Code');
+    assert.ok(ext, 'FakeInterviewGuard source extension must be found in the Development Host');
     if (!ext.isActive) {
       await ext.activate();
     }
     await new Promise(r => setTimeout(r, 1500));
-    await captureScreenshot('01-installed-extension.png');
   });
 
-  test('Installed extension identity, version, and metadata match candidate', () => {
+  test('Development extension identity and manifest match the source checkout', () => {
     const ext = vscode.extensions.getExtension('fakeinterviewguard.fake-interview-guard');
     assert.ok(ext, 'Extension missing');
+    assert.strictEqual(path.resolve(ext.extensionPath), path.resolve(__dirname, '../..'));
     assert.strictEqual(ext.id, 'fakeinterviewguard.fake-interview-guard');
     assert.strictEqual(ext.packageJSON.name, 'fake-interview-guard');
     assert.strictEqual(ext.packageJSON.publisher, 'fakeinterviewguard');
@@ -83,7 +54,7 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
     }
   });
 
-  test('Restricted Mode and safe scan behavior on clean benign file', async function () {
+  test('Manual scan leaves a benign file unchanged and reports no findings', async function () {
     this.timeout(20000);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-native-clean-'));
     const cleanFile = path.join(root, 'benign.js');
@@ -93,7 +64,6 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
     try {
       const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(cleanFile));
       await vscode.window.showTextDocument(doc);
-      await captureScreenshot('02-restricted-mode.png');
       await vscode.commands.executeCommand('fig.scanFile', doc.uri);
       await new Promise(r => setTimeout(r, 1500));
 
@@ -101,7 +71,6 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
         .filter(d => d.source === 'FakeInterviewGuard');
       assert.strictEqual(diagnostics.length, 0, 'Clean file must have zero FIG diagnostics');
       assert.strictEqual(fs.readFileSync(cleanFile, 'utf8'), content, 'Scan must be strictly read-only');
-      await captureScreenshot('03-manual-scan-findings.png');
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
       try {
@@ -110,7 +79,7 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
     }
   });
 
-  test('Configuration review cancellation leaves workspace files 100% byte-identical', async function () {
+  test('Manual task scan reports findings without changing file bytes or creating backup', async function () {
     this.timeout(20000);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-native-review-'));
     const tasksDir = path.join(root, '.vscode');
@@ -126,12 +95,12 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
     try {
       const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(tasksFile));
       await vscode.window.showTextDocument(doc);
-      await captureScreenshot('06-configuration-review-notification.png');
       await vscode.commands.executeCommand('fig.scanFile', doc.uri);
       await new Promise(r => setTimeout(r, 1500));
 
+      assert(vscode.languages.getDiagnostics(doc.uri).some(d => d.source === 'FakeInterviewGuard'), 'Task fixture must produce an observed finding');
       const currentHash = sha256(fs.readFileSync(tasksFile));
-      assert.strictEqual(currentHash, initialHash, 'Tasks file must remain byte-identical after inspection/cancellation');
+      assert.strictEqual(currentHash, initialHash, 'Tasks file must remain byte-identical after manual inspection');
       assert.ok(!fs.existsSync(tasksFile + '.fig-backup'), 'No backup file should be created without explicit change application');
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
@@ -141,7 +110,7 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
     }
   });
 
-  test('Remediation and safe restore preserves user edits on conflict', async function () {
+  test('TaskInterceptor module preserves user edits when restore conflicts', async function () {
     this.timeout(20000);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-native-remed-'));
     const ext = vscode.extensions.getExtension('fakeinterviewguard.fake-interview-guard');
@@ -163,8 +132,7 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
       assert.ok(applied, 'Remediation should apply successfully');
       assert.ok(fs.existsSync(tasksFile + '.fig-backup'), 'Backup must be preserved upon modification');
       const modifiedContent = fs.readFileSync(tasksFile, 'utf8');
-      assert.notStrictEqual(modifiedContent, originalContent, 'File content should be updated to safe echo');
-      await captureScreenshot('07-remediation-applied-and-undo.png');
+      assert.notStrictEqual(modifiedContent, originalContent, 'Reviewed startup setting should change');
 
       // Now simulate newer user edits to the file before undo
       const newerWork = modifiedContent + '\n// User added newer benign task\n';
@@ -180,7 +148,7 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
     }
   });
 
-  test('Quarantine and restore roundtrip preserves recreated destination conflicts', async function () {
+  test('QuarantineManager module retains destination conflicts and restores exact bytes', async function () {
     this.timeout(20000);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-native-quar-'));
     const ext = vscode.extensions.getExtension('fakeinterviewguard.fake-interview-guard');
@@ -227,31 +195,14 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
     }
   });
 
-  test('Security dashboard webview opens cleanly and without errors', async function () {
+  test('Dashboard command creates a dashboard webview tab', async function () {
     this.timeout(15000);
     await vscode.commands.executeCommand('fig.showDashboard');
-    await new Promise(r => setTimeout(r, 2000));
-    await captureScreenshot('04-security-dashboard.png');
-    assert.ok(true, 'fig.showDashboard executed without error');
+    const tabs = vscode.window.tabGroups.all.flatMap(group => group.tabs);
+    assert(tabs.some(tab => tab.label === 'FIG Security Dashboard' && tab.input instanceof vscode.TabInputWebview), 'Dashboard webview tab must be observed');
   });
 
-  test('Quarantine view opens and renders cleanly', async function () {
-    this.timeout(15000);
-    await vscode.commands.executeCommand('fig.showQuarantine');
-    await new Promise(r => setTimeout(r, 1500));
-    await captureScreenshot('05-quarantine-manager.png');
-    assert.ok(true, 'fig.showQuarantine executed without error');
-  });
-
-  test('Keyboard command palette shows FIG commands', async function () {
-    this.timeout(15000);
-    await vscode.commands.executeCommand('workbench.action.quickOpen', '>FIG:');
-    await new Promise(r => setTimeout(r, 1000));
-    await captureScreenshot('08-command-palette-keyboard.png');
-    await vscode.commands.executeCommand('workbench.action.closeQuickOpen');
-  });
-
-  test('Repeated sequential clicks do not corrupt scanner or quarantine state', async function () {
+  test('Three sequential rule reload commands leave the extension active', async function () {
     this.timeout(20000);
     for (let i = 0; i < 3; i++) {
       await vscode.commands.executeCommand('fig.reloadRules');
@@ -261,9 +212,8 @@ suite('FakeInterviewGuard Native Acceptance Suite', () => {
     assert.ok(ext && ext.isActive, 'Extension must remain active after repeated reloads');
   });
 
-  test('LLM status check is non-intrusive and offline-safe', async function () {
+  test('Isolated Development Host has LLM disabled by default', async function () {
     this.timeout(15000);
-    await vscode.commands.executeCommand('fig.llmStatus');
     await new Promise(r => setTimeout(r, 1000));
     const config = vscode.workspace.getConfiguration('fig');
     assert.strictEqual(config.get('llm.enabled'), false, 'LLM must remain disabled by default');

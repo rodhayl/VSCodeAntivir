@@ -1,4 +1,5 @@
-// [FAKE-DEMO] Inert sample for testing extension-loader detections.
+// TEXT-ONLY INSPECTION SAMPLE. Do not run, import, activate or install dependencies.
+// Its command retains network requests, shell execution and extension installation.
 const vscode = require('vscode');
 const { execSync } = require('child_process');
 

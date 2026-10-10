@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { createHost, modelResponse, tick } = require('../helpers/extension-host-stub');
-const flagged = '// inert text fixture: eval(\n';
+// A real high-severity rule scoped to .js; do not rely on a filename-mismatch false positive.
+const flagged = '// inert text fixture: Invoke-Expression\n';
 const clean = 'const greeting = "hello";\n';
 async function fixture(run, options={}) {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'fig-host-'));
@@ -72,10 +73,16 @@ suite('Extension scan and consent safety',()=>{
     h.fire('save',doc);await tick();assert.strictEqual(h.modelCalls.length,1);assert(!(h.diagnostics.get(file)||[]).some(d=>String(d.code).startsWith('llm-')));
   },{user:{...llmUser,'fig.llm.autoAnalyze':true},ignoreAbort:true}));
   test('automatic analysis requires session consent and never scans outside workspace',()=>fixture(async(h,root,write)=>{
-    const inside=write('workspace/example.js',flagged), outside=write('outside.js',flagged);h.activate();await tick();
+    const published=[];const {DiagnosticsProvider}=h.load('providers/diagnostics-provider');
+    const append=DiagnosticsProvider.prototype.appendLlmResults;
+    DiagnosticsProvider.prototype.appendLlmResults=function(file,threats){published.push(file);return append.call(this,file,threats);};
+    const inside=write('workspace/example.js',flagged), outside=write('outside.js',flagged+'// distinct outside bytes\n');h.activate();await tick();
     h.vscode.workspace.workspaceFolders=[{name:'fixture',uri:h.uri(path.join(root,'workspace'))}];const doc=h.makeDocument(inside,flagged);h.fire('save',doc);await tick();assert.strictEqual(h.modelCalls.length,0);
+    assert((h.diagnostics.get(inside)||[]).some(d=>d.severity<=1),'inside fixture must qualify for automatic high-severity analysis');
     await h.vscode.window.showTextDocument(doc);h.replies.push('Allow automatic analysis this session');const first=h.commands.get('fig.llmAnalyze')();await tick();h.modelCalls[0].resolve(modelResponse());await first;await tick();
-    h.fire('save',h.makeDocument(outside,flagged));await tick();assert.strictEqual(h.modelCalls.length,1);
+    h.fire('save',h.makeDocument(outside,flagged+'// distinct outside bytes\n'));await tick();assert.strictEqual(h.modelCalls.length,1);
+    assert(published.includes(inside));assert(!published.includes(outside));
+    assert(!(h.diagnostics.get(outside)||[]).some(d=>String(d.code).startsWith('llm-')));
   },{user:{...llmUser,'fig.llm.autoAnalyze':true}}));
   test('automatic analysis refuses an inside-workspace symlink to outside content', function () {
     if (process.platform === 'win32') this.skip();

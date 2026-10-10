@@ -23,29 +23,13 @@
     {
       "id": "m2",
       "type": "regex",
-      "pattern": "(\\./|bash|sh|python|node|npm|npx|pip|cargo)\\s+.*artifact",
-      "description": "Executes content from artifacts directory"
-    },
-    {
-      "id": "m3",
-      "type": "regex",
-      "pattern": "chmod\\s+\\+x.*artifact",
-      "description": "Makes artifact executable"
-    },
-    {
-      "id": "m4",
-      "type": "regex",
-      "pattern": "source\\s+.*artifact",
-      "description": "Sources script from artifact"
+      "pattern": "(?:(\\./|bash|sh|python|node|npm|npx|pip|cargo)\\s+.*artifact)|(?:chmod\\s+\\+x.*artifact)|(?:source\\s+.*artifact)",
+      "description": "Executes, makes executable, or sources content from an artifact"
     }
   ],
   "condition": {
     "type": "all",
-    "of": ["m1"],
-    "and": {
-      "type": "any",
-      "of": ["m2", "m3", "m4"]
-    }
+    "of": ["m1", "m2"]
   },
   "appliesTo": {
     "filePatterns": ["**/.github/workflows/*.yml", "**/.github/workflows/*.yaml"]

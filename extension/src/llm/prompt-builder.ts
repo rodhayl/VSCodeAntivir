@@ -57,15 +57,12 @@ export class PromptBuilder {
     const template = this.templates.get(templateName);
     if (!template) return null;
 
-    let systemPrompt = template.systemPrompt;
-    let userPrompt = template.userTemplate;
-
-    for (const [key, value] of Object.entries(variables)) {
-      const escaped = `{{${key}}}`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const re = new RegExp(escaped, 'g');
-      systemPrompt = systemPrompt.replace(re, value);
-      userPrompt = userPrompt.replace(re, value);
-    }
+    // Replace only placeholders in the original template. Input bytes, including
+    // replacement tokens and placeholder-shaped source, are never interpreted.
+    const interpolate = (source: string): string => source.replace(/\{\{([^{}]+)\}\}/g,
+      (placeholder, key: string) => Object.hasOwn(variables, key) ? variables[key] : placeholder);
+    const systemPrompt = interpolate(template.systemPrompt);
+    const userPrompt = interpolate(template.userTemplate);
 
     return {
       systemPrompt,

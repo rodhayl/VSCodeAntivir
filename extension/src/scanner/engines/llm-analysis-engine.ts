@@ -34,13 +34,6 @@ export class LlmAnalysisEngine {
     options?.signal?.throwIfAborted();
     const templateName = options?.promptOverride || this.promptProfile;
 
-    // Check cache
-    const cached = this.cache.get(content, templateName);
-    if (cached) {
-      const threats = this.responseParser.mapToThreats(cached, filePath, content);
-      return { threats, result: cached };
-    }
-
     // Determine language from extension
     const ext = path.extname(filePath).toLowerCase();
     const langMap: Record<string, string> = {
@@ -53,7 +46,7 @@ export class LlmAnalysisEngine {
     const truncatedCode = this.promptBuilder.truncateCode(content);
 
     // Build prompt
-    const prompt = this.promptBuilder.buildPrompt(templateName, {
+    let prompt = this.promptBuilder.buildPrompt(templateName, {
       code: truncatedCode,
       filename: path.basename(filePath),
       language,
@@ -61,18 +54,26 @@ export class LlmAnalysisEngine {
 
     if (!prompt) {
       // Fall back to the default Security Analysis template
-      const fallback = this.promptBuilder.buildPrompt('Security Analysis', {
+      prompt = this.promptBuilder.buildPrompt('Security Analysis', {
         code: truncatedCode,
         filename: path.basename(filePath),
         language,
       });
-      if (!fallback) {
+      if (!prompt) {
         throw new Error(`No prompt template found: "${templateName}" or "Security Analysis"`);
       }
-      return this.executeAnalysis(fallback, filePath, content, templateName, options?.signal);
     }
 
-    return this.executeAnalysis(prompt, filePath, content, templateName, options?.signal);
+    // Cache the actual request context, including filename/language, fallback
+    // template bytes and generation parameters. Configuration changes still
+    // clear the extension-owned cache before replacing the client/engine.
+    const cacheKey = JSON.stringify(prompt);
+    const cached = this.cache.get(content, cacheKey);
+    if (cached) {
+      const threats = this.responseParser.mapToThreats(cached, filePath, content);
+      return { threats, result: cached };
+    }
+    return this.executeAnalysis(prompt, filePath, content, cacheKey, options?.signal);
   }
 
   private async executeAnalysis(

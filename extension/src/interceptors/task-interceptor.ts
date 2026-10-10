@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parse, modify, applyEdits, ParseError } from 'jsonc-parser';
+import { modify, applyEdits } from 'jsonc-parser';
+import { parseTaskConfiguration, taskVariants, taskRemediationError, taskAt, TASK_PLATFORMS, TaskConfiguration } from './task-configuration';
 import { FileChange, readForReview } from '../safety/file-change';
 
 export interface TaskThreat {
@@ -9,6 +10,8 @@ export interface TaskThreat {
   severity: 'critical' | 'high' | 'medium';
   taskLabel: string;
   taskIndex: number;
+  taskPath?: (string | number)[];
+  variant?: string;
   command: string;
   evidence: string;
   line: number;
@@ -21,6 +24,7 @@ export interface TaskScanResult {
   blocked: boolean;
   content?: string;
   error?: string;
+  remediationError?: string;
 }
 
 const DANGEROUS_PATTERNS = [
@@ -74,35 +78,23 @@ export class TaskInterceptor {
       return result;
     }
 
-    let tasks: { tasks?: { label?: string; command?: unknown; args?: unknown[]; runOptions?: { runOn?: string } }[] };
-    try {
-      const errors: ParseError[] = [];
-      tasks = parse(content, errors, { allowTrailingComma: true });
-      if (errors.length || !tasks || typeof tasks !== 'object' || Array.isArray(tasks) ||
-          (tasks.tasks !== undefined && (!Array.isArray(tasks.tasks) || tasks.tasks.some((task: unknown) => !task || typeof task !== 'object' || Array.isArray(task))))) throw new Error('Invalid task configuration');
-    } catch (error) {
-      result.error = String(error);
-      return result;
-    }
-
-    const taskList = tasks.tasks || [];
+    let tasks: TaskConfiguration;
+    try { tasks = parseTaskConfiguration(content); }
+    catch (error) { result.error = String(error); return result; }
     const lines = content.split('\n');
-
-    for (const [taskIndex, task] of taskList.entries()) {
-      if (!task || typeof task !== 'object') continue;
-      const taskLabel = task.label || 'unnamed';
-      const command = typeof task.command === 'string' ? task.command : '';
-      const args = (Array.isArray(task.args) ? task.args : [task.args || '']).join(' ');
-      const fullCommand = `${command} ${args}`.trim();
+    for (const task of taskVariants(tasks)) {
+      const { taskLabel, taskIndex, taskPath, variant, command, fullCommand } = task;
 
       // Check for auto-execute on folder open (CRITICAL)
-      if (task.runOptions?.runOn === 'folderOpen') {
+      if (task.autoExecute) {
         const lineNum = this.findLineNumber(lines, 'folderOpen');
         result.threats.push({
           type: 'auto-execute',
           severity: 'critical',
           taskLabel,
           taskIndex,
+          taskPath,
+          variant,
           command: fullCommand,
           evidence: '"runOn": "folderOpen"',
           line: lineNum,
@@ -118,6 +110,8 @@ export class TaskInterceptor {
             severity: dp.severity,
             taskLabel,
             taskIndex,
+            taskPath,
+            variant,
             command: fullCommand.substring(0, 200),
             evidence: fullCommand.match(dp.pattern)?.[0] || '',
             line: lineNum,
@@ -134,6 +128,8 @@ export class TaskInterceptor {
             severity: 'high',
             taskLabel,
             taskIndex,
+            taskPath,
+            variant,
             command: fullCommand.substring(0, 200),
             evidence: shortener,
             line: lineNum,
@@ -143,6 +139,7 @@ export class TaskInterceptor {
     }
 
     result.hasThreats = result.threats.length > 0;
+    if (result.hasThreats) result.remediationError = taskRemediationError(tasks, result.threats.map(threat => threat.taskPath!));
 
     if (result.hasThreats && notify && this.onThreatDetected) this.onThreatDetected(result);
     return result;
@@ -151,23 +148,53 @@ export class TaskInterceptor {
   async applyBlock(review: TaskScanResult): Promise<boolean> {
     if (review.content === undefined || !review.hasThreats) return false;
     try {
+      const configuration = parseTaskConfiguration(review.content);
+      // Recompute the supported scope from the reviewed bytes; never rely on a
+      // missing UI flag or on incomplete caller-supplied variant metadata.
+      const fresh = await this.scanAndBlock(review.tasksJsonPath, false);
+      if (fresh.content !== review.content || fresh.error || !fresh.hasThreats) return false;
+      if (fresh.remediationError) throw new Error(fresh.remediationError);
       let updated = review.content;
-      const byTask = new Map<number, TaskThreat[]>();
-      for (const threat of review.threats) byTask.set(threat.taskIndex, [...(byTask.get(threat.taskIndex) || []), threat]);
-      for (const [index, threats] of byTask) {
+      const byTask = new Map<string, TaskThreat[]>();
+      for (const threat of fresh.threats) {
+        const key = JSON.stringify(threat.taskPath);
+        byTask.set(key, [...(byTask.get(key) || []), threat]);
+      }
+      for (const threats of byTask.values()) {
+        const taskPath = threats[0].taskPath!;
+        const task = taskAt(configuration, taskPath);
         const edit = (keys: (string | number)[], value: unknown) => {
           updated = applyEdits(updated, modify(updated, keys, value, { formattingOptions: { insertSpaces: true, tabSize: 2 } }));
         };
-        if (threats.some(t => t.type === 'auto-execute')) edit(['tasks', index, 'runOptions', 'runOn'], 'default');
-        if (threats.some(t => t.type !== 'auto-execute')) {
-          edit(['tasks', index, 'command'], 'echo Task disabled after review by FakeInterviewGuard');
-          edit(['tasks', index, 'args'], []);
+        const paths = [taskPath, ...TASK_PLATFORMS.filter(platform => task[platform] !== undefined).map(platform => [...taskPath, platform])];
+        for (const variantPath of paths) {
+          edit([...variantPath, 'runOptions', 'runOn'], 'default');
+          if (threats.some(threat => threat.type !== 'auto-execute')) {
+            edit([...variantPath, 'type'], 'shell');
+            edit([...variantPath, 'command'], 'echo Task disabled after review by FakeInterviewGuard');
+            edit([...variantPath, 'args'], []);
+            edit([...variantPath, 'dependsOn'], []);
+          }
+        }
+      }
+      // Verify the resulting declarations, not only the same pattern detector.
+      const candidate = parseTaskConfiguration(updated);
+      for (const threats of byTask.values()) {
+        const taskPath = threats[0].taskPath!;
+        const neutralized = threats.some(threat => threat.type !== 'auto-execute');
+        const variants = taskVariants(candidate).filter(variant => JSON.stringify(variant.taskPath) === JSON.stringify(taskPath));
+        if (variants.some(variant => variant.autoExecute || (neutralized && variant.fullCommand !== 'echo Task disabled after review by FakeInterviewGuard'))) return false;
+        if (neutralized) {
+          const task = taskAt(candidate, taskPath);
+          for (const value of [task, ...TASK_PLATFORMS.filter(platform => task[platform] !== undefined).map(platform => taskAt(task, [platform]))]) {
+            if (!Array.isArray(value.dependsOn) || value.dependsOn.length !== 0) return false;
+          }
         }
       }
       const applied = this.changes.apply(review.tasksJsonPath, review.content, updated);
       if (!applied) return false;
       const verified = await this.scanAndBlock(review.tasksJsonPath, false);
-      if (verified.error || verified.hasThreats) return false;
+      if (verified.content !== updated || verified.error || verified.hasThreats) return false;
       this.blockedPaths.add(review.tasksJsonPath);
       return true;
     } catch (error) {

@@ -15,12 +15,12 @@ about: Submit a pull request
 - [ ] Other:
 
 ## Testing
-<!-- Describe the tests you ran and their results -->
+<!-- Record the exact candidate, commands, results and limits. Mark blocked/skipped checks explicitly; they are not passes. -->
 - [ ] `npm run compile` passes
 - [ ] `npm test` passes (all tests green)
 - [ ] `npm run lint` passes (no errors)
-- [ ] Tested with actual samples in `samples/`
-- [ ] Tested with clean files (no false positives)
+- [ ] Inspected relevant `samples/` fixtures as text only; did not execute/activate them or install their dependencies
+- [ ] Ran the synthetic benchmark and reported corpus identity, denominators, TP/FP/TN/FN counts, errors and known limits (false positives must be disclosed)
 
 ## Checklist
 - [ ] Code follows project conventions (TS strict mode, minimal comments)

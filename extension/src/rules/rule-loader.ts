@@ -2,6 +2,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { DetectionRule } from '../scanner/models/rule';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isNonEmptyString);
+}
+
 export class RuleLoader {
   private rules: DetectionRule[] = [];
   private errors: string[] = [];
@@ -12,8 +24,12 @@ export class RuleLoader {
     for (const file of files) {
       try {
         const content = fs.readFileSync(file, 'utf-8');
-        const rule = JSON.parse(content) as DetectionRule;
+        const rule: unknown = JSON.parse(content);
         if (this.validateRule(rule, file)) {
+          if (this.rules.some(loaded => loaded.id === rule.id)) {
+            this.errors.push(`Rule in ${file} has duplicate rule id: ${rule.id}`);
+            continue;
+          }
           this.rules.push(rule);
         }
       } catch (e: unknown) {
@@ -38,90 +54,120 @@ export class RuleLoader {
         results.push(fullPath);
       }
     }
-    return results;
+    return results.sort();
   }
 
-  private validateRule(rule: DetectionRule, filePath: string): boolean {
-    if (!rule.id || typeof rule.id !== 'string') {
-      this.errors.push(`Rule in ${filePath} missing 'id'`);
+  private validateRule(rule: unknown, filePath: string): rule is DetectionRule {
+    const fail = (message: string): false => {
+      this.errors.push(`Rule in ${filePath}: ${message}`);
       return false;
+    };
+    if (!isRecord(rule)) return fail('expected a rule object');
+    if (!isNonEmptyString(rule.id)) return fail("missing or invalid 'id'");
+    if (!isNonEmptyString(rule.name)) return fail(`Rule ${rule.id} missing or invalid 'name'`);
+    if (typeof rule.severity !== 'string' || !['critical', 'high', 'medium', 'low', 'info'].includes(rule.severity)) {
+      return fail(`Rule ${rule.id} has invalid severity`);
     }
-    if (!rule.name || typeof rule.name !== 'string') {
-      this.errors.push(`Rule ${rule.id} missing 'name'`);
-      return false;
+
+    // Validate optional metadata before it reaches diagnostics and webviews.
+    // Description/confidence were historically optional in custom JSON rules.
+    for (const key of ['description', 'confidence', 'version', 'category', 'campaign']) {
+      if (rule[key] !== undefined && typeof rule[key] !== 'string') return fail(`${key} must be a string`);
     }
-    if (!rule.severity || !['critical', 'high', 'medium', 'low', 'info'].includes(rule.severity)) {
-      this.errors.push(`Rule ${rule.id} has invalid severity: ${rule.severity}`);
-      return false;
+    for (const key of ['references', 'tags']) {
+      if (rule[key] !== undefined && !isStringArray(rule[key])) return fail(`${key} must be an array of non-empty strings`);
     }
-    if (!rule.matchers || !Array.isArray(rule.matchers) || rule.matchers.length === 0) {
-      this.errors.push(`Rule ${rule.id} has no matchers`);
-      return false;
+    const mitre = rule.mitre;
+    if (mitre !== undefined && (!isRecord(mitre) || !['tactic', 'technique'].every(key => isNonEmptyString(mitre[key])) ||
+        (mitre.name !== undefined && typeof mitre.name !== 'string'))) {
+      return fail('mitre must contain string tactic and technique fields, with an optional string name');
     }
-    // Validate each matcher has required fields
-    const validMatcherTypes = ['string', 'string-any', 'regex', 'entropy', 'ast'];
+    if (rule.remediation !== undefined) {
+      if (!isRecord(rule.remediation) || typeof rule.remediation.message !== 'string' || !isStringArray(rule.remediation.actions)) {
+        return fail('remediation must contain a string message and an array of string actions');
+      }
+      if (rule.remediation.references !== undefined && !isStringArray(rule.remediation.references)) {
+        return fail('remediation.references must be an array of non-empty strings');
+      }
+    }
+
+    if (!isRecord(rule.appliesTo)) return fail('missing or invalid appliesTo object');
+    for (const key of ['filePatterns', 'languages']) {
+      if (rule.appliesTo[key] !== undefined && !isStringArray(rule.appliesTo[key])) {
+        return fail(`appliesTo.${key} must be an array of non-empty strings`);
+      }
+    }
+    // minimatch rejects longer patterns at runtime. Reject them at the load boundary.
+    if (isStringArray(rule.appliesTo.filePatterns) && rule.appliesTo.filePatterns.some(pattern => pattern.length > 64 * 1024)) {
+      return fail('appliesTo.filePatterns entries must not exceed 65536 characters');
+    }
+    if (!Array.isArray(rule.matchers) || rule.matchers.length === 0) return fail('rule has no matchers');
+    const matcherIds = new Set<string>();
     for (const matcher of rule.matchers) {
-      if (!matcher.id || typeof matcher.id !== 'string') {
-        this.errors.push(`Rule ${rule.id} matcher missing 'id'`);
-        return false;
+      if (!isRecord(matcher) || !isNonEmptyString(matcher.id)) return fail("matcher missing or invalid 'id'");
+      if (matcherIds.has(matcher.id)) return fail(`duplicate matcher id: ${matcher.id}`);
+      matcherIds.add(matcher.id);
+      if (typeof matcher.type !== 'string' || !['string', 'string-any', 'regex', 'entropy', 'ast'].includes(matcher.type)) {
+        return fail(`matcher ${matcher.id} has invalid type`);
       }
-      if (!matcher.type || !validMatcherTypes.includes(matcher.type)) {
-        this.errors.push(`Rule ${rule.id} matcher ${matcher.id} has invalid type: ${matcher.type}`);
-        return false;
+      if (['string', 'regex', 'ast'].includes(matcher.type) && (typeof matcher.pattern !== 'string' || matcher.pattern.length === 0)) {
+        return fail(`matcher ${matcher.id} missing string pattern`);
       }
-      if ((matcher.type === 'string' || matcher.type === 'ast') && (typeof matcher.pattern !== 'string' || !matcher.pattern)) {
-        this.errors.push(`Rule ${rule.id} string matcher ${matcher.id} missing 'pattern'`);
-        return false;
+      if (matcher.type === 'string-any') {
+        if (!isStringArray(matcher.patterns) || matcher.patterns.length === 0) return fail(`matcher ${matcher.id} requires non-empty string patterns`);
+        if (matcher.caseSensitive !== undefined && typeof matcher.caseSensitive !== 'boolean') return fail(`matcher ${matcher.id} caseSensitive must be boolean`);
       }
-      if (matcher.type === 'string-any' && (!Array.isArray(matcher.patterns) || !matcher.patterns.length || matcher.patterns.some((pattern: unknown) => typeof pattern !== 'string' || !pattern))) {
-        this.errors.push(`Rule ${rule.id} string-any matcher ${matcher.id} missing 'patterns' array`);
-        return false;
+      if (matcher.type === 'string' || matcher.type === 'string-any') {
+        if (matcher.context !== undefined && (typeof matcher.context !== 'string' || !['file', 'imports', 'identifiers', 'strings'].includes(matcher.context))) {
+          return fail(`matcher ${matcher.id} has invalid context`);
+        }
       }
-      if (matcher.type === 'regex' && (typeof matcher.pattern !== 'string' || !matcher.pattern)) {
-        this.errors.push(`Rule ${rule.id} regex matcher ${matcher.id} missing 'pattern'`);
-        return false;
+      if (matcher.type === 'regex' || matcher.type === 'ast') {
+        if (typeof matcher.pattern !== 'string') return fail(`matcher ${matcher.id} requires a string pattern`);
+        if (matcher.type === 'regex' && matcher.flags !== undefined && typeof matcher.flags !== 'string') return fail(`matcher ${matcher.id} flags must be a string`);
+        if (matcher.type === 'ast' && matcher.language !== undefined && !isNonEmptyString(matcher.language)) return fail(`matcher ${matcher.id} language must be a string`);
+        // Legacy ast aliases are regex-safe names; other ast patterns run as regex.
+        try {
+          const flags = matcher.type === 'regex' && typeof matcher.flags === 'string' ? matcher.flags || 'i' : 'i';
+          new RegExp(matcher.pattern, flags);
+        } catch { return fail(`matcher ${matcher.id} has an invalid regular expression`); }
       }
-      if (matcher.type === 'regex') {
-        try { new RegExp(matcher.pattern, matcher.flags || 'i'); } catch { this.errors.push(`Rule ${rule.id} has an invalid regular expression`); return false; }
-      }
-      if (matcher.type === 'entropy' && (matcher.threshold === undefined || matcher.minLength === undefined)) {
-        this.errors.push(`Rule ${rule.id} entropy matcher ${matcher.id} missing 'threshold' or 'minLength'`);
-        return false;
-      }
-    }
-    // Validate condition
-    if (!rule.condition || !rule.condition.type || !['all', 'any', 'threshold'].includes(rule.condition.type)) {
-      this.errors.push(`Rule ${rule.id} missing or invalid condition`);
-      return false;
-    }
-    if (!rule.condition.of || !Array.isArray(rule.condition.of) || rule.condition.of.length === 0) {
-      this.errors.push(`Rule ${rule.id} condition missing 'of' array`);
-      return false;
-    }
-    const matcherIds = new Set(rule.matchers.map(m => m.id));
-    for (const ref of rule.condition.of) {
-      if (!matcherIds.has(ref)) {
-        this.errors.push(`Rule ${rule.id} condition.of references unknown matcher: "${ref}"`);
-        return false;
+      if (matcher.type === 'entropy') {
+        if (typeof matcher.threshold !== 'number' || !Number.isFinite(matcher.threshold) || matcher.threshold < 0) {
+          return fail(`matcher ${matcher.id} threshold must be a finite non-negative number`);
+        }
+        if (typeof matcher.minLength !== 'number' || !Number.isSafeInteger(matcher.minLength) || matcher.minLength < 1) {
+          return fail(`matcher ${matcher.id} minLength must be a positive safe integer`);
+        }
+        if (matcher.context !== undefined && matcher.context !== 'file' && matcher.context !== 'string_literals') {
+          return fail(`matcher ${matcher.id} has invalid context`);
+        }
       }
     }
-    if (rule.condition.type === 'threshold' && typeof rule.condition.minimum !== 'number') {
-      this.errors.push(`Rule ${rule.id} threshold condition missing 'minimum'`);
-      return false;
+
+    const condition = rule.condition;
+    if (!isRecord(condition) || typeof condition.type !== 'string' || !['all', 'any', 'threshold'].includes(condition.type)) {
+      return fail('missing or invalid condition');
     }
-    // Validate appliesTo
-    if (!rule.appliesTo) {
-      this.errors.push(`Rule ${rule.id} missing appliesTo`);
-      return false;
+    const conditionFields = condition.type === 'threshold' ? ['type', 'of', 'minimum'] : ['type', 'of'];
+    const unsupportedFields = Object.keys(condition).filter(key => !conditionFields.includes(key));
+    if (unsupportedFields.length > 0) return fail(`unsupported condition fields: ${unsupportedFields.join(', ')}`);
+    if (!isStringArray(condition.of) || condition.of.length === 0) return fail('condition.of must be a non-empty array of strings');
+    if (new Set(condition.of).size !== condition.of.length) return fail('condition.of has duplicate matcher references');
+    for (const ref of condition.of) {
+      if (!matcherIds.has(ref)) return fail(`condition.of references unknown matcher: "${ref}"`);
     }
-    if (rule.appliesTo.filePatterns && !Array.isArray(rule.appliesTo.filePatterns)) {
-      this.errors.push(`Rule ${rule.id} appliesTo.filePatterns must be an array`);
-      return false;
+    if (condition.type === 'threshold' && (typeof condition.minimum !== 'number' || !Number.isSafeInteger(condition.minimum) ||
+        condition.minimum < 1 || condition.minimum > condition.of.length)) {
+      return fail('threshold condition minimum must be a safe integer between 1 and the number of referenced matchers');
     }
-    if (rule.appliesTo.languages && !Array.isArray(rule.appliesTo.languages)) {
-      this.errors.push(`Rule ${rule.id} appliesTo.languages must be an array`);
-      return false;
-    }
+
+    // Preserve the documented minimal custom-rule format with safe output types.
+    rule.description ??= rule.name;
+    rule.confidence ??= 'medium';
+    if (isRecord(rule.mitre)) rule.mitre.name ??= '';
+    rule.appliesTo.filePatterns ??= [];
+    rule.appliesTo.languages ??= [];
     return true;
   }
 

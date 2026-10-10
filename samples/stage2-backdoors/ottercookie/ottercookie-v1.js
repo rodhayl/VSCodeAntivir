@@ -1,6 +1,6 @@
-// [FAKE-DEMO] This is an INERT educational sample — NOT real malware
-// Mimics OtterCookie v1 JavaScript backdoor structure
-// All C2 addresses point to 127.0.0.1, all actions are console.log only
+// TEXT-ONLY INSPECTION SAMPLE. Do not run, import or install dependencies.
+// Mimics OtterCookie v1 JavaScript backdoor structure.
+// Execution can connect to loopback, send host data and read/log the clipboard.
 
 const io = require('socket.io-client');
 const os = require('os');

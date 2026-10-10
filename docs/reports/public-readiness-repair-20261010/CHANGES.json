@@ -1,0 +1,259 @@
+{
+  "baselineCommit": "0c89be104552d4895b05bc036074fa1b1d1c8ee3",
+  "scope": "All source, tests, rules, samples comments and documentation changes preceding this report. Report files are omitted from their own content hash manifest to avoid self-reference. No generated files, dependencies or VSIX are included.",
+  "repositoryInputsSha256": "66919e43f681fa74416a2e757f4ef72fbbbe94ca2c99527e0a8952356c4c88ad",
+  "files": [
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "status": "modified",
+      "baselineSha256": "aa304fc0fc7cc1bd2b7a50388d0cbb5ad549f22ae7aa2ae96fcc6d8d8620e53a",
+      "candidateSha256": "80bd7d8c702f90b5c98405335b1c715c97860287d1478a70cc802ff4cf91354a",
+      "bytes": 1179
+    },
+    {
+      "path": "README.md",
+      "status": "modified",
+      "baselineSha256": "f8b0dd0366c762ef09ff40bdcda7ef1a26b2b465270c1842a42c13a979a4fac6",
+      "candidateSha256": "8c3ef78a5978934b3096cbe481fd58bb611661669ece427a043c706d0d3b0ab1",
+      "bytes": 10678
+    },
+    {
+      "path": "docs/VERIFICATION.md",
+      "status": "modified",
+      "baselineSha256": "7437e1569e0f44ab0bc4fb0bd5268cbb763668c7c73f525b72e4467378a7e5fb",
+      "candidateSha256": "20c2e78d63d4d81b98dfe39dc1102b8494052eb42a9a6abccf37d2b82ccc646e",
+      "bytes": 3785
+    },
+    {
+      "path": "docs/reports/native-portfolio-20261009/historical/DEFECTS-866190a.md",
+      "status": "modified",
+      "baselineSha256": "adc2051b1cca22cfac1082327f61d550fd11310bc2ed6dfc99e4733168874713",
+      "candidateSha256": "e236d7b5392e900572c14b803c11d003f647fda05f19a72f0873c90cd3b355da",
+      "bytes": 8891
+    },
+    {
+      "path": "docs/reports/native-portfolio-20261009/historical/REPORT-866190a.md",
+      "status": "modified",
+      "baselineSha256": "d50d6b8c62dd5bfc23c5e4af2999a771e2689ed6639e51bc4ddaece720b1e29b",
+      "candidateSha256": "cbc631ace02d69ca2872a532f23b4096548150f416d50d172c5b9e7b1786a6fa",
+      "bytes": 9947
+    },
+    {
+      "path": "extension/rules/github-actions/artifact-poisoning.json",
+      "status": "modified",
+      "baselineSha256": "886761c396a0a43a67972703895a941db510b66b5978e5fbd083a7849bcf9a7e",
+      "candidateSha256": "270421e16f1f290cd2311fd255ae4d9b92ae9cd7db5e9858372acc3dd8fa3261",
+      "bytes": 1183
+    },
+    {
+      "path": "extension/rules/github-actions/pull-request-target.json",
+      "status": "modified",
+      "baselineSha256": "d7a333fef5da50b9e8abc08c15832e4bb7ae5ebd3f28dcd917112d0d2324dbd0",
+      "candidateSha256": "d987e2838848579263f4bd0c19fec96f72555ffd404fe37c5deea5d70f7b3630",
+      "bytes": 1221
+    },
+    {
+      "path": "extension/src/extension.ts",
+      "status": "modified",
+      "baselineSha256": "a45db3fc2391cda13ad35c3c3493a5dda40279374975dd5456dd89beb7af8b54",
+      "candidateSha256": "ccad0dc180194ec086171f803a4a401cd1f14bc7261ee7c9dc1718e500f84a32",
+      "bytes": 33357
+    },
+    {
+      "path": "extension/src/interceptors/task-configuration.ts",
+      "status": "added",
+      "baselineSha256": null,
+      "candidateSha256": "afda6ff2d127b044c9fc0d4a48cba0574d1daa4ad3354bb4c1138270ccef6706",
+      "bytes": 7822
+    },
+    {
+      "path": "extension/src/interceptors/task-interceptor.ts",
+      "status": "modified",
+      "baselineSha256": "2f6aa6343338e68277dbf9ff873151d8a62ca016056d34977392c11f3aa194cc",
+      "candidateSha256": "575e9d85ba3e518b24470a417798fa2e9bec03932603fbee6ab8d414feb3505c",
+      "bytes": 8740
+    },
+    {
+      "path": "extension/src/llm/llm-cache.ts",
+      "status": "modified",
+      "baselineSha256": "2bd2452756540aa5a94856064ab80d1fb3fddbe2ac439c5edc308e64e07b7deb",
+      "candidateSha256": "cd9841e374f05b4a60bd9061bffb58aa3610a141e7e9e734868ccdfa6b25ed37",
+      "bytes": 1700
+    },
+    {
+      "path": "extension/src/llm/prompt-builder.ts",
+      "status": "modified",
+      "baselineSha256": "386f1ef6075cb19613c3e8d76a23b17f35f556a59401bccba56ad83edc0f1a1a",
+      "candidateSha256": "bf050567855383c9d6e1ff3f11054daed133e07b3311acc63e9bc6f1f24ec609",
+      "bytes": 3101
+    },
+    {
+      "path": "extension/src/notifications/blocking-notification.ts",
+      "status": "modified",
+      "baselineSha256": "e61bb87abc6f544dfc34e7fea56e2c1ddc1f7d10b13c594becb608bf730817b4",
+      "candidateSha256": "b5c28316976da70277cae1c7e5cbbc2be2159f30c9ac6c2b486e801717da4e2b",
+      "bytes": 9386
+    },
+    {
+      "path": "extension/src/rules/rule-engine.ts",
+      "status": "modified",
+      "baselineSha256": "7dca402d1ef6c5df75cbda14023b15ec6e560e2344d55a3b304ca55621b66e2f",
+      "candidateSha256": "57d5527fec775bb882f89b8e0da350c7b349872ee1e7bad0229afc3c941bf6ed",
+      "bytes": 7343
+    },
+    {
+      "path": "extension/src/rules/rule-loader.ts",
+      "status": "modified",
+      "baselineSha256": "83af67afda287bebe69db6f733edbc80ae3c9c3a03fbdb41c955be98c8a22b2f",
+      "candidateSha256": "846e4438fb3c4c42f8b23fe3e0ee9864776dad2d55d6111b1fb5a7aefde91fd2",
+      "bytes": 9387
+    },
+    {
+      "path": "extension/src/scanner/engines/llm-analysis-engine.ts",
+      "status": "modified",
+      "baselineSha256": "a44bdd5fb84f78ba6819c7478050c76534750d4652aca1e51071b10165b95354",
+      "candidateSha256": "b4d9c48ba9137222bf89e9e303c82f93c3973c065781b48a9489ceabccafb583",
+      "bytes": 6330
+    },
+    {
+      "path": "extension/src/scanner/engines/vscode-task-engine.ts",
+      "status": "modified",
+      "baselineSha256": "22e6c1426b85b9ff083bca334c725bdd3f973a50083ebbaa99cf9a708f1f2dd7",
+      "candidateSha256": "0f5938812f5b8c790af9f7cb8c23aa7a71d73ed0c340fa1bed1c1f3c4b00e9dd",
+      "bytes": 4846
+    },
+    {
+      "path": "extension/src/scanner/scanner.ts",
+      "status": "modified",
+      "baselineSha256": "d89434eaf47b1c84f19d41f3765f58ba959301741544bc5dc11a58d7b7cddd9c",
+      "candidateSha256": "40689c5e10e8caebbfb49dd7af7f37b88ddaf2525f1d6e365f42c82703cff892",
+      "bytes": 6727
+    },
+    {
+      "path": "extension/test/helpers/extension-host-stub.js",
+      "status": "modified",
+      "baselineSha256": "8a3e28880d7299d4c6d424f34f00cc52e6e28658ce1d2a5b750226c6edd97ae6",
+      "candidateSha256": "f656263704be2c0940552f767935198fcd314222a43123e99889392ff0884948",
+      "bytes": 8344
+    },
+    {
+      "path": "extension/test/runTest.js",
+      "status": "modified",
+      "baselineSha256": "99b2dc65afef5629ba0244c49553d240b15b84096faffe3e31c73566fd42b433",
+      "candidateSha256": "f9f7f511a3229972fb09f26bbfdc8e43674e2179754783c82f1234d3ff0589e6",
+      "bytes": 1427
+    },
+    {
+      "path": "extension/test/suite/development-host.test.js",
+      "status": "added",
+      "baselineSha256": null,
+      "candidateSha256": "5c081ea2c8866ad12bd189f30bd0fcef2486480f5abb461e2b4445c4eca18427",
+      "bytes": 10930
+    },
+    {
+      "path": "extension/test/suite/native-acceptance.test.js",
+      "status": "deleted",
+      "baselineSha256": "a63a908ad0192c508b2905fd9cd69fb00174cc0b598c6d7c2eac1d5aa215ff5b",
+      "candidateSha256": null,
+      "bytes": null
+    },
+    {
+      "path": "extension/test/unit/automatic-scanning-regression.test.js",
+      "status": "added",
+      "baselineSha256": null,
+      "candidateSha256": "367809b7b7f5deb3e481822f138bc76d20883e5200a964843cf6d16c651fe8c5",
+      "bytes": 5170
+    },
+    {
+      "path": "extension/test/unit/development-host-scope.test.js",
+      "status": "added",
+      "baselineSha256": null,
+      "candidateSha256": "d09c812642d78a1194159236602235a217299f123126490eb9cb04099c2891bf",
+      "bytes": 1651
+    },
+    {
+      "path": "extension/test/unit/extended.test.js",
+      "status": "modified",
+      "baselineSha256": "0f0e1ce5f4b43859d668730e60258f420e0c137dd5e83e512f86756996e03cbc",
+      "candidateSha256": "9585ca8109c5f82e182ac8df8a0825b241e19bc02667bbdb7bfdb499e598f063",
+      "bytes": 71490
+    },
+    {
+      "path": "extension/test/unit/extension-safety.test.js",
+      "status": "modified",
+      "baselineSha256": "bd272f64cf69a23b1a66b80bdf02a50eff1846c98f7d042a793dcbcc67c2be4f",
+      "candidateSha256": "2c7689f99050a51d3596f863667668f593dca0305b6e8bdd3a1ed2b27d03583a",
+      "bytes": 21135
+    },
+    {
+      "path": "extension/test/unit/prompt-context-regression.test.js",
+      "status": "added",
+      "baselineSha256": null,
+      "candidateSha256": "10ee9b261f186af4c21dcc1c89a9981b7d98272a8cd34007f7358b32f79c9bb0",
+      "bytes": 6124
+    },
+    {
+      "path": "extension/test/unit/rule-validation-regression.test.js",
+      "status": "added",
+      "baselineSha256": null,
+      "candidateSha256": "b68bf8e02cf9002f157ac2a8ec6ca2247b28b7f16c8cbbfb00a1bf55d4799c91",
+      "bytes": 19062
+    },
+    {
+      "path": "extension/test/unit/task-variants-regression.test.js",
+      "status": "added",
+      "baselineSha256": null,
+      "candidateSha256": "d62d923050077808c2f1b7b91f684b162493668647ab16c3c88b7403c024b068",
+      "bytes": 11315
+    },
+    {
+      "path": "samples/stage1-initial-access/glassworm-v2-loader/extension.js",
+      "status": "modified",
+      "baselineSha256": "976a096fe6883a1dda2ca94f004e706384c8513f423ee13d59756b018a73c252",
+      "candidateSha256": "070d8b908a2732c365d8950538a59ada67b945f4fe949c774ddd9d5889949baa",
+      "bytes": 756
+    },
+    {
+      "path": "samples/stage2-backdoors/beaconing-agent/beacon.js",
+      "status": "modified",
+      "baselineSha256": "e579572f1242ee0dab576c65008c5955745363dac0a6e0370b39f2c56ae87f42",
+      "candidateSha256": "896b51e39f8e20bc6ba5b1edce6a627db0468a6c5c4f3fe45241039b22c6003c",
+      "bytes": 1449
+    },
+    {
+      "path": "samples/stage2-backdoors/blockchain-deaddrop/extension.js",
+      "status": "modified",
+      "baselineSha256": "21511817eab11996eb158bf9405455c9f7412f18352b9628ecea36027772d8af",
+      "candidateSha256": "34a9f9d2d9a6a9163a137b973d47fbe8e5991b9ca36917ec14be08517fcf48b1",
+      "bytes": 707
+    },
+    {
+      "path": "samples/stage2-backdoors/invisible-ferret/ferret.py",
+      "status": "modified",
+      "baselineSha256": "21ed26e6beb6f7a37dd572e8b2bc1591da96c74686b9e8cceb470b311ce63c1f",
+      "candidateSha256": "f9abce0835c64601e470270cd72e1a2e55d161e313cf4024fbf29198279e405a",
+      "bytes": 1906
+    },
+    {
+      "path": "samples/stage2-backdoors/ottercookie/ottercookie-v1.js",
+      "status": "modified",
+      "baselineSha256": "20bd38f637675734e3bd7fa270477b7568d785750d70ed9e04b95722fbb3c2b8",
+      "candidateSha256": "50a1a72848e37c0475974cdfc7548e8cea7f43104078662e76a26d51b088e0d0",
+      "bytes": 2620
+    },
+    {
+      "path": "samples/stage2-backdoors/unicode-obfuscation/extension.js",
+      "status": "modified",
+      "baselineSha256": "c0845671592b8485a1edb9429b5697bb0a637122b14218e8ccdb65ae1f170824",
+      "candidateSha256": "6145c8b1171ea0ea4b42ede622605205a5998ee806498b97d48417b8fda58dd8",
+      "bytes": 300
+    },
+    {
+      "path": "samples/stage3-data-collection/fake-ai-assistant/extension.js",
+      "status": "modified",
+      "baselineSha256": "ba986a3e1b399b967ceb2969720f2af4e177d079f31c06e3dea11229581ae21f",
+      "candidateSha256": "0b7ae85a347d8a11c2483194aeaf032380dffa01cd8210c74b09ee7b00c83330",
+      "bytes": 891
+    }
+  ]
+}

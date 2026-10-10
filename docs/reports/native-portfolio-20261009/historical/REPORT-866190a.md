@@ -1,4 +1,4 @@
-> SUPERSEDED HISTORICAL CLAIMS. Preserved verbatim below from commit 866190a9130a986cb3846c1e38465f967337e409. This is not current acceptance evidence. See ../REPORT.md for the corrected status.
+> SUPERSEDED HISTORICAL CLAIMS from commit 866190a9130a986cb3846c1e38465f967337e409. This is not current acceptance evidence. See [the corrected report](../REPORT.md). Navigation-only amendment, 2026-10-10: relative links below now target the preserved historical files and original screenshots after relocation; the reported claims and results are unchanged.
 
 # Windows Verification and Native Installed-VSIX Acceptance Report — 2026-10-09
 
@@ -44,7 +44,7 @@ The acceptance campaign was executed using a standalone automation driver (`exte
 | 2 | **Installed Package & Metadata Integrity** | **PASS** | Installed extension contains canonical `out/build-metadata.json` matching `1201aa5ec8...` digest across all 98 input files. |
 | 3 | **Restricted Mode GUI Status** | **PASS** | Status bar renders `#status.workspaceTrust` displaying `Restricted Mode` and hover title *"Restricted Mode: Some features are disabled because this folder is not trusted."* |
 | 4 | **Restricted Mode Manual Scans & Dashboard** | **PASS** | Triggered via Command Palette (`F1`); toast reports 53 rules loaded and scan diagnostics; Security Review Dashboard tab opens cleanly as script-free webview. |
-| 5 | **Restricted Mode Store Isolation** | **FAIL (DEF-05)** | In newly opened workspaces where Workspace Trust prompt is unresolved, `extension.ts:activate` eagerly instantiates `QuarantineManager`, creating `.fakeinterviewguard/quarantine` in `HOME`. Documented in [DEFECTS.md](DEFECTS.md). |
+| 5 | **Restricted Mode Store Isolation** | **FAIL (DEF-05)** | In newly opened workspaces where Workspace Trust prompt is unresolved, `extension.ts:activate` eagerly instantiates `QuarantineManager`, creating `.fakeinterviewguard/quarantine` in `HOME`. Documented in [DEFECTS.md](DEFECTS-866190a.md). |
 | 6 | **Restricted Mode Remediation Refusal** | **PASS** | Mutation command `fig.reviewConfiguration` is refused with warning toast: *"FIG: Configuration changes require a trusted window. Read-only scans remain available."* |
 | 7 | **Real Review Dialog Cancellation** | **PASS** | Opening `FIG: Review Tasks and NPM Scripts Configuration` renders modal; dismissing via Escape leaves `.vscode/tasks.json` byte-identical; no `.fig-backup` created. |
 | 8 | **Real Quarantine Dialog Cancellation** | **PASS** | Opening `FIG: Quarantine File` renders modal *"Move this file to quarantine?"*; dismissing via Escape leaves target artifact 100% byte-identical in workspace. |
@@ -59,7 +59,7 @@ The acceptance campaign was executed using a standalone automation driver (`exte
 
 ## 3. Defects Identified and Status
 
-Detailed defect write-ups and reproductions are recorded in [DEFECTS.md](DEFECTS.md):
+Detailed defect write-ups and reproductions are recorded in [DEFECTS.md](DEFECTS-866190a.md):
 
 - **DEF-01 (Fixed in `18195df`)**: Infinite loop in `ensureDirectory` under Windows NTFS extended paths (`\\?\`).
 - **DEF-02 (Fixed in `18195df`)**: `EPERM` crash on `fsyncSync` with read-only file descriptor on Windows.
@@ -71,26 +71,26 @@ Detailed defect write-ups and reproductions are recorded in [DEFECTS.md](DEFECTS
 
 ## 4. Visual Evidence (Sanitized Screenshots)
 
-All 12 screenshots from the native installed-VSIX acceptance campaign are preserved in [`screenshots/installed/`](screenshots/installed/):
+All 12 screenshots from the native installed-VSIX acceptance campaign are preserved in [`screenshots/installed/`](../screenshots/installed/):
 
-1. [`01-restricted-mode-window.png`](screenshots/installed/01-restricted-mode-window.png) — Editor window showing `Restricted Mode` in status bar.
-2. [`02-restricted-mode-scan.png`](screenshots/installed/02-restricted-mode-scan.png) — Manual workspace scan completed in Restricted Mode.
-3. [`03-restricted-mode-dashboard.png`](screenshots/installed/03-restricted-mode-dashboard.png) — Security Review Dashboard webview tab in untrusted workspace.
-4. [`04-quarantine-dialog-prompt.png`](screenshots/installed/04-quarantine-dialog-prompt.png) — Real modal confirmation dialog for `FIG: Quarantine File`.
-5. [`05-configuration-review-modal.png`](screenshots/installed/05-configuration-review-modal.png) — Real configuration review modal with options.
-6. [`06-remediation-applied-toast.png`](screenshots/installed/06-remediation-applied-toast.png) — Notification toast after remediation applied with *"Undo this change"* action.
-7. [`07-undo-clean-restored.png`](screenshots/installed/07-undo-clean-restored.png) — Toast confirming clean restoration of original bytes.
-8. [`08-undo-conflict-refused.png`](screenshots/installed/08-undo-conflict-refused.png) — Warning toast refusing Undo when newer user edits are present.
-9. [`09-quarantined-file.png`](screenshots/installed/09-quarantined-file.png) — Artifact quarantined to isolated store.
-10. [`10-quarantine-restored.png`](screenshots/installed/10-quarantine-restored.png) — Artifact restored after conflict resolution.
-11. [`11-command-palette-keyboard-nav.png`](screenshots/installed/11-command-palette-keyboard-nav.png) — Command Palette filtered by `FIG:` with keyboard navigation.
-12. [`12-error-handling-and-clean-state.png`](screenshots/installed/12-error-handling-and-clean-state.png) — Stable editor state after rapid repeated command invocations.
+1. [`01-restricted-mode-window.png`](../screenshots/installed/01-restricted-mode-window.png) — Editor window showing `Restricted Mode` in status bar.
+2. [`02-restricted-mode-scan.png`](../screenshots/installed/02-restricted-mode-scan.png) — Manual workspace scan completed in Restricted Mode.
+3. [`03-restricted-mode-dashboard.png`](../screenshots/installed/03-restricted-mode-dashboard.png) — Security Review Dashboard webview tab in untrusted workspace.
+4. [`04-quarantine-dialog-prompt.png`](../screenshots/installed/04-quarantine-dialog-prompt.png) — Real modal confirmation dialog for `FIG: Quarantine File`.
+5. [`05-configuration-review-modal.png`](../screenshots/installed/05-configuration-review-modal.png) — Real configuration review modal with options.
+6. [`06-remediation-applied-toast.png`](../screenshots/installed/06-remediation-applied-toast.png) — Notification toast after remediation applied with *"Undo this change"* action.
+7. [`07-undo-clean-restored.png`](../screenshots/installed/07-undo-clean-restored.png) — Toast confirming clean restoration of original bytes.
+8. [`08-undo-conflict-refused.png`](../screenshots/installed/08-undo-conflict-refused.png) — Warning toast refusing Undo when newer user edits are present.
+9. [`09-quarantined-file.png`](../screenshots/installed/09-quarantined-file.png) — Artifact quarantined to isolated store.
+10. [`10-quarantine-restored.png`](../screenshots/installed/10-quarantine-restored.png) — Artifact restored after conflict resolution.
+11. [`11-command-palette-keyboard-nav.png`](../screenshots/installed/11-command-palette-keyboard-nav.png) — Command Palette filtered by `FIG:` with keyboard navigation.
+12. [`12-error-handling-and-clean-state.png`](../screenshots/installed/12-error-handling-and-clean-state.png) — Stable editor state after rapid repeated command invocations.
 
-*Historical development-host screenshots (from the earlier run) remain preserved under [`screenshots/01-installed-extension.png`](screenshots/01-installed-extension.png) through [`08-command-palette-keyboard.png`](screenshots/08-command-palette-keyboard.png).*
+*Historical development-host screenshots (from the earlier run) remain preserved under [`screenshots/01-installed-extension.png`](../screenshots/01-installed-extension.png) through [`08-command-palette-keyboard.png`](../screenshots/08-command-palette-keyboard.png).*
 
 ---
 
 ## 5. Machine-Readable Summary
 
-Complete machine-readable identities, digests, and check results are maintained in [EVIDENCE.json](EVIDENCE.json).
+Complete machine-readable identities, digests, and check results are maintained in [EVIDENCE.json](EVIDENCE-866190a.json).
 Raw test execution output and process logs are generated by `extension/scripts/test-installed-gui-acceptance.js` and preserved locally in `extension/.vscode-test/INSTALLED_ACCEPTANCE_RESULT.json` (uncommitted per repository and AGENTS.md rules).

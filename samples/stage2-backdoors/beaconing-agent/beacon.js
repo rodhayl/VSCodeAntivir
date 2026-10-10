@@ -1,6 +1,6 @@
-// [FAKE-DEMO] This is an INERT educational sample — NOT real malware
-// Mimics a JavaScript beaconing agent that collects host fingerprints
-// All network calls point to 127.0.0.1:9999
+// TEXT-ONLY INSPECTION SAMPLE. Do not run, import or install dependencies.
+// Mimics a JavaScript beaconing agent that collects host fingerprints.
+// Execution starts a timer and reads/logs host data; request text is only logged.
 
 const http = require('http');
 const os = require('os');

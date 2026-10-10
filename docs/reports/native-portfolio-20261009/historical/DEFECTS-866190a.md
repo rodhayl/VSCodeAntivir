@@ -1,8 +1,8 @@
-> SUPERSEDED HISTORICAL CLAIMS. Preserved verbatim below from commit 866190a9130a986cb3846c1e38465f967337e409. This is not current acceptance evidence. See ../REPORT.md for the corrected status.
+> SUPERSEDED HISTORICAL CLAIMS from commit 866190a9130a986cb3846c1e38465f967337e409. This is not current acceptance evidence. See [the corrected report](../REPORT.md). Navigation-only amendment, 2026-10-10: relative links below now target the preserved historical files and original screenshots after relocation; the reported claims and results are unchanged.
 
 # Reported Windows defects and implemented fixes
 
-This document preserves the tester-reported Windows findings starting from baseline `88cca02765577e4b5009acdcafca9c052ab8a137` on `codex/safe-remediation-20261004`. The fixes and regression sources were committed in `18195df8667f27526bdbb5c9c0a73555782b2804`. Independent review inspected the source but did not reproduce these Windows failures or rerun the reported results. Reproducibility, severities and causes below are the original engineering report, not a new native execution. The package-input mapping and remaining GUI acceptance gaps are recorded in [REPORT.md](REPORT.md).
+This document preserves the tester-reported Windows findings starting from baseline `88cca02765577e4b5009acdcafca9c052ab8a137` on `codex/safe-remediation-20261004`. The fixes and regression sources were committed in `18195df8667f27526bdbb5c9c0a73555782b2804`. Independent review inspected the source but did not reproduce these Windows failures or rerun the reported results. Reproducibility, severities and causes below are the original engineering report, not a new native execution. The package-input mapping and remaining GUI acceptance gaps are recorded in [REPORT.md](REPORT-866190a.md).
 
 ---
 

@@ -1,3 +1,4 @@
+import { posix } from 'path';
 import { DetectionRule, Matcher, RuleCondition } from '../scanner/models/rule';
 import { Threat, ThreatLocation } from '../scanner/models/threat';
 import { stringToSeverity } from '../scanner/models/severity';
@@ -88,7 +89,7 @@ function runMatcher(matcher: Matcher, content: string, _filePath: string): Match
         'set_interval_net': /setInterval\s*\(/g,
       };
       const patternKey = matcher.pattern.toLowerCase().replace(/[^a-z_]/g, '_');
-      const re = astPatterns[patternKey];
+      const re = Object.hasOwn(astPatterns, patternKey) ? astPatterns[patternKey] : undefined;
       if (re) {
         const match = re.exec(content);
         if (match) {
@@ -134,19 +135,21 @@ function evaluateCondition(condition: RuleCondition, matchResults: Map<string, M
 }
 
 export function executeRule(rule: DetectionRule, content: string, filePath: string): Threat | null {
-  // Check if rule applies to this file
+  // Paths use forward slashes and lexical dot-segment normalization on every OS.
+  // A slash-free glob targets the basename; a glob containing a slash targets the
+  // whole supplied path. Use **/ explicitly for a path restriction at any depth.
+  // Dotfiles are included so rules for .git and .github retain their meaning.
   if (rule.appliesTo.filePatterns && rule.appliesTo.filePatterns.length > 0) {
-    const normalizedPath = filePath.replace(/\\/g, '/');
+    const normalizedPath = posix.normalize(filePath.replace(/\\/g, '/'));
     const matches = rule.appliesTo.filePatterns.some(pattern => {
-      return minimatch(normalizedPath, pattern, { matchBase: true }) ||
-             minimatch(normalizedPath.split('/').pop() || '', pattern.replace(/\*\*\//g, ''));
+      const slashPattern = pattern.replace(/\\/g, '/');
+      const normalizedPattern = slashPattern.replace(/^(?:\.\/)+/, '');
+      return minimatch(normalizedPath, normalizedPattern, {
+        matchBase: !slashPattern.includes('/'),
+        dot: true,
+      });
     });
-    if (!matches) {
-      // Try matching just the extension
-      const ext = '.' + (filePath.split('.').pop() || '');
-      const extMatch = rule.appliesTo.filePatterns.some(p => p.endsWith(ext) || p === `**/*${ext}`);
-      if (!extMatch) return null;
-    }
+    if (!matches) return null;
   }
 
   // Run all matchers

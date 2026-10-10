@@ -1,6 +1,6 @@
-# [FAKE-DEMO] This is an INERT educational sample — NOT real malware
-# Mimics InvisibleFerret Python backdoor structure
-# All network connections point to 127.0.0.1, all actions are print() only
+# TEXT-ONLY INSPECTION SAMPLE. Do not run, import or install dependencies.
+# Mimics InvisibleFerret Python backdoor structure.
+# Execution reads/logs real host and user details; command/network text is only printed.
 
 import socket
 import platform

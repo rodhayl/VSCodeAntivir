@@ -74,11 +74,11 @@ export class BlockingNotificationService {
     const reviewedContent = result.content === undefined ? this.readContent(result.tasksJsonPath) : Buffer.from(result.content, 'utf8');
     const choice = await vscode.window.showWarningMessage('FIG: Task configuration needs review', {
       modal: true,
-      detail: `${result.tasksJsonPath}\n${result.threats.map(t => `${t.taskLabel}: ${t.type}`).join('\n')}\nThese patterns can be legitimate. Disable will remove automatic startup and replace flagged commands/arguments with a harmless echo. No change has been made.`,
-    }, 'View file', 'Disable flagged tasks', 'Quarantine file');
+      detail: `${result.tasksJsonPath}\n${result.threats.map(t => `${t.taskLabel}${t.variant ? ` (${t.variant})` : ''}: ${t.type}`).join('\n')}\nThese patterns can be legitimate. ${result.remediationError || 'For supported tasks, startup-only findings change runOn to default and keep commands/dependencies. Command findings replace every task platform variant with a fixed echo, clear arguments/dependencies and disable automatic startup. This edits configuration only; it does not control task execution or the user’s shell.'} No change has been made.`,
+    }, 'View file', ...(result.remediationError ? [] : ['Disable flagged tasks']), 'Quarantine file');
     if (choice === 'View file') await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(result.tasksJsonPath));
     else if (choice === 'Quarantine file') await this.quarantine(result.tasksJsonPath, [], reviewedContent);
-    else if (choice === 'Disable flagged tasks' && this.taskInterceptor && this.canChange([result.tasksJsonPath])) {
+    else if (choice === 'Disable flagged tasks' && !result.remediationError && this.taskInterceptor && this.canChange([result.tasksJsonPath])) {
       await this.reportApplied(await this.taskInterceptor.applyBlock(result), async () =>
         this.canChange([result.tasksJsonPath]) && this.taskInterceptor!.restoreOriginal(result.tasksJsonPath));
     }

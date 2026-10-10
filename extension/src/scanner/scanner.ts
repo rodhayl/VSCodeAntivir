@@ -10,7 +10,7 @@ import { runHeuristicEngine } from './engines/heuristic-engine';
 import { runNpmAuditEngine, parsePackageManifest } from './engines/npm-audit-engine';
 import { runVscodeTaskEngine } from './engines/vscode-task-engine';
 import { minimatch } from 'minimatch';
-import { parse, ParseError } from 'jsonc-parser';
+import { parseTaskConfiguration } from '../interceptors/task-configuration';
 
 export class Scanner {
   private rules: DetectionRule[] = [];
@@ -89,10 +89,7 @@ export class Scanner {
     if (path.basename(filePath) === 'tasks.json' || path.basename(filePath) === 'package.json') {
       try {
         if (path.basename(filePath) === 'tasks.json') {
-          const errors: ParseError[] = [];
-          const tasks = parse(fileContent, errors, { allowTrailingComma: true });
-          if (errors.length || !tasks || typeof tasks !== 'object' || Array.isArray(tasks) ||
-          (tasks.tasks !== undefined && (!Array.isArray(tasks.tasks) || tasks.tasks.some((task: unknown) => !task || typeof task !== 'object' || Array.isArray(task))))) throw new Error('Invalid task configuration');
+          parseTaskConfiguration(fileContent);
         } else { parsePackageManifest(fileContent); }
       } catch (error) {
         return { filePath, threats: [], scanDurationMs: Date.now() - start, status: 'error', detail: `Configuration parse failed: ${String(error)}` };

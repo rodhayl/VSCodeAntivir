@@ -43,6 +43,8 @@ let llmEngine: LlmAnalysisEngine | null = null;
 const activeAnalyses = new Map<string, AbortController>();
 let llmGeneration = 0;
 let automaticConsent = '';
+let automaticSubscriptions: vscode.Disposable[] = [];
+let automaticSettings = '';
 function scanSetting<T>(key: string, fallback: T): T {
   const config = vscode.workspace.getConfiguration('fig');
   if (trustedSession && vscode.workspace.isTrusted) return config.get<T>(key, fallback);
@@ -206,53 +208,14 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('fig.llmStatus', () => llmCheckStatus()),
   );
 
-  // Register event handlers
-  if (trustedSession && scanSetting<boolean>('scanOnSave', true)) {
-    context.subscriptions.push(
-      vscode.workspace.onDidSaveTextDocument(doc => {
-        scanDocument(doc);
-      })
-    );
-  }
-
-  if (trustedSession && scanSetting<boolean>('scanOnOpen', true)) {
-    context.subscriptions.push(
-      vscode.workspace.onDidOpenTextDocument(doc => {
-        scanDocument(doc);
-      })
-    );
-  }
-
-  // File watcher for real-time monitoring
-  if (trustedSession && scanSetting<boolean>('realTimeWatching', true)) {
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{js,mjs,ts,py,json,ps1,sh,yml,yaml,go,mod}');
-    const scanExts = ['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'];
-
-    const scanUri = (uri: vscode.Uri) => {
-      if (uri.scheme !== 'file') return;
-      const ext = path.extname(uri.fsPath).toLowerCase();
-      if (!scanExts.includes(ext)) return;
-      try {
-        activeAnalyses.get(uri.fsPath)?.abort();
-        const result = scanner.scanFile(uri.fsPath, undefined, vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath);
-        diagnosticsProvider.updateFileResults(result);
-        updateUI();
-      } catch (e: unknown) {
-        outputChannel.appendLine(`File watcher error scanning ${uri.fsPath}: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    };
-
-    watcher.onDidCreate(scanUri);
-    watcher.onDidChange(scanUri);
-    watcher.onDidDelete(uri => { activeAnalyses.get(uri.fsPath)?.abort(); diagnosticsProvider.clearFile(uri.fsPath); updateUI(); });
-    context.subscriptions.push(watcher);
-  }
+  configureAutomaticScanning();
+  context.subscriptions.push({ dispose: disposeAutomaticScanning });
 
   // Listen for config changes
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument(e => { activeAnalyses.get(e.document.uri.fsPath)?.abort(); }),
     vscode.workspace.onDidChangeConfiguration(e => {
-      if (e.affectsConfiguration('fig')) { loadRules(rulesDir); updateUI(); }
+      if (e.affectsConfiguration('fig')) { loadRules(rulesDir); configureAutomaticScanning(); updateUI(); }
       if (e.affectsConfiguration('fig.llm')) {
         initializeLlm();
       }
@@ -262,8 +225,8 @@ export function activate(context: vscode.ExtensionContext) {
   // Register disposables
   context.subscriptions.push(diagnosticsProvider, statusBar, treeView, outputChannel);
 
-  // Initial scan of open documents
-  if (trustedSession) for (const doc of vscode.workspace.textDocuments) {
+  // Initial scan observes the same live setting as later open events.
+  if (automaticEnabled('scanOnOpen')) for (const doc of vscode.workspace.textDocuments) {
     scanDocument(doc);
   }
 
@@ -271,6 +234,52 @@ export function activate(context: vscode.ExtensionContext) {
   const quarantineCount = quarantineManager?.getCount() ?? 0;
   outputChannel.appendLine(`FakeInterviewGuard activated. ${ruleCount} rules loaded, ${quarantineCount} files in quarantine.`);
   vscode.window.showInformationMessage(`FakeInterviewGuard activated — ${ruleCount} detection rules loaded`);
+}
+
+function disposeAutomaticScanning(): void {
+  for (const subscription of automaticSubscriptions) subscription.dispose();
+  automaticSubscriptions = [];
+  automaticSettings = '';
+}
+
+function automaticEnabled(setting: string): boolean {
+  return trustedSession && vscode.workspace.isTrusted && scanSetting<boolean>(setting, true);
+}
+
+function configureAutomaticScanning(): void {
+  const settings = ['scanOnSave', 'scanOnOpen', 'realTimeWatching'].map(automaticEnabled);
+  const key = JSON.stringify(settings);
+  if (key === automaticSettings) return;
+  disposeAutomaticScanning();
+  automaticSettings = key;
+
+  if (settings[0]) automaticSubscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
+    if (automaticEnabled('scanOnSave')) scanDocument(doc);
+  }));
+  if (settings[1]) automaticSubscriptions.push(vscode.workspace.onDidOpenTextDocument(doc => {
+    if (automaticEnabled('scanOnOpen')) scanDocument(doc);
+  }));
+  if (!settings[2]) return;
+
+  const watcher = vscode.workspace.createFileSystemWatcher('**/*.{js,mjs,ts,py,json,ps1,sh,yml,yaml,go,mod}');
+  automaticSubscriptions.push(watcher);
+  const scanUri = (uri: vscode.Uri) => {
+    if (!automaticEnabled('realTimeWatching') || uri.scheme !== 'file') return;
+    const ext = path.extname(uri.fsPath).toLowerCase();
+    if (!['.js', '.mjs', '.ts', '.py', '.ps1', '.sh', '.json', '.html', '.yml', '.yaml', '.go', '.mod'].includes(ext)) return;
+    try {
+      activeAnalyses.get(uri.fsPath)?.abort();
+      const result = scanner.scanFile(uri.fsPath, undefined, vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath);
+      diagnosticsProvider.updateFileResults(result);
+      updateUI();
+    } catch (e: unknown) {
+      outputChannel.appendLine(`File watcher error scanning ${uri.fsPath}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  automaticSubscriptions.push(watcher.onDidCreate(scanUri), watcher.onDidChange(scanUri), watcher.onDidDelete(uri => {
+    if (!automaticEnabled('realTimeWatching')) return;
+    activeAnalyses.get(uri.fsPath)?.abort(); diagnosticsProvider.clearFile(uri.fsPath); updateUI();
+  }));
 }
 
 async function interceptWorkspaceOnOpen(): Promise<void> {
@@ -681,6 +690,7 @@ function updateUI(): void {
 
 export function deactivate() {
   outputChannel?.appendLine('FakeInterviewGuard deactivating...');
+  disposeAutomaticScanning();
   llmClient = null;
   llmEngine = null;
   for (const controller of activeAnalyses.values()) controller.abort();

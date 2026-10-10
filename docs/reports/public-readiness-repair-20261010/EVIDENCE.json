@@ -1,0 +1,606 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-10-10T19:39:04Z",
+  "baselineCommit": "0c89be104552d4895b05bc036074fa1b1d1c8ee3",
+  "candidateRemoteCommit": null,
+  "identityNote": "The changed candidate has not been published by this verification worker. Artifact/source hashes identify these bytes; the baseline SHA is not attributed to the new VSIX.",
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "linux",
+    "arch": "x64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor"
+  },
+  "artifact": {
+    "artifact": "fake-interview-guard-1.0.0.vsix",
+    "sha256": "8b49c92a280bcfc40a5ffd485858be1baa18b9c20f3542375fa9827b82d6adde",
+    "bytes": 1403329,
+    "sourceTreeSha256": "f2fd1ad0cbae8a07bac6749e1ca0137bed99ba8b96a233a86b2d26cad4b97525",
+    "sourceInputCount": 99,
+    "readmeSha256": "8c3ef78a5978934b3096cbe481fd58bb611661669ece427a043c706d0d3b0ab1",
+    "readmeMatchesCanonical": true,
+    "readmeIncludesBuildAndSampleWarning": true,
+    "readmeIncludesTaskRemediationLimits": true,
+    "extensionId": "fakeinterviewguard.fake-interview-guard",
+    "version": "1.0.0",
+    "installedAcceptance": "NOT_RUN"
+  },
+  "sourceInputs": [
+    {
+      "path": "package-lock.json",
+      "sha256": "adb9b1ac961441ef2b81b37949414f2f2d6736d6651e59d144bb552ad808b69b"
+    },
+    {
+      "path": "package.json",
+      "sha256": "ed52744d3aac88164cdde05b64a1199da46c257e468c2e12fa5dadebe8f456d4"
+    },
+    {
+      "path": "prompts/contagious-interview/ci-analysis.prompt.md",
+      "sha256": "a686cc1ccaac76609563626d6c1f013ef6edc48320b2fdb3a09447b48adac520"
+    },
+    {
+      "path": "prompts/default/explain-threat.prompt.md",
+      "sha256": "ef96cfeb8113a4741760ff0ae3fe127f39dcc13f48791f06c79b6116db58ad8f"
+    },
+    {
+      "path": "prompts/default/security-analysis.prompt.md",
+      "sha256": "fce2c128d11732e703a7c32f035ef90f95c5bbfbef45e58a7330625870a6bbee"
+    },
+    {
+      "path": "prompts/default/suggest-rule.prompt.md",
+      "sha256": "3a5c6cdbd85dd99a3e795fe66f09ef922cc68be372b522f44a37c0aabb91cbd1"
+    },
+    {
+      "path": "rules/ai-tooling/api-key-exfiltration.json",
+      "sha256": "f309ddd937271869b9e8ce208a9ddf67d46721acbd5cb5323021d04725b640d2"
+    },
+    {
+      "path": "rules/ai-tooling/source-code-exfiltration.json",
+      "sha256": "7011b5780782c248686e67ec435161b5d10bf876ef57c9b7f6bb19bc4812cca9"
+    },
+    {
+      "path": "rules/bluenoroff/axios-compromise.json",
+      "sha256": "ac36d73ba49cceb1dbb68a7867de75103357eeb8359bcff4a2583161eb880fd5"
+    },
+    {
+      "path": "rules/bluenoroff/cross-platform-dropper.json",
+      "sha256": "2a986f8265a19fdb4b57c591b056f12a0d21f3a344d76796890763002ff4abe2"
+    },
+    {
+      "path": "rules/bluenoroff/macwebt-rat.json",
+      "sha256": "0e42c9e1c1cf78cb0e40fe6d605d19257f81a4991f30b8f136ee6293d14cc9c8"
+    },
+    {
+      "path": "rules/contagious-interview/beaconing-agent.json",
+      "sha256": "144c31d0835aee29b5fb0d71beff7e157fa38a095a18b6998600abe44674fd68"
+    },
+    {
+      "path": "rules/contagious-interview/beavertail-loader.json",
+      "sha256": "2261ed331d68f6529d25ccab2f99b4a5c151e738c08a510f9e305a64aa38460f"
+    },
+    {
+      "path": "rules/contagious-interview/browser-extension.json",
+      "sha256": "10c751a4f3cfa2247a1bf839f174dd9b13ab40c1be78b9bd95e082804156170d"
+    },
+    {
+      "path": "rules/contagious-interview/bundler-exploit.json",
+      "sha256": "054b4fd6a0dbd61e128487c9d2d8df5092c54baa4e4505c9a02c9e583a069ba5"
+    },
+    {
+      "path": "rules/contagious-interview/credential-harvesting.json",
+      "sha256": "ab932df928fd2ac7b8c5780c0765282a238c23fc239eb6659d2954b3ead8bbee"
+    },
+    {
+      "path": "rules/contagious-interview/electron-hijack.json",
+      "sha256": "bd29113d6147bab08880796b0d56afe2391fe7c1d811ca4f8b507406582b2de4"
+    },
+    {
+      "path": "rules/contagious-interview/github-actions.json",
+      "sha256": "5b07565902f625cb08bb8d0065233b29ffca324c783093184ef2f6fae6bdd5f4"
+    },
+    {
+      "path": "rules/contagious-interview/invisible-ferret.json",
+      "sha256": "850db471d472e942342d8750dcf8090e317a04743100c24b3f31c43bfdad8ba0"
+    },
+    {
+      "path": "rules/contagious-interview/npm-supply-chain.json",
+      "sha256": "65fc4da422841f333270ac5031d8fe85c1b6c49baf0d08e74dc3ce27c3341df9"
+    },
+    {
+      "path": "rules/contagious-interview/ottercookie-c2.json",
+      "sha256": "09f9503c26c126989f0a7f27245c37e1b08a5b3266e5009bfa229c5610cbd935"
+    },
+    {
+      "path": "rules/contagious-interview/python-rat.json",
+      "sha256": "526ed324881150cb81ba65213a4e680952cb912d4f0110981d5b89b518f9e9a8"
+    },
+    {
+      "path": "rules/contagious-interview/vscode-task-abuse.json",
+      "sha256": "bd54f84aa4b8d1492d6e739c2dd92aa8f2f5d352abcd87ce09113bef1d37663c"
+    },
+    {
+      "path": "rules/contagious-interview/wasm-loader.json",
+      "sha256": "72cc593252cfd13551f2873cd08a89b3e64a883c35291d9a10579bbba4c5463a"
+    },
+    {
+      "path": "rules/credential-harvesting/browser-profile.json",
+      "sha256": "5393cc3c6988499f6d08506fe6e332ded265121b3860f6fd964560f5c8ccbdce"
+    },
+    {
+      "path": "rules/credential-harvesting/cloud-creds.json",
+      "sha256": "1af09838481834233f041a3ae9bb2b006a161f3ae32380c6009cf1a0c3a155de"
+    },
+    {
+      "path": "rules/credential-harvesting/crypto-wallet.json",
+      "sha256": "643a6e84f95b8d5a7c6ca52deec5cc0a35b6e554d8b7f8aca13f564f1d285ba4"
+    },
+    {
+      "path": "rules/credential-harvesting/ssh-key-reader.json",
+      "sha256": "ea47c18494a6d1a44d87780d94d418e901359139937fc8c7382a324a68cb671d"
+    },
+    {
+      "path": "rules/general/eval-obfuscation.json",
+      "sha256": "c4f37df54cd8fbec7778e678efacbabb6fb0e048076f5e5f12d2d27385380394"
+    },
+    {
+      "path": "rules/general/git-config-exploit.json",
+      "sha256": "12f3e77ae0c5d29dc87b51b5c2a22f5d86db50ddcd75269c608c501a303342d3"
+    },
+    {
+      "path": "rules/general/git-hooks-malicious.json",
+      "sha256": "a548b5739c2a7e259b2b329cc8500771ec3e5ae194cea01b17ba291d1049a2c7"
+    },
+    {
+      "path": "rules/general/suspicious-network.json",
+      "sha256": "e89062c6e19931d611e92912ee00965e47a5eba0ecaec4e3d38fa2e2bc4d6023"
+    },
+    {
+      "path": "rules/github-actions/artifact-poisoning.json",
+      "sha256": "270421e16f1f290cd2311fd255ae4d9b92ae9cd7db5e9858372acc3dd8fa3261"
+    },
+    {
+      "path": "rules/github-actions/pull-request-target.json",
+      "sha256": "d987e2838848579263f4bd0c19fec96f72555ffd404fe37c5deea5d70f7b3630"
+    },
+    {
+      "path": "rules/github-actions/secret-exfil.json",
+      "sha256": "ad5b0d9c5aa720d2b60a70941f74ba224843e726458293442b272af8ed672ebc"
+    },
+    {
+      "path": "rules/github-actions/self-hosted-runner.json",
+      "sha256": "aa29d86c86cfaef589a06aafce1c7bfcc134dfbe4f5d027c25f91d8ed8ca43ab"
+    },
+    {
+      "path": "rules/github-actions/workflow-injection.json",
+      "sha256": "d4f29d9092e9dd96d1b4844723779b120e14ff553a5f469bb548a3f9ef9386ad"
+    },
+    {
+      "path": "rules/ide-extensions/secondary-vsix-installer.json",
+      "sha256": "9101f929ca2f589f576d90ee48e1c9364d2ebf5b0621209f860592e755a865a1"
+    },
+    {
+      "path": "rules/ide-extensions/workspace-exfiltration.json",
+      "sha256": "9da3939eb8cc8e90aa92ef8660854d9e669bcf5c91c29a455a125adfbb32058a"
+    },
+    {
+      "path": "rules/persistence/cron-persistence.json",
+      "sha256": "45549d4ada2ab0f2d5cc26d50ac25160d93a586ed815f22edc59e0799504ba7c"
+    },
+    {
+      "path": "rules/persistence/launchd-persistence.json",
+      "sha256": "36d2afe084381c33d1a48733950206684635e6a6b662f9d79f4875b0565fb6b9"
+    },
+    {
+      "path": "rules/persistence/registry-persistence.json",
+      "sha256": "5c9f7f601234bc0aa60160b590722c56e47f63e9a76feb77d05dc2e15cc26b21"
+    },
+    {
+      "path": "rules/persistence/schtask-persistence.json",
+      "sha256": "0985ab0d95aaad30eaf1d9b69fda00c9dd49bb90adff0cf31e9d0a64289e9665"
+    },
+    {
+      "path": "rules/russian-apt/ctrl-toolkit.json",
+      "sha256": "038bc2cd1bb8bf2a4fb0c805f7333d0367ae09d2111453cc1fab4dd5102f29da"
+    },
+    {
+      "path": "rules/russian-apt/roadk1ll-implant.json",
+      "sha256": "c8b42b2dd1deb29c6fdd140974e2cc495cc78ce28c45104f44af272739c7e85a"
+    },
+    {
+      "path": "rules/silver-fox/atlascross-rat.json",
+      "sha256": "7e403a088e4347c4777b4bec19a6dda2639686103f6818e6c3b4d504fbda24e3"
+    },
+    {
+      "path": "rules/silver-fox/typosquat-domains.json",
+      "sha256": "05d42694256a612a2e3968df6a1d48e14c7040fc0fba3f4a48122f7db253b1f2"
+    },
+    {
+      "path": "rules/stealth/blockchain-dead-drop.json",
+      "sha256": "f7fe8c6776ed185f9f1b882ef95d2b2ff02159f7e8d590b791fa67006baed931"
+    },
+    {
+      "path": "rules/stealth/unicode-obfuscation.json",
+      "sha256": "255a90372d35a1715369263d9f4fe880ecade88e1d0ab33d610636b927a70c96"
+    },
+    {
+      "path": "rules/supply-chain/dependency-confusion.json",
+      "sha256": "64339fcd6e9a4aadc266e585c7ba5f2a92f6a875ec4e2981744b2b93978bc09b"
+    },
+    {
+      "path": "rules/supply-chain/lockfile-inject.json",
+      "sha256": "c07afc9e8b16c15c1fb002c0a1a5a1f46eb2fec83223648e709bc6cad778abe8"
+    },
+    {
+      "path": "rules/supply-chain/manifest-poison.json",
+      "sha256": "39170e8cfe9e225b06d2e7ca778b3a0eda9ce31080d662c1cc280774494ca42c"
+    },
+    {
+      "path": "rules/supply-chain/npm-sourcemap-leak.json",
+      "sha256": "0a262e96b4a3fd8ec5a08014420394daee14266ecffd2e916733f2d47936fe7f"
+    },
+    {
+      "path": "rules/supply-chain/postinstall-fetch.json",
+      "sha256": "9ba13c49c40c4fb8346ab999853721985fbf565f566230fa669a7158bcdf67cb"
+    },
+    {
+      "path": "rules/teampcp/canisterworm.json",
+      "sha256": "fc3afa23691520d193831560e1a64fa9bcc408bb86f08411808f3b0a696b4651"
+    },
+    {
+      "path": "rules/teampcp/cisco-breach-iocs.json",
+      "sha256": "5453425cd3ac308de9319cc1efc61581f1cd6657fa3cc3efd54213ee1b71b910"
+    },
+    {
+      "path": "rules/teampcp/cloud-stealer.json",
+      "sha256": "2dd1fd444325f6866386c272d09d81bd81d8810fbea1370212a7cb1aca3d21c9"
+    },
+    {
+      "path": "rules/teampcp/steganography.json",
+      "sha256": "2e190835ee2e4d037e6fdb900be90cac72fab9c51b224e071dbed3dd82176528"
+    },
+    {
+      "path": "rules/teampcp/trivy-ioc.json",
+      "sha256": "99106f13941605bda22eb291bdc422e0f4aed6b16e2e3be7c46a96bef053aff3"
+    },
+    {
+      "path": "scripts/prepare-package.js",
+      "sha256": "81bd152a87f1c7b3f6bc3b8bec2d9c9e9a267b19dc0300d30518d8be301a2588"
+    },
+    {
+      "path": "src/extension.ts",
+      "sha256": "ccad0dc180194ec086171f803a4a401cd1f14bc7261ee7c9dc1718e500f84a32"
+    },
+    {
+      "path": "src/interceptors/git-config-interceptor.ts",
+      "sha256": "2c13e53fd52289b1c2e75837bb49d8ef3b37c676f6e3d9f1cce82fc661072f32"
+    },
+    {
+      "path": "src/interceptors/index.ts",
+      "sha256": "f2e8c9447fbfcb563da82c66d663554c9c550eaaec803e0dffe2deb462d0c2a2"
+    },
+    {
+      "path": "src/interceptors/npm-script-interceptor.ts",
+      "sha256": "02e393e77d3da0c301013f646cf20dae11fa02afa444986d339aca08efd2c57d"
+    },
+    {
+      "path": "src/interceptors/task-configuration.ts",
+      "sha256": "afda6ff2d127b044c9fc0d4a48cba0574d1daa4ad3354bb4c1138270ccef6706"
+    },
+    {
+      "path": "src/interceptors/task-interceptor.ts",
+      "sha256": "575e9d85ba3e518b24470a417798fa2e9bec03932603fbee6ab8d414feb3505c"
+    },
+    {
+      "path": "src/llm/llm-cache.ts",
+      "sha256": "cd9841e374f05b4a60bd9061bffb58aa3610a141e7e9e734868ccdfa6b25ed37"
+    },
+    {
+      "path": "src/llm/llm-client.ts",
+      "sha256": "9ee34ff1bea9d28506c164ab0c1bc07e8c31712ba2233688e29c28ebf4098d4e"
+    },
+    {
+      "path": "src/llm/models.ts",
+      "sha256": "487c5ce43de889ffd5b5f64faa91409565942dc68d9aaade5436304df724b3bd"
+    },
+    {
+      "path": "src/llm/prompt-builder.ts",
+      "sha256": "bf050567855383c9d6e1ff3f11054daed133e07b3311acc63e9bc6f1f24ec609"
+    },
+    {
+      "path": "src/llm/response-parser.ts",
+      "sha256": "f933db1f88fcbd934b8f75a77c5e55aeda83aa676ef3ff3828e81fed56b39481"
+    },
+    {
+      "path": "src/notifications/blocking-notification.ts",
+      "sha256": "b5c28316976da70277cae1c7e5cbbc2be2159f30c9ac6c2b486e801717da4e2b"
+    },
+    {
+      "path": "src/notifications/index.ts",
+      "sha256": "0a870a7802190a334cc0e096854b72c7a466d447b3236ce79e2d82721ed21e1d"
+    },
+    {
+      "path": "src/providers/code-action-provider.ts",
+      "sha256": "01a7cc1b3ce19c2987b68ef5a1c774bc921e17ccc0995a574ec574a5d4cc1cdd"
+    },
+    {
+      "path": "src/providers/dashboard-panel.ts",
+      "sha256": "382bf96033019525e70ff33cd573e56c4e17dd22eb2e7b707aab5077e2b2547f"
+    },
+    {
+      "path": "src/providers/diagnostics-provider.ts",
+      "sha256": "bae6f5e3c0a2f16c4bf9f9a271dce00ee02dc92f4a017613a431465d95749065"
+    },
+    {
+      "path": "src/providers/provider-utils.ts",
+      "sha256": "a18ec9f8a13269c4c1848292b7bae455441f80d8d04b43eead8e1406759a0fce"
+    },
+    {
+      "path": "src/providers/status-bar-provider.ts",
+      "sha256": "159c3354557ed8a32ef324402ca31628a787bb69dc570825a86edd12663ac6ca"
+    },
+    {
+      "path": "src/providers/threat-tree-provider.ts",
+      "sha256": "29a756b11fc829227fd831ada11652801179746552862a2914216b20585c6881"
+    },
+    {
+      "path": "src/quarantine/index.ts",
+      "sha256": "154fe9ee25284baf0b8dda49a8e9b408b89b4de109d3cf3bc388ba29fd606d76"
+    },
+    {
+      "path": "src/quarantine/quarantine-manager.ts",
+      "sha256": "22f43ef9c9bee6f57f0b0157136d4e1f8908c1020a872c888591f9b9d48120ad"
+    },
+    {
+      "path": "src/quarantine/quarantine-provider.ts",
+      "sha256": "906b95a4670dc5a4c10b4fd130ba42d356f9c0283cf78e93573e8f62e225a121"
+    },
+    {
+      "path": "src/rules/rule-engine.ts",
+      "sha256": "57d5527fec775bb882f89b8e0da350c7b349872ee1e7bad0229afc3c941bf6ed"
+    },
+    {
+      "path": "src/rules/rule-loader.ts",
+      "sha256": "846e4438fb3c4c42f8b23fe3e0ee9864776dad2d55d6111b1fb5a7aefde91fd2"
+    },
+    {
+      "path": "src/safety/file-change.ts",
+      "sha256": "d96fc37bc4826bd9a20270f1bd6b26797ad8ca5289db979bda98d6a634816355"
+    },
+    {
+      "path": "src/scanner/analyzers/entropy-analyzer.ts",
+      "sha256": "5b3c1b6d11b1e816eb2c340576274fbcac9d670a0f2e9aebf686a5fca845252a"
+    },
+    {
+      "path": "src/scanner/analyzers/string-analyzer.ts",
+      "sha256": "9ab5ded5ba4066787f0503290bb2ad1f73ee53183bee6592a94702c327b96cbb"
+    },
+    {
+      "path": "src/scanner/analyzers/typosquat-analyzer.ts",
+      "sha256": "bcf72acddb8f221aae51768a15b2d0ca22d0c9b7792aff44a46a76b885f8adb5"
+    },
+    {
+      "path": "src/scanner/engines/heuristic-engine.ts",
+      "sha256": "fa704b26259b66dd6352c98bf65de8969b68e0b9e065391cd9e8b42d5afa4ecd"
+    },
+    {
+      "path": "src/scanner/engines/llm-analysis-engine.ts",
+      "sha256": "b4d9c48ba9137222bf89e9e303c82f93c3973c065781b48a9489ceabccafb583"
+    },
+    {
+      "path": "src/scanner/engines/npm-audit-engine.ts",
+      "sha256": "1f9c13188a89554b0ddd34ee84f0d686f470acfa8506f8aae140e3e6a5be2409"
+    },
+    {
+      "path": "src/scanner/engines/signature-engine.ts",
+      "sha256": "c8334002c084f7c256e5083bcff2737a8c670b5223be0558f069c135642359c7"
+    },
+    {
+      "path": "src/scanner/engines/vscode-task-engine.ts",
+      "sha256": "0f5938812f5b8c790af9f7cb8c23aa7a71d73ed0c340fa1bed1c1f3c4b00e9dd"
+    },
+    {
+      "path": "src/scanner/models/rule.ts",
+      "sha256": "fab1a3d0985ffe1cc6d7cabfe6f40745decf67ff98aee6cda8cfe7386e786fb1"
+    },
+    {
+      "path": "src/scanner/models/scan-result.ts",
+      "sha256": "c64e2d7df29357f6ba3c1cafa1b87a617aedfcd76fba64e9ee1de4516068afc0"
+    },
+    {
+      "path": "src/scanner/models/severity.ts",
+      "sha256": "cf8487f22234fca32c3c0707fc16f15341a4793e03549e4b1560cf921ed3d242"
+    },
+    {
+      "path": "src/scanner/models/threat.ts",
+      "sha256": "e0a9a01cb32aba404292e8ba9a74b5957fd3ca177107d928e00977ec1ef4c69a"
+    },
+    {
+      "path": "src/scanner/scanner.ts",
+      "sha256": "40689c5e10e8caebbfb49dd7af7f37b88ddaf2525f1d6e365f42c82703cff892"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "fbe13e1ae950749729ae2fb7eb70cf2bf37ba5cd2c9f39d500dd6a178f7d1cb3"
+    }
+  ],
+  "gates": [
+    {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "result": "PASS",
+      "detail": "255 packages from unchanged lockfile; first attempt lacked a writable default cache, retry used a task-local cache. Installation scripts remained disabled."
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run lint",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run test:unit",
+      "result": "PASS",
+      "passing": 585,
+      "failing": 0,
+      "initialRun": {
+        "passing": 582,
+        "failing": 3,
+        "reason": "Three positive test fixtures depended on the incorrect filename/extension widening. Corrected inert fixtures meet applicable scoped-rule/heuristic thresholds; assertions preserved. Runtime detection was not widened."
+      }
+    },
+    {
+      "command": "npm run benchmark",
+      "result": "PASS",
+      "iterations": 20,
+      "cases": 20,
+      "rulesLoaded": 53,
+      "contractFailures": 0
+    },
+    {
+      "command": "npm run package",
+      "result": "PASS",
+      "detail": "Rebuilt after final canonical README update."
+    },
+    {
+      "command": "npm run verify:package",
+      "result": "PASS",
+      "detail": "Exact extracted VSIX imports, 53 rules and inert manifest scan. Import-time VS Code API stub; not native acceptance."
+    },
+    {
+      "command": "npm run test:integration",
+      "result": "BLOCKED_NOT_RUN",
+      "detail": "No installed or cached editor found, no DISPLAY or Wayland display, and no Xvfb/xvfb-run available. No editor download, OS change or sandbox bypass attempted."
+    },
+    {
+      "command": "installed VSIX GUI acceptance",
+      "result": "NOT_RUN",
+      "detail": "No suitable installed VS Code GUI. Historical Windows evidence was not rerun or attributed to this candidate."
+    }
+  ],
+  "redGreen": [
+    {
+      "scope": "R1 task declarations",
+      "red": {
+        "passing": 1,
+        "failing": 23
+      },
+      "edgeRed": {
+        "passing": 24,
+        "failing": 4
+      },
+      "green": {
+        "passing": 28,
+        "failing": 0
+      }
+    },
+    {
+      "scope": "R1 Scanner unsupported-input boundary",
+      "red": {
+        "passing": 0,
+        "failing": 4
+      },
+      "green": "All 4 pass in final units"
+    },
+    {
+      "scope": "R2/R3/R6 literal prompts, effective cache, live lifecycle",
+      "red": {
+        "passing": 3,
+        "failing": 10
+      },
+      "green": "Pass in final full units; all original consent/Restricted Mode/cancel/recovery tests preserved"
+    },
+    {
+      "scope": "R4/R5 rule restrictions and validation",
+      "red": {
+        "passing": 25,
+        "failing": 78
+      },
+      "additionalRed": "AST inherited-property lookup, anchored dot-prefix globs and two ignored condition.and declarations also reproduced before correction",
+      "green": {
+        "passing": 123,
+        "failing": 0
+      }
+    }
+  ],
+  "independentReview": {
+    "result": "GO",
+    "scope": "Read-only independent review of final runtime, rules, tests and README; 271 focused tests pass. Does not substitute for native acceptance."
+  },
+  "corpus": {
+    "identity": {
+      "packageVersion": "1.0.0",
+      "corpusSha256": "73ac21ed84ae68b3990222cb7f9f53a84865320dbb74468decaba1b0a74ad4ce",
+      "rulesSha256": "b050374a7a6909e1c56aa5ee7278e2c91c29ae72f99d30eec787bd3df38ccf54",
+      "sourceSha256": "c664db55b29b66005721c3236e5aa38fb7225d8e9ad40319fe05ac57693e509f",
+      "lockfileSha256": "adb9b1ac961441ef2b81b37949414f2f2d6736d6651e59d144bb552ad808b69b"
+    },
+    "matrix": {
+      "truePositive": 8,
+      "falsePositive": 4,
+      "trueNegative": 8,
+      "falseNegative": 0,
+      "errors": 0
+    },
+    "baselineMatrix": {
+      "truePositive": 8,
+      "falsePositive": 4,
+      "trueNegative": 8,
+      "falseNegative": 0,
+      "errors": 0
+    },
+    "changedRuleHits": [
+      {
+        "case": "comment-pattern-challenge",
+        "removedRuleIds": [
+          "ci-bundler-exploit"
+        ],
+        "addedRuleIds": []
+      },
+      {
+        "case": "string-pattern-challenge",
+        "removedRuleIds": [
+          "ci-bundler-exploit"
+        ],
+        "addedRuleIds": []
+      },
+      {
+        "case": "eval-decode-pattern",
+        "removedRuleIds": [
+          "ci-bundler-exploit"
+        ],
+        "addedRuleIds": []
+      },
+      {
+        "case": "task-install-pattern",
+        "removedRuleIds": [
+          "ide-secondary-vsix-installer"
+        ],
+        "addedRuleIds": []
+      }
+    ],
+    "timing": {
+      "file": {
+        "n": 400,
+        "p50Ms": 0.9807,
+        "p95Ms": 1.5047,
+        "maxMs": 2.645
+      },
+      "corpusPass": {
+        "n": 20,
+        "p50Ms": 19.5551,
+        "p95Ms": 24.0253,
+        "maxMs": 24.588
+      }
+    },
+    "scope": "Author-built synthetic text corpus; positive means an expected suspicious pattern, not confirmed malware. Benign challenges intentionally measure false positives. Timings exclude startup, rule loading, disk traversal, UI and LLMs. Not an independent detection or editor-responsiveness evaluation."
+  },
+  "constraints": {
+    "samplesExecuted": false,
+    "tasksExecuted": false,
+    "liveLlmRequests": false,
+    "remoteWritesByWorker": false,
+    "paidCITriggered": false,
+    "securityBypass": false,
+    "dependencyManifestOrLockfileChanged": false,
+    "baseline205FilesStillMatchGitBlobs": true
+  }
+}

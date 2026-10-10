@@ -4,13 +4,16 @@ const path = require('path');
 const vm = require('vm');
 const extensionRoot = path.resolve(__dirname, '../..');
 const defaults = Object.fromEntries(Object.entries(require('../../package.json').contributes.configuration.properties).map(([key, value]) => [key, value.default]));
-const disposable = () => ({ dispose() {} });
+const disposable = (cleanup = () => {}) => {
+  let disposed = false;
+  return { get disposed() { return disposed; }, dispose() { if (!disposed) { disposed = true; cleanup(); } } };
+};
 function createHost(root, { user = {}, workspace = {}, trusted = true, ignoreAbort = false } = {}) {
   const messages = [], logs = [], commands = new Map(), diagnostics = new Map(), watchers = [], modelCalls = [], clients = [], replies = [];
   const handlers = {};
   let lastToken;
   const uri = file => ({ scheme: 'file', fsPath: file, toString: () => `file://${file}` });
-  const listener = key => fn => { (handlers[key] ||= []).push(fn); return disposable(); };
+  const listener = key => fn => { (handlers[key] ||= new Set()).add(fn); return disposable(() => handlers[key].delete(fn)); };
   class Generic { constructor(...args) { this.args = args; } }
   class Position { constructor(line, character) { this.line = line; this.character = character; } }
   class Range { constructor(...args) { if (args.length === 2) [this.start, this.end] = args; else { this.start = new Position(args[0],args[1]); this.end = new Position(args[2],args[3]); } } }
@@ -40,7 +43,18 @@ function createHost(root, { user = {}, workspace = {}, trusted = true, ignoreAbo
         inspect:key=>({globalValue:user[(section?section+'.':'')+key],workspaceValue:workspace[(section?section+'.':'')+key],defaultValue:defaults[(section?section+'.':'')+key]})}),
       getWorkspaceFolder: resource => vscode.workspace.workspaceFolders.find(folder=>{const relative=path.relative(folder.uri.fsPath,resource.fsPath);return !relative.startsWith('..'+path.sep)&&relative!=='..'&&!path.isAbsolute(relative);}),
       onDidSaveTextDocument:listener('save'),onDidOpenTextDocument:listener('open'),onDidChangeTextDocument:listener('change'),onDidChangeConfiguration:listener('config'),
-      createFileSystemWatcher:()=>{const value={onDidCreate(fn){this.create=fn;},onDidChange(fn){this.change=fn;},onDidDelete(fn){this.delete=fn;},dispose(){}};watchers.push(value);return value;},
+      createFileSystemWatcher:()=>{
+        const events = { create: new Set(), change: new Set(), delete: new Set() };
+        const value = disposable(() => Object.values(events).forEach(event => event.clear()));
+        for (const name of ['create', 'change', 'delete']) {
+          value['onDid' + name[0].toUpperCase() + name.slice(1)] = fn => {
+            if (!value.disposed) events[name].add(fn);
+            return disposable(() => events[name].delete(fn));
+          };
+          value[name] = uri => { if (!value.disposed) for (const fn of [...events[name]]) fn(uri); };
+        }
+        watchers.push(value);return value;
+      },
       openTextDocument:async value=>{
         const filename=typeof value==='string'?value:value.fsPath;
         const document=filename?makeDocument(filename,fs.readFileSync(filename,'utf8')):makeDocument(path.join(root,'untitled.json'),value.content);
@@ -81,7 +95,8 @@ function createHost(root, { user = {}, workspace = {}, trusted = true, ignoreAbo
   }
   const context={extensionPath:extensionRoot,extensionUri:uri(extensionRoot),subscriptions:[]};
   return {vscode,load,context,messages,logs,commands,diagnostics,watchers,modelCalls,clients,replies,user,workspace,makeDocument,uri,
-    fire:(key,value)=>(handlers[key]||[]).map(fn=>fn(value)),cancel:()=>lastToken.cancel(),subscriptions:()=>lastToken?.subscriptions,
+    fire:(key,value)=>[...(handlers[key]||[])].map(fn=>fn(value)),
+    listenerCount:key=>handlers[key]?.size||0, activeWatchers:()=>watchers.filter(watcher=>!watcher.disposed),cancel:()=>lastToken.cancel(),subscriptions:()=>lastToken?.subscriptions,
     activate(){const extension=load('extension');extension.activate(context);return extension;}};
 }
 function modelResponse(findings = []) {
