@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { Recorder, REQUIRED, classifyTrust, requireDialog, exitCode, CdpClient, DASHBOARD_TITLE, validWorkspaceScan, snapshotStore } = require('../../scripts/test-installed-gui-acceptance');
+const { Recorder, REQUIRED, classifyTrust, requireDialog, exitCode, CdpClient, DASHBOARD_TITLE, REVIEW_FIXTURE_TEXT, validWorkspaceScan, snapshotStore } = require('../../scripts/test-installed-gui-acceptance');
 const script = path.resolve(__dirname, '../../scripts/test-installed-gui-acceptance.js');
 const withRecorder = run => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'fig-harness-negative-'));
@@ -18,6 +18,23 @@ suite('Installed GUI harness evidence gates', () => {
   }
   test('one positively scanned inert fixture with no errors/skips is required', () =>
     assert.equal(validWorkspaceScan('FIG: 2 reported finding(s); 1 files scanned, 0 skipped, 0 error(s). A scan is not a safety guarantee.'), true));
+  test('the exact native review fixture yields an applicable finding with all bundled rules', () => withRecorder((_recorder, directory) => {
+    // Scan comment text only. Importing the driver does not launch its GUI entry point.
+    const { Scanner } = require('../../out/scanner/scanner');
+    const scanner = new Scanner();
+    const loaded = scanner.loadRules(path.resolve(__dirname, '../../rules'));
+    assert.equal(loaded.count, 53); assert.deepEqual(loaded.errors, []);
+    assert.match(REVIEW_FIXTURE_TEXT, /^\/\/[^\n]*\n$/, 'fixture must stay a single inert comment');
+    const source = fs.readFileSync(script, 'utf8');
+    assert(source.includes('fs.writeFileSync(sample, REVIEW_FIXTURE_TEXT)'), 'native driver must write the tested bytes');
+    const file = path.join(directory, 'review.js');fs.writeFileSync(file, REVIEW_FIXTURE_TEXT);
+    const result = scanner.scanFile(file);
+    assert.equal(result.status, 'scanned');
+    assert(result.threats.some(threat => threat.ruleId === 'suspicious-network'), 'fixture must match a rule scoped to review.js');
+    const workspace = scanner.scanWorkspace(directory);
+    assert.equal(workspace.scannedFiles, 1);assert.equal(workspace.skippedFiles, 0);assert.equal(workspace.failedFiles, 0);assert.deepEqual(workspace.errors, []);
+    assert(workspace.totalThreats > 0);assert.equal(fs.readFileSync(file, 'utf8'), REVIEW_FIXTURE_TEXT);
+  }));
   test('cancellation snapshot detects a copied payload/manifest even with original retained', () => withRecorder((_recorder, directory) => {
     const store = path.join(directory, 'store'); fs.mkdirSync(store);
     const before = snapshotStore(store);

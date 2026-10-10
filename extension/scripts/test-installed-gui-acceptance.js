@@ -9,6 +9,7 @@ const { spawn, execFileSync } = require('node:child_process');
 const { verify } = require('./verify-package');
 
 const DASHBOARD_TITLE = 'FIG Security Dashboard';
+const REVIEW_FIXTURE_TEXT = '// Inert fixture only: Invoke-Expression\n';
 const REQUIRED = [
   'installed_identity_lifecycle', 'restricted_state', 'restricted_scan', 'restricted_dashboard',
   'restricted_refusal_and_storage', 'trusted_state_after_reload', 'quarantine_cancel', 'review_cancel',
@@ -293,7 +294,7 @@ async function runInstalledGuiAcceptance(options = {}) {
     const restricted = await launch('restricted-workspace', 9231);
     recorder.check('restricted_state', classifyTrust(restricted.state) === 'restricted', restricted.state);
     await cdp.screenshot(recorder, '01-restricted-state', restricted.state);
-    const sample = path.join(restricted.workspace, 'review.js'); fs.writeFileSync(sample, '// Inert fixture only: eval(\n');
+    const sample = path.join(restricted.workspace, 'review.js'); fs.writeFileSync(sample, REVIEW_FIXTURE_TEXT);
     const original = hash(fs.readFileSync(sample));
     await cdp.command(title('fig.scanWorkspace'));
     const scanToast = await cdp.toast('reported finding(s)');
@@ -456,4 +457,4 @@ if (require.main === module) {
   runInstalledGuiAcceptance().then(results => { console.log(JSON.stringify(results, null, 2)); process.exitCode = exitCode(results); })
     .catch(error => { console.error(error); process.exitCode = 1; });
 }
-module.exports = { runInstalledGuiAcceptance, Recorder, REQUIRED, classifyTrust, requireDialog, exitCode, CdpClient, DASHBOARD_TITLE, validWorkspaceScan, snapshotStore };
+module.exports = { runInstalledGuiAcceptance, Recorder, REQUIRED, classifyTrust, requireDialog, exitCode, CdpClient, DASHBOARD_TITLE, REVIEW_FIXTURE_TEXT, validWorkspaceScan, snapshotStore };
