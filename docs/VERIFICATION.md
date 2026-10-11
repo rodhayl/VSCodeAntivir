@@ -48,3 +48,5 @@ Windows/macOS filesystem behavior, accessibility, real power interruption, insta
 ## Claims
 
 Use “workspace inspection with reviewed remediation.” Do not claim antivirus protection, pre-execution blocking, safe repositories, new-threat detection, AST parsing or fixed latency. Legacy `ast` is regex-based; `file-structure` is unsupported. Campaign labels and historic changelog descriptions are not verified current capability contracts.
+
+Keep the [project origin and chronology](https://github.com/rodhayl/VSCodeAntivir/blob/main/README.md#origin-and-chronology) separate from validation. The maintainer's incident account explains the motivation; it does not identify a tested sample or establish a discovery date. Published results for another researcher's sample, including a dated VirusTotal scan, do not establish this extension's effectiveness or the behavior of an installed endpoint product. A Git commit date, retrospective changelog label and verified release date are different kinds of evidence.

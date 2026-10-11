@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation provenance
+- Record the maintainer-reported origin separately from the dated repository history and published threat research.
+- Qualify the inherited version/date headings below as retrospective descriptions, not verified releases.
+
 ### Portfolio and review hardening
 - Add manual bundled-rule scanning in Restricted Mode, with model, remediation, quarantine and automatic-scanning gates.
 - Stage restored bytes before exclusive destination publication; preserve recovery payloads on write failure, conflicts and detected concurrent changes.
@@ -15,9 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a hashed synthetic corpus/benchmark, deterministic package provenance, zero-warning lint and precise recovery/verification guides.
 - Remove unused direct parser dependencies and the obsolete legacy ESLint configuration; retain source compatibility where justified.
 
-Historical entries below record earlier project descriptions, not verified release/publication or current capability claims. In particular, “blocks before execution” and family/count claims from older entries are superseded by the current README's scope.
-
-
 ### Safety and correctness
 - Make startup configuration inspection read-only and require explicit review before remediation; preserve verified backups and refuse changed, dirty or symlink targets.
 - Make quarantine conflict-safe, private and recoverable across metadata failures and independent windows; refuse corrupt/escaping entries, snapshot destructive selections and confirm actions in the extension host.
@@ -25,7 +26,13 @@ Historical entries below record earlier project descriptions, not verified relea
 - Scope LLM configuration to User settings, add endpoint/input consent, abort cancelled requests and reject stale results. Keep real-provider experiments outside the default test runner.
 - Execute the actual unit suite from its CLI entrypoint, with benign regression coverage for these boundaries.
 
-## [1.0.0] - 2026-05-01
+## Historical version descriptions
+
+The two entries below were first committed in [1df5728 on 2026-07-15](https://github.com/rodhayl/VSCodeAntivir/blob/1df57281bfbda7d259938404cf9a42aca4bec3e4/CHANGELOG.md). Their original headings printed `2026-05-01` and `2025-12-01`; those dates are not verified release or publication dates. The repository's [root commit](https://github.com/rodhayl/VSCodeAntivir/commit/dffdba4098c8abd115c46f91a2eeed35256bbd10) is dated 2026-03-31, so the December 2025 label does not establish an earlier public repository or project start date.
+
+The descriptions are retained as history, not current capability claims. In particular, “blocks before execution” and family/count claims are superseded by the [current README](https://github.com/rodhayl/VSCodeAntivir/blob/main/README.md). The version labels also do not establish Marketplace publication or release acceptance.
+
+## [1.0.0] - historical description (original date unverified: 2026-05-01)
 
 ### Added
 - 50 detection rules across 12 threat actor campaign categories
@@ -56,7 +63,7 @@ Historical entries below record earlier project descriptions, not verified relea
 - Missing extension icon
 - Missing ESLint config (lint script was referencing non-existent file)
 
-## [0.1.0] - 2025-12-01
+## [0.1.0] - historical description (original date unverified: 2025-12-01)
 
 ### Added
 - Initial extension scaffolding

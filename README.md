@@ -8,6 +8,18 @@ FakeInterviewGuard reads source and configuration files, highlights suspicious p
 
 **Evidence: bounded CV/portfolio demonstration on 2026-10-09.** The [installed Windows GUI report](https://github.com/rodhayl/VSCodeAntivir/blob/main/docs/reports/native-portfolio-20261009/REPORT.md) records 17 passing automated checks and 13 distinct captures for its exact candidate/VSIX, with explicit limits. That historical run does not validate later source changes or rebuilt packages. The package version is 1.0.0; this is not a Marketplace release or full release acceptance. Check the actual commit and its CI results before using a build. No scan certifies a repository as safe. This extension is not an antivirus, sandbox, live threat-intelligence feed or general barrier before commands execute.
 
+## Origin and chronology
+
+FakeInterviewGuard grew out of a personal incident. The maintainer reports that a fake technical interview led to a Windows infection and a full PC reset, which motivated this project. This is the maintainer's account; the incident date, malware sample and attacker attribution are not independently established here.
+
+Published research and repository history provide separate, dated context:
+
+- **2026-01-18:** The [MDPI case study, “Social Engineering Attacks Using Technical Job Interviews”](https://www.mdpi.com/2078-2489/17/1/98), reports that one specific file was not flagged by 62 VirusTotal antivirus engines, including Microsoft, on **2025-09-13**. That is a sample-specific, historical scan result, not a test of an installed Microsoft Defender endpoint or evidence of universal antivirus failure.
+- **2026-03-11:** [Microsoft's Contagious Interview report](https://www.microsoft.com/en-us/security/blog/2026/03/11/contagious-interview-malware-delivered-through-fake-developer-job-interviews/) describes malicious interview repositories, package execution and VS Code workspace-task abuse. It also lists applicable Defender detections.
+- **2026-03-31:** GitHub records the repository's creation on this date. Its [root commit, `dffdba4`](https://github.com/rodhayl/VSCodeAntivir/commit/dffdba4098c8abd115c46f91a2eeed35256bbd10), is dated **21:39:57 UTC**; the [initial README](https://github.com/rodhayl/VSCodeAntivir/blob/dffdba4098c8abd115c46f91a2eeed35256bbd10/README.md#references) already cites the Microsoft article. The inherited version/date labels are qualified in the [changelog](https://github.com/rodhayl/VSCodeAntivir/blob/main/CHANGELOG.md#historical-version-descriptions).
+
+This background explains the problem the project addresses. It does not establish that FakeInterviewGuard discovered the attack first, identify the maintainer's sample as the one studied above, or demonstrate this extension's detection effectiveness.
+
 ## Build the extension, then inspect without executing suspect code
 
 The commands below execute this extension's own build and test code. They do not execute the unfamiliar repository being inspected. Never run programs, tasks, workflows, hooks or package scripts from `samples/` or a suspicious repository.
