@@ -307,7 +307,7 @@
   "dependencies": {
     "jsonc-parser": "^3.3.1",
     "minimatch": "^10.2.5",
-    "openai": "^6.46.0",
+    "openai": "^7.32.0",
     "semver": "7.7.4"
   },
   "capabilities": {
